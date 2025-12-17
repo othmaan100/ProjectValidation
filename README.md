@@ -1,4 +1,4 @@
-# Project Topics Validation System
+# Project Topics Validation SystemXX
 
 A comprehensive web-based system for managing and validating student project topics across multiple departments in an academic institution.
 
