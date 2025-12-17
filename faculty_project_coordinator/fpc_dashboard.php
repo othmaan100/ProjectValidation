@@ -4,7 +4,7 @@ include __DIR__ . '/../includes/db.php';
 
 // Check if the user is logged in as FPC
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'fpc') {
-    header("Location: ../index.php");
+    header("Location: __DIR__ . '/../index.php");
     exit();
 }
 
