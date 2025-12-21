@@ -10,7 +10,7 @@ include_once __DIR__ .'/../includes/db.php';
 
 // Redirect if user is not DPC
 // if ($_SESSION['role'] !== 'dpc') {
-//     header("Location: index.php");
+//     header("Location: /projectval/");
 //     exit();
 // }
 

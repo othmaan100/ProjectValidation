@@ -1,268 +1,392 @@
 <?php
-include __DIR__ . '/../includes/auth.php';
+include_once __DIR__ . '/../includes/auth.php';
 include __DIR__ . '/../includes/db.php';
 
-// if ($_SESSION['role'] !== 'fpc') {
-//     header("Location: index.php");
-//     exit();
-// }
-
-var_dump($_SESSION['role']);
-
-// Fetch all project topics
-$stmt = $conn->prepare("SELECT * FROM project_topics join students on project_topics.student_id=students.id");
-$stmt->execute();
-$topics = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-// Handle topic deletion
-if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['delete_topic'])) {
-    $topic_id = $_POST['topic_id'];
-
-    // Delete the topic from the database
-    $stmt = $conn->prepare("DELETE FROM project_topics WHERE id = ?");
-    $stmt->execute([$topic_id]);
-
-    echo "Topic deleted successfully!";
-    header("Refresh:1");
+// Check if the user is logged in as FPC
+if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'fpc') {
+    header("Location: /projectval/");
+    exit();
 }
 
-// Handle form submission for adding topics, batch upload, and PDF upload
-if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['mode'])) {
-    $mode = $_POST['mode'];
+// Initialize response array for AJAX requests
+$response = ['success' => false, 'message' => ''];
 
-    switch ($mode) {
-        case 'add_topic':
-            handleAddTopic();
-            break;
-        case 'batch_upload':
-            handleBatchUpload();
-            break;
-        case 'upload_pdf':
-            handleUploadPdf();
-            break;
-        default:
-            echo "Invalid mode selected.";
-            break;
-    }
-}
+// Get current session for defaults
+$currentSessionYear = date('Y') . '/' . (date('Y') + 1);
 
-// Mode 1: Add Past Project Topic
-function handleAddTopic() {
-    global $conn;
+// Handle AJAX requests
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
+    header('Content-Type: application/json');
+    
+    try {
+        $action = $_POST['action'] ?? '';
 
-    $topic = $_POST['topic'] ?? '';
-    $student_reg_no = $_POST['student_reg_no'] ?? '';
-    $student_name = $_POST['student_name'] ?? '';
-    $session = $_POST['session'] ?? '';
-    $supervisor_name = $_POST['supervisor_name'] ?? '';
+        // CREATE/ADD TOPIC
+        if ($action === 'add_topic') {
+            $topic = trim($_POST['topic']);
+            $student_reg_no = trim($_POST['student_reg_no']);
+            $student_name = trim($_POST['student_name'] ?? '');
+            $session = trim($_POST['session']);
+            $supervisor_name = trim($_POST['supervisor_name'] ?? '');
+            $status = $_POST['status'] ?? 'pending';
 
-    if (empty($topic) || empty($student_reg_no) || empty($session)) {
-        echo "Topic, Student Registration Number, and Session are required fields.";
-        return;
-    }
-
-    $stmt = $conn->prepare("INSERT INTO project_topics (topic, student_reg_no, student_name, session, supervisor_name) VALUES (:topic, :student_reg_no, :student_name, :session, :supervisor_name)");
-    $stmt->execute([
-        ':topic' => $topic,
-        ':student_reg_no' => $student_reg_no,
-        ':student_name' => $student_name,
-        ':session' => $session,
-        ':supervisor_name' => $supervisor_name
-    ]);
-
-    if ($stmt->rowCount() > 0) {
-        echo "Project topic added successfully.";
-    } else {
-        echo "Error adding project topic.";
-    }
-}
-
-// Mode 2: Batch Upload Past Project Topics
-function handleBatchUpload() {
-    global $conn;
-
-    if ($_FILES['csv_file']['error'] !== UPLOAD_ERR_OK) {
-        echo "Error uploading file.";
-        return;
-    }
-
-    $file = $_FILES['csv_file']['tmp_name'];
-    $handle = fopen($file, 'r');
-
-    // Skip header row
-    fgetcsv($handle);
-
-    $successCount = 0;
-    $errorCount = 0;
-
-    while (($data = fgetcsv($handle)) !== FALSE) {
-        $topic = $data[0];
-        $student_reg_no = $data[1];
-        $student_name = $data[2];
-        $session = $data[3];
-        $supervisor_name = $data[4];
-
-        // Hash the registration number as the initial password
-        $initial_password = password_hash($student_reg_no, PASSWORD_DEFAULT);
-
-        // Insert the new student into the students table
-        $stmt = $conn->prepare("INSERT INTO students (reg_no, name, password, first_login) VALUES (:reg_no, :name, :password, :first_login)");
-        $stmt->execute([
-            ':reg_no' => $student_reg_no,
-            ':name' => $student_name,
-            ':password' => $initial_password,
-            ':first_login' => TRUE
-        ]);
-
-        // Insert into project_topics table
-        $stmt = $conn->prepare("INSERT INTO project_topics (topic, student_reg_no, student_name, session, supervisor_name) VALUES (:topic, :student_reg_no, :student_name, :session, :supervisor_name)");
-        $stmt->execute([
-            ':topic' => $topic,
-            ':student_reg_no' => $student_reg_no,
-            ':student_name' => $student_name,
-            ':session' => $session,
-            ':supervisor_name' => $supervisor_name
-        ]);
-
-        if ($stmt->rowCount() > 0) {
-            $successCount++;
-        } else {
-            $errorCount++;
-        }
-    }
-
-    fclose($handle);
-    echo "Batch upload completed. Success: $successCount, Errors: $errorCount<br>";
-}
-
-// Mode 3: Upload and Map PDF Past Projects to Topics (PDF is optional)
-function handleUploadPdf() {
-    global $conn;
-
-    $project_id = $_POST['project_id'] ?? '';
-
-    if (empty($project_id)) {
-        echo "Project ID is required.<br>";
-        return;
-    }
-
-    // Check if the project topic exists
-    $stmt = $conn->prepare("SELECT id FROM project_topics WHERE id = :project_id");
-    $stmt->execute([':project_id' => $project_id]);
-
-    if ($stmt->rowCount() === 0) {
-        echo "Project topic does not exist.<br>";
-        return;
-    }
-
-    // Handle PDF upload if a file is provided
-    $pdf_file = $_FILES['pdf_file'] ?? null;
-    if ($pdf_file && $pdf_file['error'] === UPLOAD_ERR_OK) {
-        // Upload PDF file
-        $upload_dir = 'assets/uploads/past_projects/';
-        if (!is_dir($upload_dir)) {
-            mkdir($upload_dir, 0777, true); // Create the directory if it doesn't exist
-        }
-
-        $file_name = basename($pdf_file['name']);
-        $file_path = $upload_dir . $file_name;
-
-        if (move_uploaded_file($pdf_file['tmp_name'], $file_path)) {
-            // Update database with PDF file path
-            $stmt = $conn->prepare("UPDATE project_topics SET pdf_path = :pdf_path WHERE id = :project_id");
-            $stmt->execute([
-                ':pdf_path' => $file_path,
-                ':project_id' => $project_id
-            ]);
-
-            if ($stmt->rowCount() > 0) {
-                echo "PDF uploaded and mapped successfully.<br>";
-            } else {
-                echo "Error updating database.<br>";
+            if (empty($topic) || empty($student_reg_no) || empty($session)) {
+                throw new Exception("Topic, Student Reg No, and Session are required.");
             }
-        } else {
-            echo "Error uploading PDF file.<br>";
-        }
-    } else {
-        echo "No PDF file uploaded. Project ID updated successfully.<br>";
-    }
-}
-?>
 
+            // Find student ID by Reg No
+            $stmt = $conn->prepare("SELECT id FROM students WHERE reg_no = ?");
+            $stmt->execute([$student_reg_no]);
+            $student = $stmt->fetch();
+
+            if (!$student) {
+                // If student doesn't exist, create them
+                $defaultDept = 1;
+                $stmt = $conn->prepare("INSERT INTO students (reg_no, name, password, department) VALUES (?, ?, ?, ?)");
+                $stmt->execute([$student_reg_no, $student_name, password_hash($student_reg_no, PASSWORD_DEFAULT), $defaultDept]);
+                $student_id = $conn->lastInsertId();
+            } else {
+                $student_id = $student['id'];
+                if (!empty($student_name)) {
+                    $stmt = $conn->prepare("UPDATE students SET name = ? WHERE id = ?");
+                    $stmt->execute([$student_name, $student_id]);
+                }
+            }
+
+            $stmt = $conn->prepare("INSERT INTO project_topics (topic, student_id, student_name, session, supervisor_name, status) VALUES (?, ?, ?, ?, ?, ?)");
+            $stmt->execute([$topic, $student_id, $student_name, $session, $supervisor_name, $status]);
+
+            $response['success'] = true;
+            $response['message'] = "Project topic added successfully.";
+        }
+
+        // UPDATE TOPIC
+        elseif ($action === 'update_topic') {
+            $id = intval($_POST['id']);
+            $topic = trim($_POST['topic']);
+            $student_name = trim($_POST['student_name'] ?? '');
+            $session = trim($_POST['session']);
+            $supervisor_name = trim($_POST['supervisor_name'] ?? '');
+            $status = $_POST['status'] ?? 'pending';
+
+            if (empty($topic) || empty($session)) {
+                throw new Exception("Topic and Session are required.");
+            }
+
+            $stmt = $conn->prepare("UPDATE project_topics SET topic = ?, student_name = ?, session = ?, supervisor_name = ?, status = ? WHERE id = ?");
+            $stmt->execute([$topic, $student_name, $session, $supervisor_name, $status, $id]);
+
+            $response['success'] = true;
+            $response['message'] = "Topic updated successfully!";
+        }
+
+        // DELETE TOPIC
+        elseif ($action === 'delete_topic') {
+            $id = intval($_POST['id']);
+            $stmt = $conn->prepare("DELETE FROM project_topics WHERE id = ?");
+            $stmt->execute([$id]);
+            $response['success'] = true;
+            $response['message'] = "Topic deleted successfully!";
+        }
+
+        // BATCH UPLOAD
+        elseif ($action === 'batch_upload') {
+            if (!isset($_FILES['csv_file']) || $_FILES['csv_file']['error'] !== UPLOAD_ERR_OK) {
+                throw new Exception("Error uploading file.");
+            }
+
+            $file = $_FILES['csv_file']['tmp_name'];
+            $handle = fopen($file, 'r');
+            fgetcsv($handle); // skip header
+
+            $successCount = 0;
+            $errorCount = 0;
+
+            $conn->beginTransaction();
+            while (($data = fgetcsv($handle)) !== FALSE) {
+                if (count($data) < 2) continue;
+                $topicStr = trim($data[0]);
+                $regNo = trim($data[1]);
+                $name = trim($data[2] ?? '');
+                $sessionStr = trim($data[3] ?? $currentSessionYear);
+                $supervisor = trim($data[4] ?? '');
+
+                $stmt = $conn->prepare("SELECT id FROM students WHERE reg_no = ?");
+                $stmt->execute([$regNo]);
+                $student = $stmt->fetch();
+
+                if (!$student) {
+                    $stmt = $conn->prepare("INSERT INTO students (reg_no, name, password, department) VALUES (?, ?, ?, 1)");
+                    $stmt->execute([$regNo, $name, password_hash($regNo, PASSWORD_DEFAULT)]);
+                    $student_id = $conn->lastInsertId();
+                } else {
+                    $student_id = $student['id'];
+                }
+
+                $stmt = $conn->prepare("INSERT INTO project_topics (topic, student_id, student_name, session, supervisor_name, status) VALUES (?, ?, ?, ?, ?, 'approved')");
+                $stmt->execute([$topicStr, $student_id, $name, $sessionStr, $supervisor]);
+                if ($stmt->rowCount() > 0) $successCount++; else $errorCount++;
+            }
+            $conn->commit();
+            fclose($handle);
+
+            $response['success'] = true;
+            $response['message'] = "Batch upload completed. $successCount added, $errorCount errors.";
+        }
+
+        // UPLOAD PDF
+        elseif ($action === 'upload_pdf') {
+            $topic_id = intval($_POST['topic_id']);
+            if (!isset($_FILES['pdf_file']) || $_FILES['pdf_file']['error'] !== UPLOAD_ERR_OK) {
+                throw new Exception("Error uploading PDF.");
+            }
+
+            $upload_dir = __DIR__ . '/../assets/uploads/past_projects/';
+            if (!is_dir($upload_dir)) mkdir($upload_dir, 0777, true);
+
+            $file_name = time() . '_' . preg_replace("/[^a-zA-Z0-9.]/", "_", basename($_FILES['pdf_file']['name']));
+            $target_path = $upload_dir . $file_name;
+            $db_path = 'assets/uploads/past_projects/' . $file_name;
+
+            if (move_uploaded_file($_FILES['pdf_file']['tmp_name'], $target_path)) {
+                $stmt = $conn->prepare("UPDATE project_topics SET pdf_path = ? WHERE id = ?");
+                $stmt->execute([$db_path, $topic_id]);
+                $response['success'] = true;
+                $response['message'] = "PDF uploaded successfully!";
+            } else {
+                throw new Exception("Failed to save file.");
+            }
+        }
+    } catch (Exception $e) {
+        if ($conn->inTransaction()) $conn->rollBack();
+        $response['success'] = false;
+        $response['message'] = $e->getMessage();
+    }
+    echo json_encode($response);
+    exit();
+}
+
+// Fetch Logic
+$search = $_GET['search'] ?? '';
+$page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
+$perPage = 10;
+$offset = ($page - 1) * $perPage;
+
+$whereClause = "1=1";
+$params = [];
+if (!empty($search)) {
+    $whereClause .= " AND (pt.topic LIKE ? OR pt.student_name LIKE ? OR s.reg_no LIKE ? OR pt.session LIKE ?)";
+    $ps = "%$search%";
+    $params = [$ps, $ps, $ps, $ps];
+}
+
+$countStmt = $conn->prepare("SELECT COUNT(*) FROM project_topics pt LEFT JOIN students s ON pt.student_id = s.id WHERE $whereClause");
+$countStmt->execute($params);
+$totalRecords = $countStmt->fetchColumn();
+$totalPages = ceil($totalRecords / $perPage);
+
+$stmt = $conn->prepare("SELECT pt.*, s.reg_no FROM project_topics pt LEFT JOIN students s ON pt.student_id = s.id WHERE $whereClause ORDER BY pt.id DESC LIMIT $perPage OFFSET $offset");
+$stmt->execute($params);
+$topics = $stmt->fetchAll(PDO::FETCH_ASSOC);
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manage Topics</title>
-    <link rel="stylesheet" href="..\assets\css\styles.css">
+    <title>Manage Topics - Project Validation System</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { --primary: #667eea; --secondary: #764ba2; --success: #4facfe; --danger: #fa709a; --glass: rgba(255, 255, 255, 0.95); }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding-bottom: 50px; }
+        .container { max-width: 1300px; margin: 0 auto; padding: 20px; }
+        .header-card { background: var(--glass); padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; }
+        .header-card h1 { color: var(--primary); font-size: 28px; }
+        .header-actions { display: flex; gap: 12px; }
+        .btn { padding: 12px 24px; border: none; border-radius: 12px; font-weight: 600; cursor: pointer; transition: 0.3s; display: inline-flex; align-items: center; gap: 8px; text-decoration: none; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-warning { background: #feca57; color: white; }
+        .btn-info { background: #0984e3; color: white; }
+        .main-card { background: var(--glass); padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        .search-container { display: flex; gap: 10px; margin-bottom: 25px; }
+        .search-input { flex: 1; padding: 14px; border: 2px solid #eee; border-radius: 12px; outline: none; transition: 0.3s; }
+        .search-input:focus { border-color: var(--primary); }
+        table { width: 100%; border-collapse: collapse; background: white; border-radius: 15px; overflow: hidden; }
+        th { background: #f8faff; padding: 18px; text-align: left; color: #747d8c; font-size: 13px; text-transform: uppercase; }
+        td { padding: 16px; border-bottom: 1px solid #eee; font-size: 14px; }
+        .topic-title { font-weight: 600; color: var(--primary); }
+        .status-pill { padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+        .status-pending { background: #fff3e0; color: #ef6c00; }
+        .status-approved { background: #e8f5e9; color: #2e7d32; }
+        .icon-btn { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; border: none; cursor: pointer; transition: 0.3s; }
+        .btn-edit-i { background: #ebf3ff; color: #1e90ff; }
+        .btn-delete-i { background: #fff0f3; color: #ff4757; }
+        .modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(5px); align-items: center; justify-content: center; }
+        .modal.active { display: flex; }
+        .modal-content { background: white; width: 95%; max-width: 600px; border-radius: 20px; overflow: hidden; }
+        .modal-header { padding: 20px; background: var(--primary); color: white; display: flex; justify-content: space-between; }
+        .modal-body { padding: 30px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: 600; font-size: 14px; }
+        .form-control { width: 100%; padding: 10px; border: 2px solid #eee; border-radius: 8px; }
+        #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; }
+        .toast { background: white; padding: 15px 25px; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.2); margin-bottom: 10px; border-left: 5px solid var(--primary); animation: slide 0.3s; }
+        @keyframes slide { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        .pagination { display: flex; justify-content: center; gap: 5px; margin-top: 20px; }
+        .page-link { padding: 8px 15px; background: white; border-radius: 8px; text-decoration: none; color: var(--primary); }
+        .page-link.active { background: var(--primary); color: white; }
+    </style>
 </head>
 <body>
-    <?php require_once('../includes/header.php'); ?>
+    <?php include_once __DIR__ .'/../includes/header.php'; ?>
+    </div> <!-- Close header's container -->
     <div class="container">
-        <h1>Manage Project Topics</h1>
-
-        <!-- Add Topic Form -->
-        <h2>Add New Topic</h2>
-        <form method="POST">
-            <input type="hidden" name="mode" value="add_topic">
-            <label for="topic">Topic:</label>
-            <input type="text" name="topic" required>
-            <label for="student_reg_no">Student Registration Number:</label>
-            <input type="text" name="student_reg_no" required>
-            <label for="student_name">Student Name:</label>
-            <input type="text" name="student_name">
-            <label for="session">Session:</label>
-            <input type="text" name="session" required>
-            <label for="supervisor_name">Supervisor Name:</label>
-            <input type="text" name="supervisor_name">
-            <button type="submit">Add Topic</button>
-        </form>
-
-        <!-- Batch Upload Form -->
-        <h2>Batch Upload Topics</h2>
-        <form method="POST" enctype="multipart/form-data">
-            <input type="hidden" name="mode" value="batch_upload">
-            <label for="csv_file">Upload CSV File:</label>
-            <input type="file" name="csv_file" accept=".csv" required>
-            <button type="submit">Upload CSV</button>
-        </form>
-
-        <!-- Upload PDF Form -->
-        <h2>Upload PDF for Topic</h2>
-        <form method="POST" enctype="multipart/form-data">
-            <input type="hidden" name="mode" value="upload_pdf">
-            <label for="project_id">Project ID:</label>
-            <input type="number" name="project_id" required>
-            <label for="pdf_file">Upload PDF:</label>
-            <input type="file" name="pdf_file" accept=".pdf">
-            <button type="submit">Upload PDF</button>
-        </form>
-
-        <!-- Display Existing Topics -->
-        <h2>Existing Topics</h2>
-        <table>
-            <tr>
-                <th>Topic</th>
-                <th>Student Registration Number</th>
-                <th>Status</th>
-                <th>Actions</th>
-            </tr>
-            <?php foreach ($topics as $topic): ?>
-                <tr>
-                    <td><?php echo htmlspecialchars($topic['topic']); ?></td>
-                    <td><?php echo htmlspecialchars($topic['reg_no']); ?></td>
-                    <td><?php echo ucfirst(htmlspecialchars($topic['status'])); ?></td>
-                    <td>
-                        <form method="POST" style="display: inline;">
-                            <input type="hidden" name="topic_id" value="<?php echo $topic['id']; ?>">
-                            <button type="submit" name="delete_topic" onclick="return confirm('Are you sure you want to delete this topic?')">Delete</button>
-                        </form>
-                    </td>
-                </tr>
-            <?php endforeach; ?>
-        </table>
+        <!-- Header -->
+        <div class="header-card">
+            <div>
+                <h1><i class="fas fa-book-open"></i> Manage Topics</h1>
+                <p>Track and manage project titles and student assignments</p>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-primary" onclick="openAdd()"><i class="fas fa-plus"></i> Add New</button>
+                <button class="btn btn-warning" onclick="openModal('batchModal')"><i class="fas fa-upload"></i> Import CSV</button>
+                <a href="fpc_dashboard.php" class="btn btn-info"><i class="fas fa-home"></i> Home</a>
+            </div>
+        </div>
+        <div class="main-card">
+            <div class="search-container">
+                <input type="text" id="search-in" class="search-input" placeholder="Search topics, students..." value="<?php echo htmlspecialchars($search); ?>">
+                <button class="btn btn-primary" onclick="doSearch()">Search</button>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Topic & Student</th>
+                        <th>Session</th>
+                        <th>Supervisor</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (empty($topics)): ?>
+                        <tr><td colspan="5" style="text-align:center; padding:40px;">No records found.</td></tr>
+                    <?php else: ?>
+                        <?php foreach ($topics as $t): ?>
+                            <tr id="r-<?php echo $t['id']; ?>">
+                                <td><div class="topic-title"><?php echo htmlspecialchars($t['topic']); ?></div>
+                                <small><?php echo htmlspecialchars($t['student_name']); ?> (<?php echo htmlspecialchars($t['reg_no'] ?? 'N/A'); ?>)</small></td>
+                                <td><?php echo htmlspecialchars($t['session']); ?></td>
+                                <td><?php echo htmlspecialchars($t['supervisor_name'] ?: 'None'); ?></td>
+                                <td><span class="status-pill status-<?php echo strtolower($t['status']); ?>"><?php echo $t['status']; ?></span></td>
+                                <td style="display:flex; gap:5px;">
+                                    <button class="icon-btn btn-edit-i" onclick='openEdit(<?php echo json_encode($t); ?>)'><i class="fas fa-edit"></i></button>
+                                    <button class="icon-btn btn-delete-i" onclick="del(<?php echo $t['id']; ?>)"><i class="fas fa-trash"></i></button>
+                                    <button class="icon-btn" onclick="openPDF(<?php echo $t['id']; ?>)" style="background:#e8f5e9;color:#2e7d32;" title="Upload/View PDF"><i class="fas fa-file-pdf"></i></button>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+            <?php if ($totalPages > 1): ?>
+                <div class="pagination">
+                    <?php for($i=1;$i<=$totalPages;$i++): ?>
+                        <a href="?page=<?php echo $i; ?>&search=<?php echo urlencode($search); ?>" class="page-link <?php echo $i==$page?'active':''; ?>"><?php echo $i; ?></a>
+                    <?php endfor; ?>
+                </div>
+            <?php endif; ?>
+        </div>
     </div>
-    <?php include __DIR__ . '/../includes/footer.php'; ?>
+
+    <!-- Modals -->
+    <div id="topicModal" class="modal"><div class="modal-content">
+        <div class="modal-header"><h2 id="m-title">Add Topic</h2><span onclick="closeModal('topicModal')" style="cursor:pointer">&times;</span></div>
+        <div class="modal-body"><form id="topicForm">
+            <input type="hidden" name="ajax" value="1"><input type="hidden" name="action" id="f-act" value="add_topic"><input type="hidden" name="id" id="f-id">
+            <div class="form-group"><label>Topic Title</label><textarea name="topic" id="f-topic" class="form-control" required></textarea></div>
+            <div class="form-group" id="reg-wrap"><label>Student Reg No</label><input type="text" name="student_reg_no" id="f-reg" class="form-control"></div>
+            <div class="form-group"><label>Student Name</label><input type="text" name="student_name" id="f-name" class="form-control"></div>
+            <div class="form-group"><label>Session</label><input type="text" name="session" id="f-sess" class="form-control" value="<?php echo $currentSessionYear; ?>"></div>
+            <div class="form-group"><label>Supervisor</label><input type="text" name="supervisor_name" id="f-sup" class="form-control"></div>
+            <div class="form-group"><label>Status</label><select name="status" id="f-stat" class="form-control"><option value="pending">Pending</option><option value="approved">Approved</option></select></div>
+            <button type="submit" class="btn btn-primary" style="width:100%">Save</button>
+        </form></div>
+    </div></div>
+
+    <div id="batchModal" class="modal"><div class="modal-content">
+        <div class="modal-header"><h2>Import CSV</h2><span onclick="closeModal('batchModal')" style="cursor:pointer">&times;</span></div>
+        <div class="modal-body"><form id="batchForm"><input type="hidden" name="ajax" value="1"><input type="hidden" name="action" value="batch_upload">
+            <div class="form-group"><label>CSV File</label><input type="file" name="csv_file" accept=".csv" class="form-control" required></div>
+            <button type="submit" class="btn btn-warning" style="width:100%">Upload</button>
+        </form></div>
+    </div></div>
+
+    <div id="pdfModal" class="modal"><div class="modal-content">
+        <div class="modal-header"><h2>Upload PDF</h2><span onclick="closeModal('pdfModal')" style="cursor:pointer">&times;</span></div>
+        <div class="modal-body"><form id="pdfForm"><input type="hidden" name="ajax" value="1"><input type="hidden" name="action" value="upload_pdf"><input type="hidden" name="topic_id" id="pdf-id">
+            <div class="form-group"><label>PDF File</label><input type="file" name="pdf_file" accept=".pdf" class="form-control" required></div>
+            <button type="submit" class="btn btn-primary" style="width:100%">Upload</button>
+        </form></div>
+    </div></div>
+
+    <div id="toast-container"></div>
+    <?php include_once __DIR__ . '/../includes/footer.php'; ?>
+    <script>
+        function openModal(id){ 
+            const m = document.getElementById(id);
+            m.style.display = 'flex';
+            setTimeout(() => m.classList.add('active'), 10);
+        }
+        function closeModal(id){ 
+            const m = document.getElementById(id);
+            m.classList.remove('active');
+            setTimeout(() => m.style.display = 'none', 300);
+        }
+        function showT(m, s=true){
+            const t = document.createElement('div'); t.className = 'toast'; t.innerText = m;
+            document.getElementById('toast-container').appendChild(t);
+            setTimeout(() => { t.style.opacity='0'; setTimeout(()=>t.remove(), 500); }, 3000);
+        }
+        function doSearch(){ location.href='?search='+encodeURIComponent(document.getElementById('search-in').value); }
+        function openAdd(){ 
+            document.getElementById('m-title').innerText='Add Topic'; document.getElementById('f-act').value='add_topic';
+            document.getElementById('topicForm').reset(); document.getElementById('reg-wrap').style.display='block';
+            openModal('topicModal');
+        }
+        function openEdit(d){
+            document.getElementById('m-title').innerText='Edit Topic'; document.getElementById('f-act').value='update_topic';
+            document.getElementById('f-id').value=d.id; document.getElementById('f-topic').value=d.topic;
+            document.getElementById('f-name').value=d.student_name; document.getElementById('f-sess').value=d.session;
+            document.getElementById('f-sup').value=d.supervisor_name; document.getElementById('f-stat').value=d.status;
+            document.getElementById('reg-wrap').style.display='none'; openModal('topicModal');
+        }
+        function openPDF(id){ document.getElementById('pdf-id').value=id; openModal('pdfModal'); }
+        
+        document.querySelectorAll('form').forEach(f => {
+            f.onsubmit = async (e) => {
+                e.preventDefault();
+                const btn = f.querySelector('button');
+                const orig = btn.innerText; btn.disabled = true; btn.innerText = 'Processing...';
+                try {
+                    const res = await fetch('fpc_manage_topics.php', { method:'POST', body:new FormData(f) });
+                    const data = await res.json();
+                    showT(data.message);
+                    if(data.success) setTimeout(()=>location.reload(), 1000);
+                } catch(e) { showT('Error occurred!'); }
+                btn.disabled = false; btn.innerText = orig;
+            };
+        });
+
+        async function del(id){
+            if(!confirm('Delete this topic?')) return;
+            const fd = new FormData(); fd.append('ajax','1'); fd.append('action','delete_topic'); fd.append('id',id);
+            const res = await fetch('fpc_manage_topics.php', { method:'POST', body:fd });
+            const data = await res.json(); showT(data.message);
+            if(data.success) document.getElementById('r-'+id).remove();
+        }
+    </script>
 </body>
 </html>

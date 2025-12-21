@@ -1,60 +1,119 @@
 <?php
 session_start();
-include 'includes/db.php';
+include_once __DIR__ . '/../includes/db.php';
+
+// Redirect if already logged in
+if (isset($_SESSION['user_id']) && $_SESSION['role'] === 'sup') {
+    header("Location: sup_dashboard.php");
+    exit();
+}
+
+$error = '';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    // Get form data
-    $username = $_POST['username'] ?? null;
-    $password = $_POST['password'] ?? null;
+    $staff_no = trim($_POST['username']);
+    $password = trim($_POST['password']);
 
-    // Validate input
-    if (empty($username) || empty($password)) {
-        die("Staff number and password are required.");
-    }
-
-    // Fetch the supervisor from the supervisors table
-    $stmt = $conn->prepare("SELECT * FROM supervisors WHERE staff_no = ?");
-    $stmt->execute([$username]); // Use the staff number (username) to fetch the supervisor
-    $supervisor = $stmt->fetch();
-
-    if ($supervisor) {
-        // Verify the password (assuming it's stored as an MD5 hash)
-        if (md5($password) === $supervisor['password']) {
-            // Login successful
-            $_SESSION['supervisor_id'] = $supervisor['id'];
-            $_SESSION['staff_no'] = $supervisor['staff_no'];
-            $_SESSION['name'] = $supervisor['name'];
-            $_SESSION['email'] = $supervisor['email'];
-            $_SESSION['department'] = $supervisor['department']; // Ensure this matches your column name
-
-            header("Location: sup_dashboard.php");
-            exit();
-        } else {
-            // Invalid password
-            echo "Invalid credentials!";
-        }
+    if (empty($staff_no) || empty($password)) {
+        $error = "Please enter both Staff Number and Password.";
     } else {
-        // Supervisor not found
-        echo "Invalid credentials!";
+        $stmt = $conn->prepare("SELECT * FROM supervisors WHERE staff_no = ?");
+        $stmt->execute([$staff_no]);
+        $supervisor = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($supervisor) {
+            // For testing: if password is empty in DB, allow login with staff_no
+            $login_success = false;
+            if (empty($supervisor['password'])) {
+                if ($password === $supervisor['staff_no']) {
+                    $login_success = true;
+                }
+            } else {
+                if (password_verify($password, $supervisor['password'])) {
+                    $login_success = true;
+                }
+            }
+
+            if ($login_success) {
+                $_SESSION['user_id'] = $supervisor['id'];
+                $_SESSION['staff_no'] = $supervisor['staff_no'];
+                $_SESSION['name'] = $supervisor['name'];
+                $_SESSION['role'] = 'sup';
+                $_SESSION['dept'] = $supervisor['department'];
+                
+                header("Location: sup_dashboard.php");
+                exit();
+            } else {
+                $error = "Invalid password.";
+            }
+        } else {
+            $error = "Supervisor record not found.";
+        }
     }
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Supervisor Login</title>
-    <link rel="stylesheet" href="assets/css/styles.css">
+    <title>Supervisor Login | Project Pro</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { --primary: #4e73df; --secondary: #224abe; --glass: rgba(255, 255, 255, 0.95); }
+        body { 
+            font-family: 'Segoe UI', sans-serif; 
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); 
+            height: 100vh; margin: 0; 
+            display: flex; align-items: center; justify-content: center; 
+        }
+        .login-card { 
+            background: var(--glass); padding: 40px; border-radius: 20px; 
+            box-shadow: 0 15px 35px rgba(0,0,0,0.3); width: 100%; max-width: 400px; 
+            backdrop-filter: blur(10px); text-align: center;
+        }
+        .logo-circle {
+            width: 70px; height: 70px; background: white; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .logo-circle i { font-size: 30px; color: var(--primary); }
+        h1 { color: #2d3436; font-size: 26px; margin-bottom: 8px; }
+        p { color: #636e72; font-size: 14px; margin-bottom: 30px; }
+        .form-group { text-align: left; margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: 600; color: #2d3436; font-size: 14px; }
+        .form-control { width: 100%; padding: 12px; border: 2px solid #eee; border-radius: 12px; font-family: inherit; transition: 0.3s; box-sizing: border-box; }
+        .form-control:focus { border-color: var(--primary); outline: none; }
+        .btn { 
+            width: 100%; padding: 14px; border: none; border-radius: 12px; 
+            background: var(--primary); color: white; font-weight: 700; cursor: pointer; 
+            transition: 0.3s; font-size: 16px; margin-top: 10px;
+        }
+        .btn:hover { background: var(--secondary); transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
+        .alert { background: #ffebee; color: #c62828; padding: 12px; border-radius: 10px; margin-bottom: 20px; font-size: 14px; display: <?= $error ? 'block' : 'none' ?>; }
+        .footer-hint { margin-top: 25px; font-size: 13px; color: var(--primary); font-weight: 600; cursor: pointer; }
+    </style>
 </head>
 <body>
-    <div class="container">
+    <div class="login-card">
+        <div class="logo-circle">
+            <i class="fas fa-user-tie"></i>
+        </div>
         <h1>Supervisor Login</h1>
+        <p>Access your student supervision portal</p>
+
+        <div class="alert"><?= $error ?></div>
+
         <form method="POST">
-            <input type="text" name="username" placeholder="Staff Number" required>
-            <input type="password" name="password" placeholder="Password" required>
-            <button type="submit">Login</button>
+            <div class="form-group">
+                <label>Staff Number</label>
+                <input type="text" name="username" class="form-control" placeholder="SP/R/..." required>
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" name="password" class="form-control" placeholder="••••••••" required>
+            </div>
+            <button type="submit" class="btn">Login to Portal</button>
         </form>
     </div>
 </body>

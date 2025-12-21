@@ -3,7 +3,7 @@ session_start();
 include 'includes/auth.php';
 
 if ($_SESSION['role'] !== 'dpc') {
-    header("Location: index.php");
+    header("Location: /projectval/");
     exit();
 }
 

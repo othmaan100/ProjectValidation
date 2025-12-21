@@ -71,7 +71,7 @@
             <?php elseif ($_SESSION['role'] === 'dpc'): ?>
                 <a href="dpc_dashboard.php">Dashboard</a>
                 <a href="dpc_manage_students.php">Manage Students</a>
-                <a href="dpc_validate_topics.php">Validate Topics</a>
+                <a href="dpc_topic_validation.php">Validate Topics</a>
             <?php elseif ($_SESSION['role'] === 'sup'): ?>
                 <a href="sup_dashboard.php">Dashboard</a>
             <?php elseif ($_SESSION['role'] === 'stu'): ?>

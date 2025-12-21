@@ -1,5 +1,6 @@
 # Database configuration (IMPORTANT: Don't upload database credentials)
 includes/db.php
+includes/config.php
 
 # Files with API keys (IMPORTANT: Don't upload API keys)
 includes/functions1.php

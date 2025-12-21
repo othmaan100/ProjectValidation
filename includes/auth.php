@@ -8,7 +8,7 @@ if (isset($_SESSION['timeout'])) {
     if ($session_life > $inactive) {
         session_unset();
         session_destroy();
-        header("Location: index.php");
+        header("Location: /projectval/");
         exit();
     }
 }
@@ -16,7 +16,7 @@ $_SESSION['timeout'] = time();
 
 // Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
-    header("Location: index.php");
+    header("Location: /projectval/");
     exit();
 }
 
@@ -25,16 +25,16 @@ $role = $_SESSION['role'];
 
 // Redirect based on role
 if ($role === 'fpc' && !strpos($_SERVER['PHP_SELF'], 'faculty_project_coordinator')) {
-    header("Location: faculty_project_coordinator/fpc_dashboard.php");
+    header("Location: /projectval/faculty_project_coordinator/fpc_dashboard.php");
     exit();
 } elseif ($role === 'dpc' && !strpos($_SERVER['PHP_SELF'], 'department_project_coordinator')) {
-    header("Location: department_project_coordinator/dpc_dashboard.php");
+    header("Location: /projectval/department_project_coordinator/dpc_dashboard.php");
     exit();
 } elseif ($role === 'sup' && !strpos($_SERVER['PHP_SELF'], 'supervisor')) {
-    header("Location: supervisor/sup_dashboard.php");
+    header("Location: /projectval/supervisor/sup_dashboard.php");
     exit();
 } elseif ($role === 'stu' && !strpos($_SERVER['PHP_SELF'], 'student')) {
-    header("Location: student/stu_dashboard.php");
+    header("Location: /projectval/student/stu_dashboard.php");
     exit();
 }
 

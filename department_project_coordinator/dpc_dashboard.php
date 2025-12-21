@@ -1,280 +1,280 @@
 <?php
-
 include_once __DIR__ .'/../includes/auth.php';
 include_once __DIR__ .'/../includes/db.php';
 
 // Redirect if user is not DPC
 if ($_SESSION['role'] !== 'dpc') {
-    header("Location: index.php");
+    header("Location: /projectval/");
     exit();
 }
 
-// Fetch all topics with pagination
-$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
-$limit = 10; // Topics per page
-$offset = ($page - 1) * $limit;
+// Fetch DPC Info and Department
+$stmt = $conn->prepare("SELECT u.*, d.department_name 
+                        FROM users u 
+                        LEFT JOIN departments d ON u.department = d.id 
+                        WHERE u.id = ?");
+$stmt->execute([$_SESSION['user_id']]);
+$user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-$search = isset($_GET['search']) ? trim($_GET['search']) : '';
-if ($search) {
-    $stmt = $conn->prepare("SELECT * FROM project_topics join students on project_topics.student_id=students.id WHERE topic LIKE :search OR student_reg_no LIKE :search LIMIT :limit OFFSET :offset");
-    $stmt->bindValue(':search', "%$search%");
-    $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
-    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
-    $stmt->execute();
-} else {
-    $stmt = $conn->prepare("SELECT * FROM project_topics join students on project_topics.student_id=students.id LIMIT :limit OFFSET :offset");
-    $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
-    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
-    $stmt->execute();
-}
-$topics = $stmt->fetchAll();
+$dept_id = $user['department'];
+$dept_name = $user['department_name'] ?? "Unknown Department";
+$userName = $user['name'] ?? $user['username'];
 
-// Handle topic validation
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    if (isset($_POST['validate_topic'])) {
-        $topic_id = filter_input(INPUT_POST, 'topic_id', FILTER_SANITIZE_NUMBER_INT);
+// Statistics
+// 1. Total Students in Department
+$stmt = $conn->prepare("SELECT COUNT(*) FROM students WHERE department = ?");
+$stmt->execute([$dept_id]);
+$total_students = $stmt->fetchColumn();
 
-        // Fetch the topic from the database
-        $stmt = $conn->prepare("SELECT topic FROM project_topics WHERE id = ?");
-        $stmt->execute([$topic_id]);
-        $topic = $stmt->fetchColumn();
+// 2. Count topics within this department (using join)
+$stmt = $conn->prepare("SELECT COUNT(*) FROM project_topics pt JOIN students s ON pt.student_id = s.id WHERE s.department = ?");
+$stmt->execute([$dept_id]);
+$total_topics = $stmt->fetchColumn();
 
-        // Validate topic against past projects with full details
-        $validation_explanation = validate_topic_with_details($topic);
+// 3. Pending topics in department
+$stmt = $conn->prepare("SELECT COUNT(*) FROM project_topics pt JOIN students s ON pt.student_id = s.id WHERE s.department = ? AND pt.status = 'pending'");
+$stmt->execute([$dept_id]);
+$pending_topics = $stmt->fetchColumn();
 
-        // Store the validation result in the session
-        $_SESSION['validation_result'][$topic_id] = $validation_explanation;
-    } elseif (isset($_POST['approve_topic'])) {
-        $topic_id = filter_input(INPUT_POST, 'topic_id', FILTER_SANITIZE_NUMBER_INT);
-        $stmt = $conn->prepare("UPDATE project_topics SET status = 'approved' WHERE id = ?");
-        $stmt->execute([$topic_id]);
-        send_feedback_to_student($topic_id, 'approved');
-    } elseif (isset($_POST['reject_topic'])) {
-        $topic_id = filter_input(INPUT_POST, 'topic_id', FILTER_SANITIZE_NUMBER_INT);
-        $reason = filter_input(INPUT_POST, 'rejection_reason', FILTER_SANITIZE_STRING);
-        $stmt = $conn->prepare("UPDATE project_topics SET status = 'rejected', rejection_reason = ? WHERE id = ?");
-        $stmt->execute([$reason, $topic_id]);
-        send_feedback_to_student($topic_id, 'rejected', $reason);
-    }
-    header("Refresh:60"); // Refresh the page after 2 seconds
-}
+// 4. Approved topics in department
+$stmt = $conn->prepare("SELECT COUNT(*) FROM project_topics pt JOIN students s ON pt.student_id = s.id WHERE s.department = ? AND pt.status = 'approved'");
+$stmt->execute([$dept_id]);
+$approved_topics = $stmt->fetchColumn();
 
-// Enhanced validation function with full details
-function validate_topic_with_details($topic) {
-    global $conn;
-    
-    // 1. Check for exact match
-    $stmt = $conn->prepare("SELECT * FROM past_projects WHERE BINARY topic = ?");
-    $stmt->execute([$topic]);
-    if ($exact_match = $stmt->fetch(PDO::FETCH_ASSOC)) {
-        return format_match_details($exact_match, true);
-    }
-
-    // 2. Check for similar topics with full details
-    $stmt = $conn->prepare("SELECT * FROM past_projects");
-    $stmt->execute();
-    
-    $similar_topics = [];
-    while ($past_project = $stmt->fetch(PDO::FETCH_ASSOC)) {
-        $similarity = calculate_similarity($topic, $past_project['topic']);
-        if ($similarity >= 70) { // 70% similarity threshold
-            $past_project['similarity'] = $similarity;
-            $similar_topics[] = $past_project;
-        }
-    }
-
-    if (!empty($similar_topics)) {
-        usort($similar_topics, function($a, $b) {
-            return $b['similarity'] <=> $a['similarity'];
-        });
-        
-        $output = "⚠️ Found " . count($similar_topics) . " similar projects:\n\n";
-        foreach ($similar_topics as $project) {
-            $output .= format_match_details($project) . "\n\n";
-        }
-        return $output;
-    }
-    
-    return "✅ This topic appears to be unique";
-}
-
-// Calculate similarity between two topics
-function calculate_similarity($text1, $text2) {
-    // Remove common words that don't affect meaning
-    $common_words = ['the', 'a', 'an', 'of', 'for', 'in', 'on', 'at', 'to'];
-    $text1 = remove_common_words($text1, $common_words);
-    $text2 = remove_common_words($text2, $common_words);
-    
-    // Calculate similarity percentage
-    similar_text($text1, $text2, $similarity);
-    return $similarity;
-}
-
-// Helper function to remove common words
-function remove_common_words($str, $words) {
-    $pattern = '/\b(' . implode('|', $words) . ')\b/i';
-    return preg_replace($pattern, '', $str);
-}
-
-// Format match details for display
-function format_match_details($project, $is_exact = false) {
-    $type = $is_exact ? "EXACT MATCH" : "SIMILAR (" . $project['similarity'] . "%)";
-    $pdf_link = $project['pdf_path'] ? "<a href='{$project['pdf_path']}' target='_blank'>View PDF</a>" : "No PDF available";
-    
-    return <<<DETAILS
-    ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
-    {$type}
-    Topic: {$project['topic']}
-    Student: {$project['student_name']} ({$project['student_reg_no']})
-    Session: {$project['session']}
-    Supervisor: {$project['supervisor_name']}
-    Document: {$pdf_link}
-    ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
-    DETAILS;
-}
-
-// Send feedback to student
-function send_feedback_to_student($topic_id, $decision, $reason = '') {
-    global $conn;
-    $stmt = $conn->prepare("SELECT student_reg_no FROM project_topics WHERE id = ?");
-    $stmt->execute([$topic_id]);
-    $student_reg_no = $stmt->fetchColumn();
-
-    $feedback_message = "Your project topic has been $decision.";
-    if ($reason) {
-        $feedback_message .= " Reason: $reason";
-    }
-
-    $stmt = $conn->prepare("INSERT INTO feedback (student_reg_no, message) VALUES (?, ?)");
-    $stmt->execute([$student_reg_no, $feedback_message]);
-}
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Validate Topics</title>
-    <link rel="stylesheet" href="assets/css/styles.css">
+    <title>DPC Dashboard - Project Validation System</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        .action-buttons { display: flex; gap: 5px; }
-        .action-buttons button { 
-            padding: 5px 10px; 
-            font-size: 12px; 
-            border: none; 
-            border-radius: 3px; 
-            cursor: pointer; 
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f2f5;
+            min-height: 100vh;
         }
-        button:disabled { opacity: 0.5; cursor: not-allowed; }
-        .validation-explanation { 
-            margin-top: 10px;
-            padding: 10px;
-            background-color: #f8f9fa;
-            border-radius: 5px;
+
+        .dashboard-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 30px 20px;
         }
-        .match-details {
-            font-family: monospace;
-            white-space: pre-wrap;
-            background-color: #e9ecef;
-            padding: 10px;
-            border-radius: 5px;
-            margin: 5px 0;
-            border-left: 4px solid #6c757d;
+
+        /* Hero Section */
+        .hero {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            padding: 40px;
+            border-radius: 20px;
+            color: white;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
         }
-        .status-badge { 
-            padding: 3px 8px; 
-            border-radius: 12px; 
-            font-size: 12px; 
-            font-weight: bold; 
+
+        .hero::after {
+            content: '';
+            position: absolute;
+            top: -50px;
+            right: -50px;
+            width: 200px;
+            height: 200px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 50%;
         }
-        .status-pending { background-color: #ffcc00; color: #000; }
-        .status-approved { background-color: #4CAF50; color: #fff; }
-        .status-rejected { background-color: #f44336; color: #fff; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }
-        .pagination { margin-top: 20px; }
-        .pagination a { padding: 5px 10px; margin-right: 5px; text-decoration: none; }
+
+        .hero h1 { font-size: 32px; margin-bottom: 10px; }
+        .hero p { font-size: 18px; opacity: 0.9; }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            transition: transform 0.3s;
+        }
+
+        .stat-card:hover { transform: translateY(-5px); }
+
+        .stat-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: white;
+        }
+
+        .icon-blue { background: #4e73df; }
+        .icon-yellow { background: #f6c23e; }
+        .icon-green { background: #1cc88a; }
+        .icon-purple { background: #6f42c1; }
+
+        .stat-info h3 { font-size: 28px; color: #333; margin-bottom: 2px; }
+        .stat-info p { font-size: 14px; color: #777; font-weight: 600; text-transform: uppercase; }
+
+        /* Action Grid */
+        .action-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 25px;
+        }
+
+        .action-card {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            border: 1px solid rgba(0,0,0,0.05);
+            transition: all 0.3s;
+        }
+
+        .action-card:hover {
+            box-shadow: 0 15px 30px rgba(0,0,0,0.1);
+        }
+
+        .action-card i {
+            font-size: 40px;
+            color: #4e73df;
+            margin-bottom: 10px;
+        }
+
+        .action-card h2 { font-size: 22px; color: #2c3e50; }
+        .action-card p { font-size: 15px; color: #666; line-height: 1.6; }
+
+        .action-btn {
+            margin-top: auto;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 25px;
+            background: #4e73df;
+            color: white;
+            text-decoration: none;
+            border-radius: 10px;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+
+        .action-btn:hover { background: #2e59d9; }
+
+        @media (max-width: 768px) {
+            .hero { padding: 30px 20px; }
+            .hero h1 { font-size: 24px; }
+        }
     </style>
 </head>
 <body>
     <?php include_once __DIR__ .'/../includes/header.php'; ?>
-    <div class="container">
-        <h1>Validate Topics</h1>
-        
-        <!-- Search Bar -->
-        <form method="GET" action="" style="margin-bottom: 20px;">
-            <input type="text" name="search" placeholder="Search by topic or registration number" 
-                   value="<?php echo htmlspecialchars($search); ?>" style="padding: 5px;">
-            <button type="submit">Search</button>
-        </form>
-        
-        <table>
-            <thead>
-                <tr>
-                    <th>Topic</th>
-                    <th>Student Registration</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($topics as $topic): ?>
-                <tr>
-                    <td><?php echo htmlspecialchars($topic['topic']); ?></td>
-                    <td><?php echo htmlspecialchars($topic['reg_no']); ?></td>
-                    <td>
-                        <span class="status-badge status-<?php echo $topic['status']; ?>">
-                            <?php echo ucfirst($topic['status']); ?>
-                        </span>
-                    </td>
-                    <td>
-                        <div class="action-buttons">
-                            <?php if ($topic['status'] == 'pending'): ?>
-                                <form method="POST" style="display: inline;">
-                                    <input type="hidden" name="topic_id" value="<?php echo $topic['id']; ?>">
-                                    <button type="submit" name="validate_topic">Validate</button>
-                                </form>
-                                <form method="POST" style="display: inline;">
-                                    <input type="hidden" name="topic_id" value="<?php echo $topic['id']; ?>">
-                                    <button type="submit" name="approve_topic" 
-                                        <?php echo !isset($_SESSION['validation_result'][$topic['id']]) ? 'disabled' : ''; ?>>
-                                        Approve
-                                    </button>
-                                </form>
-                                <form method="POST" style="display: inline;">
-                                    <input type="hidden" name="topic_id" value="<?php echo $topic['id']; ?>">
-                                    <input type="hidden" name="rejection_reason" value="Topic is too similar to an existing project">
-                                    <button type="submit" name="reject_topic" 
-                                        <?php echo !isset($_SESSION['validation_result'][$topic['id']]) ? 'disabled' : ''; ?>>
-                                        Reject
-                                    </button>
-                                </form>
-                            <?php endif; ?>
-                        </div>
-                        
-                        <?php if (isset($_SESSION['validation_result'][$topic['id']])): ?>
-                            <div class="validation-explanation">
-                                <div class="match-details">
-                                    <?php echo nl2br(htmlspecialchars($_SESSION['validation_result'][$topic['id']])); ?>
-                                </div>
-                            </div>
-                            <?php unset($_SESSION['validation_result'][$topic['id']]); ?>
-                        <?php endif; ?>
-                    </td>
-                </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
-        
-        <!-- Pagination -->
-        <div class="pagination">
-            <?php if ($page > 1): ?>
-                <a href="?page=<?php echo $page - 1; ?>&search=<?php echo urlencode($search); ?>">Previous</a>
-            <?php endif; ?>
-            <a href="?page=<?php echo $page + 1; ?>&search=<?php echo urlencode($search); ?>">Next</a>
+
+    <div class="dashboard-container">
+        <!-- Hero Section -->
+        <div class="hero">
+            <h1>Welcome back, <?php echo htmlspecialchars($userName); ?></h1>
+            <p>Departmental Project Coordinator | <strong><?php echo htmlspecialchars($dept_name); ?></strong></p>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon icon-blue">
+                    <i class="fas fa-user-graduate"></i>
+                </div>
+                <div class="stat-info">
+                    <h3><?php echo $total_students; ?></h3>
+                    <p>Total Students</p>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon icon-yellow">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="stat-info">
+                    <h3><?php echo $pending_topics; ?></h3>
+                    <p>Pending Review</p>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon icon-green">
+                    <i class="fas fa-check-double"></i>
+                </div>
+                <div class="stat-info">
+                    <h3><?php echo $approved_topics; ?></h3>
+                    <p>Approved Topics</p>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon icon-purple">
+                    <i class="fas fa-file-alt"></i>
+                </div>
+                <div class="stat-info">
+                    <h3><?php echo $total_topics; ?></h3>
+                    <p>Total Submissions</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Actions -->
+        <div class="action-grid">
+            <div class="action-card">
+                <i class="fas fa-tasks"></i>
+                <h2>Validate Topics</h2>
+                <p>Review student topic submissions, perform similarity checks against past projects, and approve or request revisions.</p>
+                <a href="dpc_topic_validation.php" class="action-btn">
+                    Launch Validation Page <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+
+            <div class="action-card">
+                <i class="fas fa-user-friends"></i>
+                <h2>Manage Students</h2>
+                <p>View and manage all students in your department. Register new students or update their profile information.</p>
+                <a href="dpc_manage_students.php" class="action-btn">
+                    Manage Students <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+            <div class="action-card">
+                <i class="fas fa-user-friends"></i>
+                <h2>Assign Supervisors</h2>
+                <p>Assign supervisors to students.</p>
+                <a href="dpc_assign_supervisor.php" class="action-btn">
+                    Assign Supervisors <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+
+            <div class="action-card">
+                <i class="fas fa-user-shield"></i>
+                <h2>Security Settings</h2>
+                <p>Maintain your account security by updating your password regularly.</p>
+                <a href="dpc_change_password.php" class="action-btn" style="background: #e74a3b;">
+                    Change Password <i class="fas fa-key"></i>
+                </a>
+            </div>
         </div>
     </div>
+
     <?php include_once __DIR__ .'/../includes/footer.php'; ?>
 </body>
 </html>

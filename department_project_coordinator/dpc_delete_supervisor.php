@@ -4,7 +4,7 @@ include 'includes/auth.php';
 include __DIR__ . '/includes/db.php';
 
 if ($_SESSION['role'] !== 'dpc') {
-    header("Location: index.php");
+    header("Location: /projectval/");
     exit();
 }
 

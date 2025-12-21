@@ -2,9 +2,8 @@
 session_start();
 include __DIR__ . '/includes/db.php';
 
-
 // Handle login form submission
-if ($_SERVER['REQUEST_METHOD'] == 'POST' && $_POST['action'] == 'login') {
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['action'] == 'login') {
     $input_username = trim($_POST['username']);
     $input_password = trim($_POST['password']);
     
@@ -12,517 +11,409 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && $_POST['action'] == 'login') {
         $error_message = "Please fill in all required fields.";
     } else {
         try {
-            // Query to check user credentials (without role)
             $stmt = $conn->prepare("SELECT * FROM users WHERE username = ? AND is_active = '1'");
             $stmt->execute([$input_username]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
-
-           
             
-            if ($user) {
-                // Verify password (assuming passwords are hashed)
-                if (password_verify($input_password, $user['password'])) {
-                    // Login successful - Set up session
-                    $_SESSION['user_id'] = $user['id'];
-                    $_SESSION['username'] = $user['username'];
-                    $_SESSION['role'] = $user['role'];
-                    $_SESSION['department'] = $user['department'];
-                    $_SESSION['name'] = $user['name'];
-                    $_SESSION['email'] = $user['email'];
-                    $_SESSION['logged_in'] = true;
-                    $_SESSION['login_time'] = time();
-                    
-                    // Update last login and session in database
-                    $update_stmt = $conn->prepare("UPDATE users SET first_login = NOW(), session = ? WHERE id = ?");
-                    $session_id = session_id();
-                    $update_stmt->execute([$session_id, $user['id']]);
-                    
-                    // Redirect based on role fetched from database
-                    switch($user['role']) {
-                        case 'stu':
-                            header("Location: student/stu_dashboard.php");
-                            break;
-                        case 'dpc':
-                            header("Location: department_project_coordinator/dpc_dashboard.php");
-                            break;
-                        case 'fpc':
-                            header("Location: faculty_project_coordinator/fpc_dashboard.php");
-                            break;
-                        case 'sup':
-                            header("Location: supervisor_dashboard.php");
-                            break;
-                        default:
-                            header("Location: dashboard.php");
-                    }
-                    exit();
-                } else {
-                    $error_message = "Invalid username or password.";
-                }
+            if ($user && password_verify($input_password, $user['password'])) {
+                $_SESSION['user_id'] = $user['id'];
+                $_SESSION['username'] = $user['username'];
+                $_SESSION['role'] = $user['role'];
+                $_SESSION['department'] = $user['department'];
+                $_SESSION['name'] = $user['name'];
+                $_SESSION['email'] = $user['email'];
+                $_SESSION['logged_in'] = true;
+                $_SESSION['login_time'] = time();
+                
+                $update_stmt = $conn->prepare("UPDATE users SET first_login = NOW(), session = ? WHERE id = ?");
+                $session_id = session_id();
+                $update_stmt->execute([$session_id, $user['id']]);
+                
+                // Redirect based on role
+                $redirects = [
+                    'stu' => "student/stu_dashboard.php",
+                    'dpc' => "department_project_coordinator/dpc_dashboard.php",
+                    'fpc' => "faculty_project_coordinator/fpc_dashboard.php",
+                    'sup' => "supervisor/sup_dashboard.php"
+                ];
+                
+                $location = isset($redirects[$user['role']]) ? $redirects[$user['role']] : "index.php";
+                header("Location: $location");
+                exit();
             } else {
                 $error_message = "Invalid username or password.";
             }
         } catch(PDOException $e) {
             $error_message = "Authentication error. Please try again later.";
-            error_log("Login error: " . $e->getMessage());
         }
     }
 }
 
 // Handle logout
 if (isset($_GET['logout'])) {
-    // Clear session from database
     if (isset($_SESSION['user_id'])) {
         $stmt = $conn->prepare("UPDATE users SET session = NULL WHERE id = ?");
         $stmt->execute([$_SESSION['user_id']]);
     }
-    
     session_destroy();
-    $success_message = "You have been logged out successfully.";
+    header("Location: index.php?logged_out=1");
+    exit();
 }
 
-// Check if user is already logged in
-if (isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true) {
-    $current_user = $_SESSION;
-}
+$is_logged_in = isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true;
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Project Topics Validation System</title>
+    <title>Project Validation System | Welcome</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary: #ec4899;
+            --glass: rgba(255, 255, 255, 0.9);
+            --text-dark: #1e293b;
+            --text-light: #64748b;
         }
-        
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            font-family: 'Outfit', sans-serif;
+            background: radial-gradient(circle at top right, #f8fafc, #e2e8f0);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 20px;
+            overflow-x: hidden;
         }
-        
-        .auth-container {
-            background: white;
-            padding: 40px;
-            border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+
+        /* Animated Background Shapes */
+        .shape {
+            position: fixed;
+            z-index: -1;
+            filter: blur(80px);
+            border-radius: 50%;
+            opacity: 0.4;
+            animation: move 20s infinite alternate;
+        }
+
+        .shape-1 {
+            width: 400px;
+            height: 400px;
+            background: var(--primary);
+            top: -10%;
+            right: -5%;
+        }
+
+        .shape-2 {
+            width: 300px;
+            height: 300px;
+            background: var(--secondary);
+            bottom: -5%;
+            left: -5%;
+            animation-delay: -5s;
+        }
+
+        @keyframes move {
+            from { transform: translate(0, 0); }
+            to { transform: translate(50px, 100px); }
+        }
+
+        .container {
             width: 100%;
-            max-width: 480px;
+            max-width: 1000px;
+            display: grid;
+            grid-template-columns: 1fr 1.2fr;
+            background: var(--glass);
+            backdrop-filter: blur(10px);
+            border-radius: 30px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            margin: 20px;
+        }
+
+        /* Left Side: Info */
+        .info-panel {
+            background: linear-gradient(135deg, var(--primary-dark) 0%, #2563eb 100%);
+            padding: 60px 40px;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
             position: relative;
         }
-        
-        .system-header {
-            text-align: center;
-            margin-bottom: 35px;
-        }
-        
-        .system-header h1 {
-            color: #1e3c72;
-            font-size: 24px;
+
+        .info-panel h1 {
+            font-size: 36px;
             font-weight: 700;
-            margin-bottom: 8px;
+            margin-bottom: 20px;
+            line-height: 1.2;
         }
-        
-        .system-header .subtitle {
-            color: #2a5298;
-            font-size: 16px;
-            font-weight: 600;
-            margin-bottom: 12px;
+
+        .info-panel p {
+            font-size: 18px;
+            opacity: 0.9;
+            margin-bottom: 40px;
+            line-height: 1.6;
         }
-        
-        .system-header p {
-            color: #666;
-            font-size: 14px;
-            line-height: 1.5;
+
+        .feature-list {
+            list-style: none;
         }
-        
-        .features-overview {
-            background: linear-gradient(135deg, #f8f9ff 0%, #e8f0ff 100%);
-            padding: 20px;
-            border-radius: 12px;
-            margin-bottom: 25px;
-            border-left: 4px solid #2a5298;
-        }
-        
-        .features-overview h3 {
-            color: #1e3c72;
-            font-size: 16px;
-            margin-bottom: 10px;
-        }
-        
-        .features-list {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-            font-size: 13px;
-            color: #555;
-        }
-        
+
         .feature-item {
             display: flex;
             align-items: center;
-        }
-        
-        .feature-item::before {
-            content: "✓";
-            color: #28a745;
-            font-weight: bold;
-            margin-right: 6px;
-        }
-        
-        .form-group {
+            gap: 15px;
             margin-bottom: 20px;
-        }
-        
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            color: #333;
-            font-weight: 600;
-            font-size: 14px;
-        }
-        
-        .form-group input,
-        .form-group select {
-            width: 100%;
-            padding: 14px 16px;
-            border: 2px solid #e1e8f0;
-            border-radius: 10px;
             font-size: 16px;
-            transition: all 0.3s ease;
-            background: #fafbfc;
         }
-        
-        .form-group input:focus,
-        .form-group select:focus {
-            outline: none;
-            border-color: #2a5298;
-            background: white;
-            box-shadow: 0 0 0 3px rgba(42, 82, 152, 0.1);
-        }
-        
 
-        
-        .login-btn {
-            width: 100%;
-            padding: 16px;
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-            color: white;
-            border: none;
+        .feature-item i {
+            width: 35px;
+            height: 35px;
+            background: rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
             border-radius: 10px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
-        .login-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(30, 60, 114, 0.3);
-        }
-        
-        .login-btn:active {
-            transform: translateY(0);
-        }
-        
-        .error-message {
-            background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%);
-            color: #c62828;
-            padding: 14px 16px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            border-left: 4px solid #f44336;
             font-size: 14px;
         }
-        
-        .success-message {
-            background: linear-gradient(135deg, #e8f5e8 0%, #c8e6c9 100%);
-            color: #2e7d32;
-            padding: 14px 16px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            border-left: 4px solid #4caf50;
-            font-size: 14px;
+
+        /* Right Side: Form */
+        .form-panel {
+            padding: 60px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         }
-        
-        .dashboard-container {
-            background: white;
-            padding: 40px;
-            border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+
+        .form-header {
+            margin-bottom: 40px;
+        }
+
+        .form-header h2 {
+            font-size: 28px;
+            color: var(--text-dark);
+            margin-bottom: 10px;
+        }
+
+        .form-header p {
+            color: var(--text-light);
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+            position: relative;
+        }
+
+        .form-group i {
+            position: absolute;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-light);
+            transition: color 0.3s;
+        }
+
+        .form-group input {
             width: 100%;
-            max-width: 600px;
-            text-align: center;
-        }
-        
-        .user-welcome {
-            background: linear-gradient(135deg, #f8f9ff 0%, #e8f0ff 100%);
-            padding: 25px;
+            padding: 18px 20px 18px 55px;
+            border: 2px solid #eef2f6;
             border-radius: 15px;
-            margin: 25px 0;
-            border: 1px solid #e1e8f0;
+            font-size: 16px;
+            font-family: inherit;
+            color: var(--text-dark);
+            transition: all 0.3s;
+            background: #f8fafc;
         }
-        
-        .user-welcome h2 {
-            color: #1e3c72;
-            margin-bottom: 15px;
+
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
         }
-        
-        .user-info-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-top: 15px;
+
+        .form-group input:focus + i {
+            color: var(--primary);
         }
-        
-        .info-item {
-            text-align: left;
+
+        .btn-login {
+            width: 100%;
+            padding: 18px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 15px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.3);
         }
-        
-        .info-item strong {
-            color: #2a5298;
-            display: block;
-            font-size: 13px;
-            margin-bottom: 4px;
+
+        .btn-login:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 20px 25px -5px rgba(99, 102, 241, 0.4);
         }
-        
-        .info-item span {
-            color: #333;
-            font-size: 14px;
+
+        .alert {
+            padding: 15px 20px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            font-size: 15px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
-        
-        .role-badge {
-            display: inline-block;
-            padding: 6px 12px;
+
+        .alert-error {
+            background: #fee2e2;
+            color: #b91c1c;
+            border-left: 4px solid #ef4444;
+        }
+
+        .alert-success {
+            background: #dcfce7;
+            color: #15803d;
+            border-left: 4px solid #22c55e;
+        }
+
+        /* Logged In View */
+        .logged-view {
+            text-align: center;
+            padding: 60px;
+        }
+
+        .logged-view h2 { font-size: 32px; margin-bottom: 20px; color: var(--text-dark); }
+        .user-card {
+            background: #f8fafc;
+            padding: 30px;
             border-radius: 20px;
-            font-size: 12px;
+            display: inline-block;
+            margin-bottom: 30px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .role-badge {
+            background: var(--primary);
+            color: white;
+            padding: 5px 15px;
+            border-radius: 50px;
+            font-size: 14px;
             font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
         }
-        
-        .role-stu { background: #e3f2fd; color: #1976d2; }
-        .role-dcp { background: #fff3e0; color: #f57c00; }
-        .role-fcp { background: #e8f5e8; color: #388e3c; }
-        .role-sup { background: #fce4ec; color: #c2185b; }
-        
-        .logout-btn {
-            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
-            color: white;
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            text-decoration: none;
-            display: inline-block;
-            margin-top: 20px;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-        
-        .logout-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(220, 53, 69, 0.3);
-        }
-        
-        .system-stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+
+        .dash-links {
+            display: flex;
             gap: 15px;
-            margin-top: 20px;
+            justify-content: center;
         }
-        
-        .stat-item {
+
+        .btn-secondary {
+            text-decoration: none;
+            padding: 15px 30px;
             background: white;
-            padding: 15px;
-            border-radius: 10px;
-            border: 1px solid #e1e8f0;
-            text-align: center;
+            color: var(--text-dark);
+            border: 2px solid #e2e8f0;
+            border-radius: 15px;
+            font-weight: 600;
+            transition: all 0.3s;
         }
-        
-        .stat-number {
-            font-size: 24px;
-            font-weight: 700;
-            color: #2a5298;
+
+        .btn-secondary:hover {
+            border-color: var(--primary);
+            color: var(--primary);
         }
-        
-        .stat-label {
-            font-size: 12px;
-            color: #666;
-            margin-top: 4px;
+
+        @media (max-width: 850px) {
+            .container { grid-template-columns: 1fr; }
+            .info-panel { display: none; }
+            .form-panel { padding: 40px; }
         }
     </style>
 </head>
 <body>
-    <?php if (isset($current_user)): ?>
-        <!-- Dashboard for logged-in users -->
-        <div class="dashboard-container">
-            <div class="system-header">
-                <h1>Project Topics Validation System</h1>
-                <p class="subtitle">Welcome to Your Dashboard</p>
-            </div>
-            
-            <div class="user-welcome">
-                <h2>Hello, <?php echo htmlspecialchars($current_user['name'] ?: $current_user['username']); ?>!</h2>
-                
-                <div class="user-info-grid">
-                    <div class="info-item">
-                        <strong>Username</strong>
-                        <span><?php echo htmlspecialchars($current_user['username']); ?></span>
-                    </div>
-                    <div class="info-item">
-                        <?php
+    <div class="shape shape-1"></div>
+    <div class="shape shape-2"></div>
 
-                        echo $_SESSION['role']; 
-                        ?>
-
-
-                        <strong>Role</strong>
-                        <span class="role-badge role-<?php echo $current_user['role']; ?>">
-                            <?php 
-
-                            
-
-
-                            switch($current_user['role']) {
-                                case 'stu': echo 'Student'; break;
-                                case 'dpc': echo 'Dept. Coordinator'; break;
-                                case 'fpc': echo 'Faculty Coordinator'; break;
-                                case 'sup': echo 'Supervisor'; break;
-                                default: echo ucfirst($current_user['role']);
-                            }
-                            ?>
-                        </span>
+    <div class="container">
+        <?php if ($is_logged_in): ?>
+            <div class="form-panel" style="grid-column: span 2;">
+                <div class="logged-view">
+                    <h2>Welcome Back, <?php echo htmlspecialchars($_SESSION['name'] ?: $_SESSION['username']); ?>!</h2>
+                    <div class="user-card">
+                        <p style="color: var(--text-light); margin-bottom: 10px;">Logged in as:</p>
+                        <span class="role-badge"><?php echo strtoupper($_SESSION['role']); ?></span>
+                        <p style="margin-top: 15px; font-weight: 600;"><?php echo htmlspecialchars($_SESSION['email']); ?></p>
                     </div>
-                    <?php if ($current_user['department']): ?>
-                    <div class="info-item">
-                        <strong>Department</strong>
-                        <span><?php echo htmlspecialchars($current_user['department']); ?></span>
-                    </div>
-                    <?php endif; ?>
-                    <?php if ($current_user['email']): ?>
-                    <div class="info-item">
-                        <strong>Email</strong>
-                        <span><?php echo htmlspecialchars($current_user['email']); ?></span>
-                    </div>
-                    <?php endif; ?>
-                </div>
-                
-                <div class="system-stats">
-                    <div class="stat-item">
-                        <div class="stat-number">24</div>
-                        <div class="stat-label">Active Projects</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-number">12</div>
-                        <div class="stat-label">Pending Reviews</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-number">98%</div>
-                        <div class="stat-label">Success Rate</div>
+                    <div class="dash-links">
+                        <a href="<?php 
+                            $redirects = ['stu'=>'student/stu_dashboard.php', 'dpc'=>'department_project_coordinator/dpc_dashboard.php', 'fpc'=>'faculty_project_coordinator/fpc_dashboard.php', 'sup'=>'supervisor/sup_dashboard.php'];
+                            echo $redirects[$_SESSION['role']] ?? '#';
+                        ?>" class="btn-login" style="text-decoration: none; width: auto; padding: 15px 40px;">Enter Dashboard</a>
+                        <a href="?logout=1" class="btn-secondary">Logout</a>
                     </div>
                 </div>
             </div>
-            
-            <p>Access your personalized dashboard to manage project topics, validations, and academic progress.</p>
-            <a href="logout.php" class="logout-btn">Logout</a>
-        </div>
-    <?php else: ?>
-        <!-- Login form -->
-        <div class="auth-container">
-            <div class="system-header">
-                <h1>Project Topics Validation System</h1>
-                <p class="subtitle">Streamline Your Academic Projects</p>
-                <p>Comprehensive platform for managing, validating, and tracking student project topics across departments.</p>
+        <?php else: ?>
+            <div class="info-panel">
+                <h1>Smart Project Topic Validation</h1>
+                <p>Ensuring academic originality through advanced similarity detection and streamlined coordination.</p>
+                <ul class="feature-list">
+                    <li class="feature-item"><i class="fas fa-microscope"></i> AI-Powered Origin Check</li>
+                    <li class="feature-item"><i class="fas fa-layer-group"></i> Multi-tier Review System</li>
+                    <li class="feature-item"><i class="fas fa-bolt"></i> Real-time Coordination</li>
+                    <li class="feature-item"><i class="fas fa-shield-halved"></i> Role-based Access</li>
+                </ul>
             </div>
-            
-            <div class="features-overview">
-                <h3>Key Features</h3>
-                <div class="features-list">
-                    <div class="feature-item">Automated topic similarity checking</div>
-                    <div class="feature-item">Real-time validation process</div>
-                    <div class="feature-item">Department-specific coordination</div>
-                    <div class="feature-item">Faculty-level oversight</div>
+            <div class="form-panel">
+                <div class="form-header">
+                    <h2>Secure Access</h2>
+                    <p>Enter your credentials to continue</p>
                 </div>
-            </div>
-            
-            <?php if (isset($error_message)): ?>
-                <div class="error-message"><?php echo htmlspecialchars($error_message); ?></div>
-            <?php endif; ?>
-            
-            <?php if (isset($success_message)): ?>
-                <div class="success-message"><?php echo htmlspecialchars($success_message); ?></div>
-            <?php endif; ?>
-            
-            <form method="POST" id="loginForm">
-                <input type="hidden" name="action" value="login">
-                
 
-                
-                <div class="form-group">
-                    <label for="username">Username:</label>
-                    <input type="text" name="username" id="username" required placeholder="Enter your username">
-                </div>
-                
-                <div class="form-group">
-                    <label for="password">Password:</label>
-                    <input type="password" name="password" id="password" required placeholder="Enter your password">
-                </div>
-                
-                <button type="submit" class="login-btn">Access System</button>
-            </form>
-        </div>
-    <?php endif; ?>
-    
-    <script>
-        // Form validation
-        document.getElementById('loginForm').addEventListener('submit', function(e) {
-            const username = document.getElementById('username').value.trim();
-            const password = document.getElementById('password').value.trim();
-            
-            if (!username || !password) {
-                e.preventDefault();
-                alert('Please fill in all fields to continue.');
-                return false;
-            }
-            
-            if (username.length < 3) {
-                e.preventDefault();
-                alert('Username must be at least 3 characters long.');
-                return false;
-            }
-        });
-        
-        // Auto-hide messages after 6 seconds
-        setTimeout(function() {
-            const messages = document.querySelectorAll('.error-message, .success-message');
-            messages.forEach(function(msg) {
-                msg.style.transition = 'opacity 0.5s ease';
-                msg.style.opacity = '0';
-                setTimeout(function() {
-                    if (msg.parentNode) {
-                        msg.parentNode.removeChild(msg);
-                    }
-                }, 500);
-            });
-        }, 6000);
-        
-        // Add loading state to login button
-        document.getElementById('loginForm').addEventListener('submit', function() {
-            const btn = document.querySelector('.login-btn');
-            btn.innerHTML = 'Authenticating...';
-            btn.disabled = true;
-        });
-    </script>
+                <?php if (isset($error_message)): ?>
+                    <div class="alert alert-error">
+                        <i class="fas fa-exclamation-circle"></i> <?php echo $error_message; ?>
+                    </div>
+                <?php endif; ?>
+
+                <?php if (isset($_GET['logged_out'])): ?>
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle"></i> Successfully logged out.
+                    </div>
+                <?php endif; ?>
+
+                <form method="POST">
+                    <input type="hidden" name="action" value="login">
+                    <div class="form-group">
+                        <input type="text" name="username" placeholder="Username" required autofocus>
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="form-group">
+                        <input type="password" name="password" placeholder="Password" required>
+                        <i class="fas fa-lock"></i>
+                    </div>
+                    <button type="submit" class="btn-login">Login to System</button>
+                    
+                    <p style="text-align: center; margin-top: 30px; font-size: 14px; color: var(--text-light);">
+                        Need assistance? Contact the <a href="#" style="color: var(--primary); text-decoration: none; font-weight: 600;">System Administrator</a>
+                    </p>
+                </form>
+            </div>
+        <?php endif; ?>
+    </div>
 </body>
 </html>

@@ -4,7 +4,7 @@ include __DIR__ . '/../includes/db.php';
 
 // Check if the user is logged in as FPC
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'fpc') {
-    header("Location: __DIR__ . '/../index.php");
+    header("Location: /projectval/");
     exit();
 }
 
@@ -34,17 +34,17 @@ try {
     
     // Try to count topics (table might not exist)
     try {
-        $stmt = $conn->prepare("SELECT COUNT(*) FROM topics");
+        $stmt = $conn->prepare("SELECT (SELECT COUNT(*) FROM past_projects) + (SELECT COUNT(*) FROM project_topics WHERE status = 'approved')");
         $stmt->execute();
         $totalTopics = $stmt->fetchColumn();
         
         // Count pending topics
-        $stmt = $conn->prepare("SELECT COUNT(*) FROM topics WHERE status = 'pending'");
+        $stmt = $conn->prepare("SELECT COUNT(*) FROM project_topics WHERE status = 'pending'");
         $stmt->execute();
         $pendingTopics = $stmt->fetchColumn();
         
         // Count approved topics
-        $stmt = $conn->prepare("SELECT COUNT(*) FROM topics WHERE status = 'approved'");
+        $stmt = $conn->prepare("SELECT COUNT(*) FROM project_topics WHERE status = 'approved'");
         $stmt->execute();
         $approvedTopics = $stmt->fetchColumn();
     } catch (PDOException $e) {
