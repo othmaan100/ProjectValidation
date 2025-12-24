@@ -1,6 +1,6 @@
 <?php
 session_start();
-include __DIR__ . '/includes/db.php';
+include __DIR__ . '/includes/db.sample.php';
 
 // Handle login form submission
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['action'] == 'login') {
