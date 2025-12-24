@@ -256,10 +256,18 @@ $approved_topics = $stmt->fetchColumn();
                 </a>
             </div>
             <div class="action-card">
-                <i class="fas fa-user-friends"></i>
+                <i class="fas fa-user-tie"></i>
+                <h2>Manage Supervisors</h2>
+                <p>Register and manage faculty members as project supervisors. Support for batch uploads and staff load monitoring.</p>
+                <a href="dpc_manage_supervisors.php" class="action-btn">
+                    Manage Supervisors <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+            <div class="action-card">
+                <i class="fas fa-sitemap"></i>
                 <h2>Assign Supervisors</h2>
-                <p>Assign supervisors to students.</p>
-                <a href="dpc_assign_supervisor.php" class="action-btn">
+                <p>Efficiently allocate project supervisors to students using either automatic or manual assignment tools.</p>
+                <a href="dpc_assign_supervisors.php" class="action-btn">
                     Assign Supervisors <i class="fas fa-arrow-right"></i>
                 </a>
             </div>

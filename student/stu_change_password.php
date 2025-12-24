@@ -26,15 +26,21 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['change_pw'])) {
         } else {
             $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
 
-            // Update password and first_login flag
-            $stmt = $conn->prepare("UPDATE students SET password = :password, first_login = 0 WHERE id = :id");
-            $stmt->execute([
-                ':password' => $hashed_password,
-                ':id' => $user_id
-            ]);
+            $conn->beginTransaction();
+            try {
+                $stmt1 = $conn->prepare("UPDATE students SET password = :pw, first_login = 0 WHERE id = :id");
+                $stmt1->execute([':pw' => $hashed_password, ':id' => $user_id]);
 
-            header("Location: stu_dashboard.php?pwd_updated=1");
-            exit();
+                $stmt2 = $conn->prepare("UPDATE users SET password = :pw WHERE id = :id");
+                $stmt2->execute([':pw' => $hashed_password, ':id' => $user_id]);
+
+                $conn->commit();
+                header("Location: stu_dashboard.php?pwd_updated=1");
+                exit();
+            } catch (Exception $e) {
+                $conn->rollBack();
+                $error = "Update failed: " . $e->getMessage();
+            }
         }
     } else {
         $error = "Passwords do not match.";

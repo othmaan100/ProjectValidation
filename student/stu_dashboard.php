@@ -38,6 +38,14 @@ foreach ($topics as $t) {
     if ($t['status'] === 'approved') $approved_topic = $t;
 }
 
+// Check for first login
+if ($student['first_login']) {
+    echo "<script>
+        alert('Welcome! This is your first login. For security reasons, please change your password.');
+        window.location.href = 'stu_change_password.php';
+    </script>";
+    exit();
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
