@@ -2,8 +2,8 @@
 // Get database credentials from environment variables
 $host = getenv('DB_HOST') ?: 'localhost';
 $dbname = getenv('DB_NAME') ?: 'my_project_topics2';
-$username = getenv('DB_USER') ?: 'root';
-$password = getenv('DB_PASSWORD') ?: '';
+$username = getenv('DB_USER') ?: 'my_project_topics2_user';
+$password = getenv('DB_PASSWORD') ?: 'jEpLGc75UkYnu6mRdZ3FxWugU0YfKtuO';
 $port = getenv('DB_PORT') ?: '5432';
 
 try {
