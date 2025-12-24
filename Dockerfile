@@ -1,15 +1,26 @@
 FROM php:8.1-apache
 
-# Install PHP extensions your app might need
-RUN docker-php-ext-install mysqli pdo pdo_mysql
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    libpq-dev \
+    git \
+    curl \
+    libpng-dev \
+    libonig-dev \
+    libxml2-dev \
+    zip \
+    unzip
 
-# Enable Apache modules
+# Install PHP extensions (added pgsql for PostgreSQL)
+RUN docker-php-ext-install pdo pdo_pgsql pgsql mbstring exif pcntl bcmath gd
+
+# Enable Apache mod_rewrite
 RUN a2enmod rewrite
 
-# Copy your app files
+# Copy application files
 COPY . /var/www/html/
 
-# Set proper permissions
+# Set permissions
 RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 755 /var/www/html
 
