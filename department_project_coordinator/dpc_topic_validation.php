@@ -142,7 +142,7 @@ $all_topics = [];
 if (!empty($students)) {
     $student_ids = array_column($students, 'id');
     $placeholders = str_repeat('?,', count($student_ids) - 1) . '?';
-    $topicStmt = $conn->prepare("SELECT * FROM project_topics WHERE student_id IN ($placeholders) ORDER BY id ASC");
+    $topicStmt = $conn->prepare("SELECT student_id, id, topic, status, pdf_path FROM project_topics WHERE student_id IN ($placeholders) ORDER BY id ASC");
     $topicStmt->execute($student_ids);
     $all_topics = $topicStmt->fetchAll(PDO::FETCH_GROUP|PDO::FETCH_ASSOC);
 }

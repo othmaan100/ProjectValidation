@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Dec 17, 2025 at 10:47 AM
+-- Generation Time: Dec 24, 2025 at 05:05 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -55,6 +55,15 @@ CREATE TABLE `feedback` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Dumping data for table `feedback`
+--
+
+INSERT INTO `feedback` (`id`, `student_reg_no`, `message`, `created_at`) VALUES
+(1, 'FCP/CSC/19/102', 'Your topic was approved. ', '2025-12-20 14:38:44'),
+(2, 'FCP/CSC/19/103', 'Your topic was approved. ', '2025-12-20 14:38:56'),
+(3, 'FCP/CSC/19/110', 'Your topic was rejected. Reason: Similarity found during validation.', '2025-12-20 14:39:14');
+
 -- --------------------------------------------------------
 
 --
@@ -76,11 +85,67 @@ CREATE TABLE `past_projects` (
 --
 
 INSERT INTO `past_projects` (`id`, `topic`, `reg_no`, `student_name`, `session`, `supervisor_name`, `pdf_path`) VALUES
-(1, 'Machine Learning in Business: Customer Behavior Prediction', 'FCP/CSC/19/1001', 'Amina Yusuf', '2025/2026', 'Dr. Bello Ahmed', 'uploads/ml_customer_behavior.pdf'),
-(2, 'Machine Learning in Business: Sales Forecasting Models', 'FCP/CSC/19/1002', 'John Okeke', '2025/2026', 'Prof. Grace Obi', 'uploads/ml_sales_forecasting.pdf'),
-(3, 'Machine Learning in Business', 'FCP/CSC/19/1003', 'Fatima Musa', '2025/2026', 'Dr. Ibrahim Lawal', 'uploads/ml_fraud_detection.pdf'),
-(4, 'Machine Learning in Business: Personalized Marketing Strategies', 'FCP/CSC/19/1004', 'Michael James', '2025/2026', 'Dr. Hauwa Ali', 'uploads/ml_marketing_strategies.pdf'),
-(5, 'Machine Learning in Business: Supply Chain Optimization', 'FCP/CSC/19/1005', 'Zainab Umar', '2025/2026', 'Prof. Musa Abdullahi', 'uploads/ml_supply_chain.pdf');
+(1, 'Machine Learning in Business: Customer Behavior Prediction', 'FCP/CSC/19/1001', 'Amina Yusuf', '2024/2025', 'Dr. Bello Ahmed', 'uploads/ml_customer_behavior.pdf'),
+(2, 'Machine Learning in Business: Sales Forecasting Models', 'FCP/CSC/19/1002', 'John Okeke', '2024/2025', 'Prof. Grace Obi', 'uploads/ml_sales_forecasting.pdf'),
+(3, 'Machine Learning in Business', 'FCP/CSC/19/1003', 'Fatima Musa', '2024/2025', 'Dr. Ibrahim Lawal', 'uploads/ml_fraud_detection.pdf'),
+(4, 'Machine Learning in Business: Personalized Marketing Strategies', 'FCP/CSC/19/1004', 'Michael James', '2024/2025', 'Dr. Hauwa Ali', 'uploads/ml_marketing_strategies.pdf'),
+(5, 'Machine Learning in Business: Supply Chain Optimization', 'FCP/CSC/19/1005', 'Zainab Umar', '2024/2025', 'Prof. Musa Abdullahi', 'uploads/ml_supply_chain.pdf'),
+(6, 'Sample Project Topic Title', 'FCP/CSC/16/101', 'John Doe', '2024/2025', 'Dr. Smith', ''),
+(7, 'Machine Learning for Fraud Detection', 'FCP/CSC/18/101', 'Amina Yusuf', '2024/2025', 'Dr. Bello Ahmed', ''),
+(8, 'Data Mining in E-Commerce', 'FCP/CSC/18/102', 'John Okeke', '2024/2025', 'Prof. Grace Obi', ''),
+(9, 'Cloud Computing Security Models', 'FCP/CSC/18/103', 'Fatima Musa', '2024/2025', 'Dr. Ibrahim Lawal', ''),
+(10, 'Artificial Intelligence in Healthcare', 'FCP/CSC/18/104', 'Michael James', '2024/2025', 'Dr. Hauwa Ali', ''),
+(11, 'Blockchain Applications in Education', 'FCP/CSC/18/105', 'Zainab Umar', '2024/2025', 'Prof. Musa Abdullahi', ''),
+(12, 'Natural Language Processing for Chatbots', 'FCP/CSC/18/106', 'David Samuel', '2024/2025', 'Dr. Aisha Mohammed', ''),
+(13, 'Cybersecurity Threat Detection Systems', 'FCP/CSC/18/107', 'Maryam Ibrahim', '2024/2025', 'Dr. Kabir Hassan', ''),
+(14, 'IoT Solutions for Smart Homes', 'FCP/CSC/18/108', 'Emeka Nwosu', '2024/2025', 'Prof. Janet Okoro', ''),
+(15, 'Big Data Analytics in Business Intelligence', 'FCP/CSC/18/109', 'Hassan Abdulkareem', '2024/2025', 'Dr. Suleiman Adamu', ''),
+(16, 'Virtual Reality in Education Platforms', 'FCP/CSC/18/110', 'Joy Eze', '2024/2025', 'Dr. Peter Adeyemi', 'assets/uploads/past_projects/project_16_1766072307.pdf'),
+(17, 'Advanced Cybersecurity Frameworks', 'FCP/CSC/16/102', 'Sani Bala Ahmed', '2024/2025', 'Dr. Kabir Bello', ''),
+(18, 'Autonomous Vehicles', 'FCP/CSC/15/1018', 'Khadija Ibrahim', '2024/2025', 'Dr. Aisha Mohammed', 'uploads/autonomous_vehicles.pdf'),
+(19, 'E-Commerce Security', 'FCP/CSC/15/1019', 'Chika Nnamdi', '2024/2025', 'Dr. Hauwa Ali', 'uploads/e_commerce.pdf'),
+(20, 'Robotics in Manufacturing', 'FCP/CSC/15/1020', 'Abdulrahman Usman', '2024/2025', 'Dr. Aisha Mohammed', 'uploads/robotics.pdf'),
+(21, 'Quantum Computing Applications', 'FCP/CSC/15/1021', 'Ibrahim Musa', '2024/2025', 'Prof. Janet Okoro', 'uploads/quantum_computing.pdf'),
+(22, 'Green Technology Innovations', 'FCP/CSC/15/1022', 'Mary James', '2024/2025', 'Prof. Janet Okoro', 'uploads/green_tech.pdf'),
+(23, 'Augmented Reality in Retail', 'FCP/CSC/15/1023', 'Ahmed Usman', '2024/2025', 'Dr. Suleiman Adamu', 'uploads/ar_retail.pdf'),
+(24, 'Digital Identity Management', 'FCP/CSC/15/1024', 'Zainab Ali', '2024/2025', 'Dr. Suleiman Adamu', 'uploads/digital_identity.pdf'),
+(25, 'Smart Transportation Systems', 'FCP/CSC/15/1025', 'Chinedu Okafor', '2024/2025', 'Dr. Kabir Hassan', 'uploads/smart_transport.pdf'),
+(26, 'AI in Medical Diagnostics', 'FCP/CSC/15/1026', 'Halima Sani', '2024/2025', 'Dr. Suleiman Adamu', 'uploads/ai_diagnostics.pdf'),
+(27, 'Blockchain for Supply Chain', 'FCP/CSC/15/1027', 'David Johnson', '2024/2025', 'Prof. Janet Okoro', 'uploads/blockchain_supplychain.pdf'),
+(28, 'Mobile E-Learning Solutions', 'FCP/CSC/15/1028', 'Fatima Umar', '2024/2025', 'Prof. Janet Okoro', 'uploads/mobile_elearning.pdf'),
+(29, 'Advanced Cybersecurity Frameworks', 'FCP/CSC/15/1029', 'Michael Okeke', '2024/2025', 'Prof. Janet Okoro', 'uploads/cybersecurity_frameworks.pdf'),
+(30, 'Next-Generation Cybersecurity Frameworks', 'FCP/CSC/15/1030', 'Joy Musa', '2024/2025', 'Dr. Suleiman Adamu', 'uploads/iot_smartfarming.pdf'),
+(31, 'Artificial Intelligence in Healthcare', 'FCP/CSC/15/1031', 'Amina Yusuf', '2024/2025', 'Dr. Esther John', 'uploads/ai_healthcare.pdf'),
+(32, 'AI in Medical Diagnostics', 'FCP/CSC/15/1032', 'John Okeke', '2024/2025', 'Dr. Peter Adeyemi', 'uploads/ai_diagnostics.pdf'),
+(33, 'AI-Powered Drug Discovery', 'FCP/CSC/15/1033', 'Fatima Musa', '2024/2025', 'Prof. Ibrahim Danladi', 'uploads/ai_drug_discovery.pdf'),
+(34, 'AI in Public Health Surveillance', 'FCP/CSC/15/1034', 'Michael James', '2024/2025', 'Dr. Esther John', 'uploads/ai_public_health.pdf'),
+(35, 'Online Result Processing System: Case Study of University of Maiduguri', 'FCP/CSC/15/1035', 'Usman Ibrahim', '2024/2025', 'Prof. Ibrahim Danladi', 'uploads/result_processing_unimaid.pdf'),
+(36, 'Online Result Processing System: Case Study of Yobe State University', 'FCP/CSC/15/1036', 'Fatima Yusuf', '2024/2025', 'Prof. Ibrahim Danladi', 'uploads/result_processing_yobe.pdf'),
+(37, 'Online Result Processing System: Case Study of Federal Polytechnic Damaturu', 'FCP/CSC/15/1037', 'Abdulrahman Musa', '2024/2025', 'Dr. Esther John', 'uploads/result_processing_fpdamaturu.pdf'),
+(38, 'Cloud Computing Security Models', 'FCP/CSC/15/1038', 'Amina Yusuf', '2024/2025', '', ''),
+(39, 'Cybersecurity Threat Detection Systems', 'FCP/CSC/15/1039', 'Amina Yusuf', '2024/2025', '', ''),
+(40, 'Asset Management System', 'FCP/CSC/15/1040', 'Joy Eze', '2024/2025', '', ''),
+(41, 'Hopital Management System', 'FCP/CSC/15/1041', 'Joy Eze', '2024/2025', '', ''),
+(42, 'AI in Healthcare', 'FCP/CSC/15/1001', 'Amina Yusuf', '2025/2026', 'Prof. Grace Obi', 'uploads/ai_healthcare.pdf'),
+(43, 'Blockchain in Finance', 'FCP/CSC/15/1002', 'John Okeke', '2025/2026', 'Dr. Ibrahim Lawal', 'uploads/blockchain_finance.pdf'),
+(44, 'E-Learning Platforms', 'FCP/CSC/15/1003', 'Fatima Musa', '2025/2026', 'Dr. Bello Ahmed', 'uploads/e_learning.pdf'),
+(45, 'Cybersecurity Threats', 'FCP/CSC/15/1004', 'Michael James', '2025/2026', 'Dr. Bello Ahmed', 'uploads/cybersecurity.pdf'),
+(46, 'IoT in Agriculture', 'FCP/CSC/15/1005', 'Zainab Umar', '2025/2026', 'Dr. Ibrahim Lawal', 'uploads/iot_agriculture.pdf'),
+(47, 'Data Mining Techniques', 'FCP/CSC/15/1006', 'David Samuel', '2025/2026', 'Dr. Ibrahim Lawal', 'uploads/data_mining.pdf'),
+(48, 'Cloud Computing Adoption', 'FCP/CSC/15/1007', 'Maryam Ibrahim', '2025/2026', 'Prof. Grace Obi', 'uploads/cloud_computing.pdf'),
+(49, 'Smart Cities Development', 'FCP/CSC/15/1008', 'Emeka Nwosu', '2025/2026', 'Dr. Bello Ahmed', 'uploads/smart_cities.pdf'),
+(50, 'Mobile Banking Security', 'FCP/CSC/15/1009', 'Hassan Abdulkareem', '2025/2026', 'Dr. Ibrahim Lawal', 'uploads/mobile_banking.pdf'),
+(51, 'Natural Language Processing', 'FCP/CSC/15/1010', 'Joy Eze', '2025/2026', 'Dr. Bello Ahmed', 'uploads/nlp.pdf'),
+(52, 'Renewable Energy Systems', 'FCP/CSC/15/1011', 'Usman Bello', '2025/2026', 'Prof. Musa Abdullahi', 'uploads/renewable_energy.pdf'),
+(53, 'Virtual Reality in Education', 'FCP/CSC/15/1012', 'Halima Sani', '2025/2026', 'Prof. Musa Abdullahi', 'uploads/vr_education.pdf'),
+(54, 'Big Data Analytics', 'FCP/CSC/15/1013', 'Samuel Johnson', '2025/2026', 'Dr. Aisha Mohammed', 'uploads/big_data.pdf'),
+(55, 'E-Government Services', 'FCP/CSC/15/1014', 'Aisha Abdullahi', '2025/2026', 'Prof. Musa Abdullahi', 'uploads/e_government.pdf'),
+(56, 'Machine Learning in Business', 'FCP/CSC/15/1015', 'Bashir Ali', '2025/2026', 'Dr. Aisha Mohammed', 'uploads/ml_business.pdf'),
+(57, 'Digital Marketing Strategies', 'FCP/CSC/15/1016', 'Ngozi Umeh', '2025/2026', 'Dr. Hauwa Ali', 'uploads/digital_marketing.pdf'),
+(58, 'Smart Healthcare Devices', 'FCP/CSC/15/1017', 'Tunde Adewale', '2025/2026', 'Dr. Aisha Mohammed', 'uploads/smart_healthcare.pdf'),
+(59, 'Autonomous Vehicles', 'FCP/CSC/15/1018', 'Khadija Ibrahim', '2025/2026', 'Dr. Aisha Mohammed', 'uploads/autonomous_vehicles.pdf'),
+(60, 'E-Commerce Security', 'FCP/CSC/15/1019', 'Chika Nnamdi', '2025/2026', 'Dr. Hauwa Ali', 'uploads/e_commerce.pdf'),
+(61, 'Robotics in Manufacturing', 'FCP/CSC/15/1020', 'Abdulrahman Usman', '2025/2026', 'Dr. Aisha Mohammed', 'uploads/robotics.pdf');
 
 -- --------------------------------------------------------
 
@@ -105,43 +170,9 @@ CREATE TABLE `project_topics` (
 --
 
 INSERT INTO `project_topics` (`id`, `topic`, `student_id`, `student_name`, `session`, `supervisor_id`, `supervisor_name`, `status`, `pdf_path`) VALUES
-(1, 'AI in Healthcare', '1', 'Amina Yusuf', '2025/2026', 2, 'Prof. Grace Obi', 'approved', 'uploads/ai_healthcare.pdf'),
-(2, 'Blockchain in Finance', '2', 'John Okeke', '2025/2026', 3, 'Dr. Ibrahim Lawal', 'approved', 'uploads/blockchain_finance.pdf'),
-(3, 'E-Learning Platforms', '3', 'Fatima Musa', '2025/2026', 1, 'Dr. Bello Ahmed', 'approved', 'uploads/e_learning.pdf'),
-(4, 'Cybersecurity Threats', '4', 'Michael James', '2025/2026', 1, 'Dr. Bello Ahmed', 'approved', 'uploads/cybersecurity.pdf'),
-(5, 'IoT in Agriculture', '5', 'Zainab Umar', '2025/2026', 3, 'Dr. Ibrahim Lawal', 'approved', 'uploads/iot_agriculture.pdf'),
-(6, 'Data Mining Techniques', '6', 'David Samuel', '2025/2026', 3, 'Dr. Ibrahim Lawal', 'approved', 'uploads/data_mining.pdf'),
-(7, 'Cloud Computing Adoption', '7', 'Maryam Ibrahim', '2025/2026', 2, 'Prof. Grace Obi', 'approved', 'uploads/cloud_computing.pdf'),
-(8, 'Smart Cities Development', '8', 'Emeka Nwosu', '2025/2026', 1, 'Dr. Bello Ahmed', 'approved', 'uploads/smart_cities.pdf'),
-(9, 'Mobile Banking Security', '9', 'Hassan Abdulkareem', '2025/2026', 3, 'Dr. Ibrahim Lawal', 'approved', 'uploads/mobile_banking.pdf'),
-(10, 'Natural Language Processing', '10', 'Joy Eze', '2025/2026', 1, 'Dr. Bello Ahmed', 'approved', 'uploads/nlp.pdf'),
-(11, 'Renewable Energy Systems', '11', 'Usman Bello', '2025/2026', 5, 'Prof. Musa Abdullahi', 'approved', 'uploads/renewable_energy.pdf'),
-(12, 'Virtual Reality in Education', '12', 'Halima Sani', '2025/2026', 5, 'Prof. Musa Abdullahi', 'approved', 'uploads/vr_education.pdf'),
-(13, 'Big Data Analytics', '13', 'Samuel Johnson', '2025/2026', 6, 'Dr. Aisha Mohammed', 'approved', 'uploads/big_data.pdf'),
-(14, 'E-Government Services', '14', 'Aisha Abdullahi', '2025/2026', 5, 'Prof. Musa Abdullahi', 'approved', 'uploads/e_government.pdf'),
-(15, 'Machine Learning in Business', '15', 'Bashir Ali', '2025/2026', 6, 'Dr. Aisha Mohammed', 'approved', 'uploads/ml_business.pdf'),
-(16, 'Digital Marketing Strategies', '16', 'Ngozi Umeh', '2025/2026', 4, 'Dr. Hauwa Ali', 'approved', 'uploads/digital_marketing.pdf'),
-(17, 'Smart Healthcare Devices', '17', 'Tunde Adewale', '2025/2026', 6, 'Dr. Aisha Mohammed', 'approved', 'uploads/smart_healthcare.pdf'),
-(18, 'Autonomous Vehicles', '18', 'Khadija Ibrahim', '2025/2026', 6, 'Dr. Aisha Mohammed', 'approved', 'uploads/autonomous_vehicles.pdf'),
-(19, 'E-Commerce Security', '19', 'Chika Nnamdi', '2025/2026', 4, 'Dr. Hauwa Ali', 'approved', 'uploads/e_commerce.pdf'),
-(20, 'Robotics in Manufacturing', '20', 'Abdulrahman Usman', '2025/2026', 6, 'Dr. Aisha Mohammed', 'approved', 'uploads/robotics.pdf'),
-(21, 'Quantum Computing Applications', '21', 'Ibrahim Musa', '2025/2026', 8, 'Prof. Janet Okoro', 'approved', 'uploads/quantum_computing.pdf'),
-(22, 'Green Technology Innovations', '22', 'Mary James', '2025/2026', 8, 'Prof. Janet Okoro', 'approved', 'uploads/green_tech.pdf'),
-(23, 'Augmented Reality in Retail', '23', 'Ahmed Usman', '2025/2026', 9, 'Dr. Suleiman Adamu', 'approved', 'uploads/ar_retail.pdf'),
-(24, 'Digital Identity Management', '24', 'Zainab Ali', '2025/2026', 9, 'Dr. Suleiman Adamu', 'approved', 'uploads/digital_identity.pdf'),
-(25, 'Smart Transportation Systems', '25', 'Chinedu Okafor', '2025/2026', 7, 'Dr. Kabir Hassan', 'approved', 'uploads/smart_transport.pdf'),
-(26, 'AI in Medical Diagnostics', '26', 'Halima Sani', '2025/2026', 9, 'Dr. Suleiman Adamu', 'approved', 'uploads/ai_diagnostics.pdf'),
-(27, 'Blockchain for Supply Chain', '27', 'David Johnson', '2025/2026', 8, 'Prof. Janet Okoro', 'approved', 'uploads/blockchain_supplychain.pdf'),
-(28, 'Mobile E-Learning Solutions', '28', 'Fatima Umar', '2025/2026', 8, 'Prof. Janet Okoro', 'approved', 'uploads/mobile_elearning.pdf'),
-(29, 'Advanced Cybersecurity Frameworks', '29', 'Michael Okeke', '2025/2026', 8, 'Prof. Janet Okoro', 'approved', 'uploads/cybersecurity_frameworks.pdf'),
-(30, 'Next-Generation Cybersecurity Frameworks', '30', 'Joy Musa', '2025/2026', 9, 'Dr. Suleiman Adamu', 'approved', 'uploads/iot_smartfarming.pdf'),
-(31, 'Artificial Intelligence in Healthcare', '31', 'Amina Yusuf', '2025/2026', 12, 'Dr. Esther John', 'approved', 'uploads/ai_healthcare.pdf'),
-(32, 'AI in Medical Diagnostics', '32', 'John Okeke', '2025/2026', 10, 'Dr. Peter Adeyemi', 'approved', 'uploads/ai_diagnostics.pdf'),
-(33, 'AI-Powered Drug Discovery', '33', 'Fatima Musa', '2025/2026', 11, 'Prof. Ibrahim Danladi', 'approved', 'uploads/ai_drug_discovery.pdf'),
-(34, 'AI in Public Health Surveillance', '34', 'Michael James', '2025/2026', 12, 'Dr. Esther John', 'approved', 'uploads/ai_public_health.pdf'),
-(35, 'Online Result Processing System: Case Study of University of Maiduguri', '35', 'Usman Ibrahim', '2025/2026', 11, 'Prof. Ibrahim Danladi', 'approved', 'uploads/result_processing_unimaid.pdf'),
-(36, 'Online Result Processing System: Case Study of Yobe State University', '36', 'Fatima Yusuf', '2025/2026', 11, 'Prof. Ibrahim Danladi', 'approved', 'uploads/result_processing_yobe.pdf'),
-(37, 'Online Result Processing System: Case Study of Federal Polytechnic Damaturu', '37', 'Abdulrahman Musa', '2025/2026', 12, 'Dr. Esther John', 'approved', 'uploads/result_processing_fpdamaturu.pdf');
+(1, 'Totam excepturi ut e', '12', 'Jane Smith', '2025/2026', 0, NULL, 'pending', NULL),
+(2, 'Est et enim asperna', '12', 'Jane Smith', '2025/2026', 0, NULL, 'pending', NULL),
+(3, 'Sunt earum id et et', '12', 'Jane Smith', '2025/2026', 1, 'Dr. Bello Ahmed', 'approved', NULL);
 
 -- --------------------------------------------------------
 
@@ -153,6 +184,8 @@ CREATE TABLE `students` (
   `id` int(11) NOT NULL,
   `reg_no` varchar(50) NOT NULL,
   `name` varchar(100) NOT NULL,
+  `phone` varchar(50) NOT NULL,
+  `email` varchar(60) NOT NULL,
   `password` varchar(255) NOT NULL,
   `department` int(11) NOT NULL,
   `first_login` tinyint(1) DEFAULT 1
@@ -162,47 +195,29 @@ CREATE TABLE `students` (
 -- Dumping data for table `students`
 --
 
-INSERT INTO `students` (`id`, `reg_no`, `name`, `password`, `department`, `first_login`) VALUES
-(1, 'FCP/CSC/19/101', 'Amina Yusuf', '', 1, 127),
-(2, 'FCP/CSC/19/102', 'John Okeke', '', 1, 127),
-(3, 'FCP/CSC/19/103', 'Fatima Musa', '', 1, 127),
-(4, 'FCP/CSC/19/104', 'Michael James', '', 1, 127),
-(5, 'FCP/CSC/19/105', 'Zainab Umar', '', 1, 127),
-(6, 'FCP/CSC/19/106', 'David Samuel', '', 1, 127),
-(7, 'FCP/CSC/19/107', 'Maryam Ibrahim', '', 1, 127),
-(8, 'FCP/CSC/19/108', 'Emeka Nwosu', '', 1, 127),
-(9, 'FCP/CSC/19/109', 'Hassan Abdulkareem', '', 1, 127),
-(10, 'FCP/CSC/19/110', 'Joy Eze', '', 1, 127),
-(11, 'FCP/CSE/19/101', 'Usman Bello', '', 2, 127),
-(12, 'FCP/CSE/19/102', 'Halima Sani', '', 2, 127),
-(13, 'FCP/CSE/19/103', 'Samuel Johnson', '', 2, 127),
-(14, 'FCP/CSE/19/104', 'Aisha Abdullahi', '', 2, 127),
-(15, 'FCP/CSE/19/105', 'Bashir Ali', '', 2, 127),
-(16, 'FCP/CSE/19/106', 'Ngozi Umeh', '', 2, 127),
-(17, 'FCP/CSE/19/107', 'Tunde Adewale', '', 2, 127),
-(18, 'FCP/CSE/19/108', 'Khadija Ibrahim', '', 2, 127),
-(19, 'FCP/CSE/19/109', 'Chika Nnamdi', '', 2, 127),
-(20, 'FCP/CSE/19/110', 'Abdulrahman Usman', '', 2, 127),
-(21, 'FCP/CCS/19/101', 'Amina Sule', '', 3, 127),
-(22, 'FCP/CCS/19/102', 'David Okoro', '', 3, 127),
-(23, 'FCP/CCS/19/103', 'Mary James', '', 3, 127),
-(24, 'FCP/CCS/19/104', 'Ahmed Usman', '', 3, 127),
-(25, 'FCP/CCS/19/105', 'Zainab Ali', '', 3, 127),
-(26, 'FCP/CCS/19/106', 'Chinedu Okafor', '', 3, 127),
-(27, 'FCP/CCS/19/107', 'Halima Sani', '', 3, 127),
-(28, 'FCP/CCS/19/108', 'David Johnson', '', 3, 127),
-(29, 'FCP/CCS/19/109', 'Michael Okeke', '', 3, 127),
-(30, 'FCP/CCS/19/110', 'Joy Musa', '', 3, 127),
-(31, 'FCP/CIT/19/101', 'Ibrahim Musa', '', 4, 127),
-(32, 'FCP/CIT/19/102', 'Mary James', '', 4, 127),
-(33, 'FCP/CIT/19/103', 'Ahmed Usman', '', 4, 127),
-(34, 'FCP/CIT/19/104', 'Zainab Ibrahim', '', 4, 127),
-(35, 'FCP/CIT/19/105', 'Chinedu Obi', '', 4, 127),
-(36, 'FCP/CIT/19/106', 'Fatima Yusuf', '', 4, 127),
-(37, 'FCP/CIT/19/107', 'John Ibrahim', '', 4, 127),
-(38, 'FCP/CIT/19/108', 'Halima Musa', '', 4, 127),
-(39, 'FCP/CIT/19/109', 'Michael Okeke', '', 4, 127),
-(40, 'FCP/CIT/19/110', 'Joy Musa', '', 4, 127);
+INSERT INTO `students` (`id`, `reg_no`, `name`, `phone`, `email`, `password`, `department`, `first_login`) VALUES
+(11, 'FCP/CSC/19/1001', 'John Doe', '08012345678', 'john@example.com', '$2y$10$S7iSyh23ZRdBZdnyozKwT.2BXriOjbO.iIsvgpeQlZq0DRb38nrdi', 1, 0),
+(12, 'FCP/CSC/19/1002', 'Jane Smith', '08087654321', 'jane@example.com', '$2y$10$W1DreP9FIr8jbPm9tXf7Tuy/6ulCaI7.66NRbgmY.JsVLOJZuALoy', 1, 0),
+(13, 'FCP/CSC/21/1001', 'Aliyu Musa', '08011112222', 'aliyu.musa@example.com', '$2y$10$XAUzSp0kMnx1Cr8KA2knquMsPMaEti4x.ULRYb4qI4ekBdn2xZ6zS', 1, 1),
+(14, 'FCP/CSC/21/1002', 'Zainab Abdullahi', '08022223333', 'zainab.abdullahi@example.com', '$2y$10$7XmoLKpY2NmyjvwGeEgiXeSKAUNdF/AWIl7a.nW0dF/3AGn9/uTJy', 1, 1),
+(15, 'FCP/CSC/21/1003', 'Emeka Okafor', '08033334444', 'emeka.okafor@example.com', '$2y$10$gr2qUvZ7NToB9iJkOK.arOQMjRg6LOxlmddaU5XgdfIfAv3qQatgm', 1, 1),
+(16, 'FCP/CSC/21/1004', 'Maryam Sani', '08044445555', 'maryam.sani@example.com', '$2y$10$6mXv8DCpS9YlVuRQOjNqK.d07ybJpRMIXSblo/s2xx7xRvZFDnB5G', 1, 1),
+(17, 'FCP/CSC/21/1005', 'David Johnson', '08055556666', 'david.johnson@example.com', '$2y$10$0wt5zxUmsEL5Pz3X3ovNmejKWU3z9b2CZH1oFWEiat17PTGyxEnbW', 1, 1),
+(18, 'FCP/CSC/21/1006', 'Halima Yusuf', '08066667777', 'halima.yusuf@example.com', '$2y$10$b6epSizqHEw2EFxlCoEkveowJQ97P81.JQcCPGkaik5a4RNCqBxKy', 1, 1),
+(19, 'FCP/CSC/21/1007', 'Samuel Adewale', '08077778888', 'samuel.adewale@example.com', '$2y$10$DBlHwe5IMrLh1LA9rliZeutLcQxaHqoi6DFnNzTHYk/X/wiSuDl/G', 1, 1),
+(20, 'FCP/CSC/21/1008', 'Joy Eze', '08088889999', 'joy.eze@example.com', '$2y$10$mt12azg9a2BjUWsC2dHN4O/m0U1B71oKCq3m5sdnIZX7sKrPI.oiW', 1, 1),
+(21, 'FCP/CSC/21/1009', 'Hassan Ibrahim', '08100001111', 'hassan.ibrahim@example.com', '$2y$10$cs0b97S3Mq10qRUX5C0UvOMgnAOhCIWPkyPQL.5qOug.rlcLqg9vu', 1, 1),
+(22, 'FCP/CSC/21/1010', 'Chika Nnamdi', '08111112222', 'chika.nnamdi@example.com', '$2y$10$0HnMFnxLG/pmKVt.jW49muNJhUSt.B0C9YrqtLMXwttq4ng36DZWO', 1, 1),
+(23, 'FCP/CSC/21/1011', 'Fatima Umar', '08122223333', 'fatima.umar@example.com', '$2y$10$4CTZW83SDuYg34qMkf0C3uzfXGwem7mLTybqgMaOBVzaw8GeTwKp6', 1, 1),
+(24, 'FCP/CSC/21/1012', 'Michael James', '08133334444', 'michael.james@example.com', '$2y$10$e5bNLdIrm2mAXs.4JFDWye1v9xVsOOPmY9LOtDwXg4hLEXfkR2o1q', 1, 1),
+(25, 'FCP/CSC/21/1013', 'Aisha Mohammed', '08144445555', 'aisha.mohammed@example.com', '$2y$10$0PBflOLGWwRouD/HJ5Rswu12NTxtRe2ekZKnE5raSu3v2BhpFJJ/G', 1, 1),
+(26, 'FCP/CSC/21/1014', 'Usman Bello', '08155556666', 'usman.bello@example.com', '$2y$10$O307dJI5irmH/5Sqm.tRy.d5v2wVx2bzizBoXuAPoLXd9BNM4zWcW', 1, 1),
+(27, 'FCP/CSC/21/1015', 'Ngozi Umeh', '08166667777', 'ngozi.umeh@example.com', '$2y$10$kw54yvppA0D6zlpctywpd.2znPb2uu1F/1oG0yJbN.U1sxP1bEYZu', 1, 1),
+(28, 'FCP/CSC/21/1016', 'Tunde Adewale', '08177778888', 'tunde.adewale@example.com', '$2y$10$Swa3jgFHnyyJoIw.qZTBCuSIJKsTlzKIKER8z0QocdM7IM1B.BI4G', 1, 1),
+(29, 'FCP/CSC/21/1017', 'Khadija Ibrahim', '08188889999', 'khadija.ibrahim@example.com', '$2y$10$dTSnKqel47AJL0JFWUZBjOg/J99DwsHycAPczzhpMI65gNkDWrTP2', 1, 1),
+(30, 'FCP/CSC/21/1018', 'Bashir Ali', '08199990000', 'bashir.ali@example.com', '$2y$10$19VprDTRql/4srHZjeHHPOiDcWArMhcROt1b3HdJjRSBCfx0I0m3S', 1, 1),
+(31, 'FCP/CSC/21/1019', 'Mary James', '08211112222', 'mary.james@example.com', '$2y$10$xRJ6e2sKmDaKy9bEKSR2q.XqMa34FRhPbYxQk7ZpL365McQWfHwtK', 1, 1),
+(32, 'FCP/CSC/21/1020', 'Ahmed Usman', '08222223333', 'ahmed.usman@example.com', '$2y$10$gIOjkHRYwlWQor59MRTtPOd/ZklTPyBsoATIaD8BVFjUG9vDACsGO', 1, 1);
 
 -- --------------------------------------------------------
 
@@ -224,43 +239,7 @@ CREATE TABLE `supervision` (
 --
 
 INSERT INTO `supervision` (`allocation_id`, `supervisor_id`, `student_id`, `project_id`, `allocation_date`, `status`) VALUES
-(1, 6, 20, 20, '2025-12-14 16:05:09', 'active'),
-(2, 9, 24, 24, '2025-12-14 16:05:09', 'active'),
-(3, 11, 33, 33, '2025-12-14 16:05:09', 'active'),
-(4, 5, 14, 14, '2025-12-14 16:05:09', 'active'),
-(5, 8, 21, 21, '2025-12-14 16:05:09', 'active'),
-(6, 2, 1, 1, '2025-12-14 16:05:09', 'active'),
-(7, 6, 15, 15, '2025-12-14 16:05:09', 'active'),
-(8, 4, 19, 19, '2025-12-14 16:05:09', 'active'),
-(9, 11, 35, 35, '2025-12-14 16:05:09', 'active'),
-(10, 9, 26, 26, '2025-12-14 16:05:09', 'active'),
-(11, 8, 28, 28, '2025-12-14 16:05:09', 'active'),
-(12, 8, 22, 22, '2025-12-14 16:05:09', 'active'),
-(13, 3, 6, 6, '2025-12-14 16:05:09', 'active'),
-(14, 1, 8, 8, '2025-12-14 16:05:09', 'active'),
-(15, 1, 3, 3, '2025-12-14 16:05:09', 'active'),
-(16, 11, 36, 36, '2025-12-14 16:05:09', 'active'),
-(17, 8, 27, 27, '2025-12-14 16:05:09', 'active'),
-(18, 5, 12, 12, '2025-12-14 16:05:09', 'active'),
-(19, 3, 9, 9, '2025-12-14 16:05:09', 'active'),
-(20, 12, 31, 31, '2025-12-14 16:05:09', 'active'),
-(21, 12, 37, 37, '2025-12-14 16:05:09', 'active'),
-(22, 3, 2, 2, '2025-12-14 16:05:09', 'active'),
-(23, 1, 10, 10, '2025-12-14 16:05:09', 'active'),
-(24, 9, 30, 30, '2025-12-14 16:05:09', 'active'),
-(25, 6, 18, 18, '2025-12-14 16:05:09', 'active'),
-(26, 9, 23, 23, '2025-12-14 16:05:09', 'active'),
-(27, 10, 32, 32, '2025-12-14 16:05:09', 'active'),
-(28, 2, 7, 7, '2025-12-14 16:05:09', 'active'),
-(29, 1, 4, 4, '2025-12-14 16:05:09', 'active'),
-(30, 8, 29, 29, '2025-12-14 16:05:09', 'active'),
-(31, 4, 16, 16, '2025-12-14 16:05:09', 'active'),
-(32, 6, 13, 13, '2025-12-14 16:05:09', 'active'),
-(33, 6, 17, 17, '2025-12-14 16:05:09', 'active'),
-(34, 5, 11, 11, '2025-12-14 16:05:09', 'active'),
-(35, 7, 25, 25, '2025-12-14 16:05:09', 'active'),
-(36, 12, 34, 34, '2025-12-14 16:05:09', 'active'),
-(37, 3, 5, 5, '2025-12-14 16:05:09', 'active');
+(1, 1, 12, 3, '2025-12-21 17:04:22', 'active');
 
 -- --------------------------------------------------------
 
@@ -284,18 +263,18 @@ CREATE TABLE `supervisors` (
 --
 
 INSERT INTO `supervisors` (`id`, `staff_no`, `name`, `email`, `department`, `max_students`, `current_load`, `password`) VALUES
-(1, 'SP/R/001', 'Dr. Bello Ahmed', 'bello.ahmed@university.edu', '1', 10, 10, ''),
-(2, 'SP/R/002', 'Prof. Grace Obi', 'grace.obi@university.edu', '1', 12, 12, ''),
-(3, 'SP/R/003', 'Dr. Ibrahim Lawal', 'ibrahim.lawal@university.edu', '1', 8, 8, ''),
-(4, 'SP/R/004', 'Dr. Hauwa Ali', 'hauwa.ali@university.edu', '2', 10, 10, ''),
-(5, 'SP/R/005', 'Prof. Musa Abdullahi', 'musa.abdullahi@university.edu', '2', 12, 9, ''),
-(6, 'SP/R/006', 'Dr. Aisha Mohammed', 'aisha.mohammed@university.edu', '2', 9, 9, ''),
-(7, 'SP/R/007', 'Dr. Kabir Hassan', 'kabir.hassan@university.edu', '3', 10, 6, ''),
-(8, 'SP/R/008', 'Prof. Janet Okoro', 'janet.okoro@university.edu', '3', 11, 9, ''),
-(9, 'SP/R/009', 'Dr. Suleiman Adamu', 'suleiman.adamu@university.edu', '3', 8, 6, ''),
-(10, 'SP/R/010', 'Dr. Peter Adeyemi', 'peter.adeyemi@university.edu', '4', 10, 8, ''),
-(11, 'SP/R/011', 'Prof. Ibrahim Danladi', 'ibrahim.danladi@university.edu', '4', 12, 12, ''),
-(12, 'SP/R/012', 'Dr. Esther John', 'esther.john@university.edu', '4', 9, 6, '');
+(1, 'SP/R/001', 'Dr. Bello Ahmed', 'bello.ahmed@university.edu', '1', 10, 1, ''),
+(2, 'SP/R/002', 'Prof. Grace Obi', 'grace.obi@university.edu', '1', 12, 0, ''),
+(3, 'SP/R/003', 'Dr. Ibrahim Lawal', 'ibrahim.lawal@university.edu', '1', 8, 0, ''),
+(4, 'SP/R/004', 'Dr. Hauwa Ali', 'hauwa.ali@university.edu', '2', 10, 0, ''),
+(5, 'SP/R/005', 'Prof. Musa Abdullahi', 'musa.abdullahi@university.edu', '2', 12, 0, ''),
+(6, 'SP/R/006', 'Dr. Aisha Mohammed', 'aisha.mohammed@university.edu', '2', 9, 0, ''),
+(7, 'SP/R/007', 'Dr. Kabir Hassan', 'kabir.hassan@university.edu', '3', 10, 0, ''),
+(8, 'SP/R/008', 'Prof. Janet Okoro', 'janet.okoro@university.edu', '3', 11, 0, ''),
+(9, 'SP/R/009', 'Dr. Suleiman Adamu', 'suleiman.adamu@university.edu', '3', 8, 0, ''),
+(10, 'SP/R/010', 'Dr. Peter Adeyemi', 'peter.adeyemi@university.edu', '4', 10, 0, ''),
+(11, 'SP/R/011', 'Prof. Ibrahim Danladi', 'ibrahim.danladi@university.edu', '4', 12, 0, ''),
+(12, 'SP/R/012', 'Dr. Esther John', 'esther.john@university.edu', '4', 9, 0, '');
 
 -- --------------------------------------------------------
 
@@ -313,18 +292,48 @@ CREATE TABLE `users` (
   `department` varchar(100) DEFAULT NULL,
   `is_active` tinyint(1) DEFAULT 1,
   `first_login` datetime DEFAULT NULL,
-  `session` varchar(255) DEFAULT NULL
+  `password_changed` varchar(50) DEFAULT NULL,
+  `session` varchar(255) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `users`
 --
 
-INSERT INTO `users` (`id`, `username`, `password`, `role`, `name`, `email`, `department`, `is_active`, `first_login`, `session`) VALUES
-(1, 'student1', '$2y$10$wH9uQwQwQwQwQwQwQwQwQeQwQwQwQwQwQwQwQwQwQwQwQwQwQwQwQwQwQwQw', 'stu', 'Student One', 'student1@example.com', 'Computer Science', 1, NULL, '2025/2026'),
-(2, 'dpc1', '$2y$10$xETc9KbUT8gTxaXH.YdlMe9fb39F6Aj1Dx1UWSMJOSLV/gJPFoqXW', 'dpc', 'Dept Coordinator', 'dpc1@example.com', '1', 1, '2025-12-14 16:01:18', 'g5cmdr687j305507qkrdib7c0c'),
-(3, 'fpc1', '$2y$10$wBg0XVuchohb94.ln4UI6.unAcWfGEhIw4ozpj9zaFMYYWSUnrClO', 'fpc', 'Faculty Coordinator', 'fpc1@example.com', '1', 1, '2025-12-14 16:00:25', 'g5cmdr687j305507qkrdib7c0c'),
-(4, 'sup1', '$2y$10$wH9uQwQwQwQwQwQwQwQwQeQwQwQwQwQwQwQwQwQwQwQwQwQwQwQwQwQwQwQw', 'sup', 'Supervisor User', 'sup1@example.com', '1', 1, NULL, '2025/2026');
+INSERT INTO `users` (`id`, `username`, `password`, `role`, `name`, `email`, `department`, `is_active`, `first_login`, `password_changed`, `session`, `created_at`) VALUES
+(1, 'FCP/CSC/19/101', '$2y$10$uBDgdOCNSDoRMkmzragD4OzZ4amfuZUxl3H3KIb3SQUMij8TxH1eW', 'stu', 'Student One', 'student1@example.com', '1', 1, '2025-12-20 16:51:03', NULL, 'n62buqsi0f5roliscosrsd2me5', '2025-12-20 15:51:03'),
+(2, 'dpc1', '$2y$10$xETc9KbUT8gTxaXH.YdlMe9fb39F6Aj1Dx1UWSMJOSLV/gJPFoqXW', 'dpc', 'Dept Coordinator', 'dpc1@example.com', '1', 1, '2025-12-21 17:02:59', NULL, 'jcghk1jl7ft21ds9e03n61ee2t', '2025-12-21 16:02:59'),
+(3, 'fpc1', '$2y$10$wBg0XVuchohb94.ln4UI6.unAcWfGEhIw4ozpj9zaFMYYWSUnrClO', 'fpc', 'Faculty Coordinator', 'fpc1@example.com', '1', 1, '2025-12-20 17:20:03', NULL, 'n62buqsi0f5roliscosrsd2me5', '2025-12-20 16:20:03'),
+(4, 'sup1', '$2y$10$HgKu2trclqIg4hu5WJPK7OAZLA800FGvOLYI/8OPdVyGrg7SrFDsS', 'sup', 'Supervisor User', 'sup1@example.com', '1', 1, '2025-12-20 17:04:14', NULL, 'n62buqsi0f5roliscosrsd2me5', '2025-12-20 16:04:14'),
+(5, 'dpc2', '$2y$10$FFykXVMDhoVUp/PKJI30jeZNr2rR0RaiyAST8c4SMarThMpsfs2DK', 'dpc', 'Sani Ahmed', 'cyber@fud.edu.ng', '3', 1, '2025-12-20 16:00:43', NULL, 'jcghk1jl7ft21ds9e03n61ee2t', '2025-12-20 15:00:43'),
+(6, 'dpc3', '$2y$10$AtZnIJDymnBES9uUN/2rxubln1sPgZ6fTwUwAvW0gcIvsL3NmZ/Pa', 'dpc', 'Sani Ahmed', 'software@fud.edu.ng', '2', 1, NULL, '0', '2025/2026', '2025-12-20 14:45:30'),
+(7, 'dpc4', '$2y$10$ktspq4pxGj9fpKCOItc.Wub5h3KBY0yza5lKMozJ5FwkRc6sAyBfG', 'dpc', 'Sani Ahmed', 'infortech@fud.edu.ng', '4', 1, NULL, NULL, '2025/2026', '2025-12-17 12:52:06'),
+(8, 'ddpc1', '$2y$10$C4CM1COaqAh0AUPvOo8MQObEs3/jKdb9v.yRawwISayHOaAzzahGm', 'dpc', 'Deputy', 'deputy@fud.edu.ng', '1', 1, NULL, NULL, '2025/2026', '2025-12-17 12:58:43'),
+(9, 'ddpc2', '$2y$10$DbZf41RPy0Xd/ELukCC2NegdJva4o.9.pZdM4Mm9kWZhSxjz.xw.C', 'dpc', 'Deputy', 'deputy2@fud.edu.ng', '2', 1, NULL, NULL, '2025/2026', '2025-12-17 12:59:14'),
+(10, 'FCP/CSC/19/110', '$2y$10$I2Bptt4Kmr6dYjzVVaTlb.K2w9gFlmrB0yqZO3vjZGwiLYQ9Kq7j6', 'stu', 'Bala Abubakar', 'bala@fud.edu.ng', '1', 1, '2025-12-20 17:03:28', NULL, 'n62buqsi0f5roliscosrsd2me5', '2025-12-20 16:03:28'),
+(11, 'FCP/CSC/19/1001', '$2y$10$S7iSyh23ZRdBZdnyozKwT.2BXriOjbO.iIsvgpeQlZq0DRb38nrdi', 'stu', 'John Doe', 'john@example.com', '1', 1, '2025-12-21 15:58:12', NULL, 'jcghk1jl7ft21ds9e03n61ee2t', '2025-12-21 14:58:23'),
+(12, 'FCP/CSC/19/1002', '$2y$10$W1DreP9FIr8jbPm9tXf7Tuy/6ulCaI7.66NRbgmY.JsVLOJZuALoy', 'stu', 'Jane Smith', 'jane@example.com', '1', 1, '2025-12-21 15:48:44', NULL, 'jcghk1jl7ft21ds9e03n61ee2t', '2025-12-21 14:49:09'),
+(13, 'FCP/CSC/21/1001', '$2y$10$XAUzSp0kMnx1Cr8KA2knquMsPMaEti4x.ULRYb4qI4ekBdn2xZ6zS', 'stu', 'Aliyu Musa', 'aliyu.musa@example.com', '1', 1, NULL, NULL, NULL, '2025-12-21 15:02:22'),
+(14, 'FCP/CSC/21/1002', '$2y$10$7XmoLKpY2NmyjvwGeEgiXeSKAUNdF/AWIl7a.nW0dF/3AGn9/uTJy', 'stu', 'Zainab Abdullahi', 'zainab.abdullahi@example.com', '1', 1, NULL, NULL, NULL, '2025-12-21 15:02:22'),
+(15, 'FCP/CSC/21/1003', '$2y$10$gr2qUvZ7NToB9iJkOK.arOQMjRg6LOxlmddaU5XgdfIfAv3qQatgm', 'stu', 'Emeka Okafor', 'emeka.okafor@example.com', '1', 1, NULL, NULL, NULL, '2025-12-21 15:02:22'),
+(16, 'FCP/CSC/21/1004', '$2y$10$6mXv8DCpS9YlVuRQOjNqK.d07ybJpRMIXSblo/s2xx7xRvZFDnB5G', 'stu', 'Maryam Sani', 'maryam.sani@example.com', '1', 1, NULL, NULL, NULL, '2025-12-21 15:02:22'),
+(17, 'FCP/CSC/21/1005', '$2y$10$0wt5zxUmsEL5Pz3X3ovNmejKWU3z9b2CZH1oFWEiat17PTGyxEnbW', 'stu', 'David Johnson', 'david.johnson@example.com', '1', 1, NULL, NULL, NULL, '2025-12-21 15:02:22'),
+(18, 'FCP/CSC/21/1006', '$2y$10$b6epSizqHEw2EFxlCoEkveowJQ97P81.JQcCPGkaik5a4RNCqBxKy', 'stu', 'Halima Yusuf', 'halima.yusuf@example.com', '1', 1, NULL, NULL, NULL, '2025-12-21 15:02:22'),
+(19, 'FCP/CSC/21/1007', '$2y$10$DBlHwe5IMrLh1LA9rliZeutLcQxaHqoi6DFnNzTHYk/X/wiSuDl/G', 'stu', 'Samuel Adewale', 'samuel.adewale@example.com', '1', 1, NULL, NULL, NULL, '2025-12-21 15:02:22'),
+(20, 'FCP/CSC/21/1008', '$2y$10$mt12azg9a2BjUWsC2dHN4O/m0U1B71oKCq3m5sdnIZX7sKrPI.oiW', 'stu', 'Joy Eze', 'joy.eze@example.com', '1', 1, NULL, NULL, NULL, '2025-12-21 15:02:22'),
+(21, 'FCP/CSC/21/1009', '$2y$10$cs0b97S3Mq10qRUX5C0UvOMgnAOhCIWPkyPQL.5qOug.rlcLqg9vu', 'stu', 'Hassan Ibrahim', 'hassan.ibrahim@example.com', '1', 1, NULL, NULL, NULL, '2025-12-21 15:02:22'),
+(22, 'FCP/CSC/21/1010', '$2y$10$0HnMFnxLG/pmKVt.jW49muNJhUSt.B0C9YrqtLMXwttq4ng36DZWO', 'stu', 'Chika Nnamdi', 'chika.nnamdi@example.com', '1', 1, NULL, NULL, NULL, '2025-12-21 15:02:23'),
+(23, 'FCP/CSC/21/1011', '$2y$10$4CTZW83SDuYg34qMkf0C3uzfXGwem7mLTybqgMaOBVzaw8GeTwKp6', 'stu', 'Fatima Umar', 'fatima.umar@example.com', '1', 1, NULL, NULL, NULL, '2025-12-21 15:02:23'),
+(24, 'FCP/CSC/21/1012', '$2y$10$e5bNLdIrm2mAXs.4JFDWye1v9xVsOOPmY9LOtDwXg4hLEXfkR2o1q', 'stu', 'Michael James', 'michael.james@example.com', '1', 1, NULL, NULL, NULL, '2025-12-21 15:02:23'),
+(25, 'FCP/CSC/21/1013', '$2y$10$0PBflOLGWwRouD/HJ5Rswu12NTxtRe2ekZKnE5raSu3v2BhpFJJ/G', 'stu', 'Aisha Mohammed', 'aisha.mohammed@example.com', '1', 1, NULL, NULL, NULL, '2025-12-21 15:02:23'),
+(26, 'FCP/CSC/21/1014', '$2y$10$O307dJI5irmH/5Sqm.tRy.d5v2wVx2bzizBoXuAPoLXd9BNM4zWcW', 'stu', 'Usman Bello', 'usman.bello@example.com', '1', 1, NULL, NULL, NULL, '2025-12-21 15:02:23'),
+(27, 'FCP/CSC/21/1015', '$2y$10$kw54yvppA0D6zlpctywpd.2znPb2uu1F/1oG0yJbN.U1sxP1bEYZu', 'stu', 'Ngozi Umeh', 'ngozi.umeh@example.com', '1', 1, NULL, NULL, NULL, '2025-12-21 15:02:23'),
+(28, 'FCP/CSC/21/1016', '$2y$10$Swa3jgFHnyyJoIw.qZTBCuSIJKsTlzKIKER8z0QocdM7IM1B.BI4G', 'stu', 'Tunde Adewale', 'tunde.adewale@example.com', '1', 1, NULL, NULL, NULL, '2025-12-21 15:02:23'),
+(29, 'FCP/CSC/21/1017', '$2y$10$dTSnKqel47AJL0JFWUZBjOg/J99DwsHycAPczzhpMI65gNkDWrTP2', 'stu', 'Khadija Ibrahim', 'khadija.ibrahim@example.com', '1', 1, NULL, NULL, NULL, '2025-12-21 15:02:23'),
+(30, 'FCP/CSC/21/1018', '$2y$10$19VprDTRql/4srHZjeHHPOiDcWArMhcROt1b3HdJjRSBCfx0I0m3S', 'stu', 'Bashir Ali', 'bashir.ali@example.com', '1', 1, NULL, NULL, NULL, '2025-12-21 15:02:23'),
+(31, 'FCP/CSC/21/1019', '$2y$10$xRJ6e2sKmDaKy9bEKSR2q.XqMa34FRhPbYxQk7ZpL365McQWfHwtK', 'stu', 'Mary James', 'mary.james@example.com', '1', 1, NULL, NULL, NULL, '2025-12-21 15:02:23'),
+(32, 'FCP/CSC/21/1020', '$2y$10$gIOjkHRYwlWQor59MRTtPOd/ZklTPyBsoATIaD8BVFjUG9vDACsGO', 'stu', 'Ahmed Usman', 'ahmed.usman@example.com', '1', 1, NULL, NULL, NULL, '2025-12-21 15:02:23');
 
 --
 -- Indexes for dumped tables
@@ -398,31 +407,31 @@ ALTER TABLE `departments`
 -- AUTO_INCREMENT for table `feedback`
 --
 ALTER TABLE `feedback`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT for table `past_projects`
 --
 ALTER TABLE `past_projects`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=62;
 
 --
 -- AUTO_INCREMENT for table `project_topics`
 --
 ALTER TABLE `project_topics`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=38;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT for table `students`
 --
 ALTER TABLE `students`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=41;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=33;
 
 --
 -- AUTO_INCREMENT for table `supervision`
 --
 ALTER TABLE `supervision`
-  MODIFY `allocation_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=38;
+  MODIFY `allocation_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `supervisors`
@@ -434,7 +443,7 @@ ALTER TABLE `supervisors`
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=33;
 
 --
 -- Constraints for dumped tables

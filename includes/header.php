@@ -72,12 +72,15 @@
                 <a href="dpc_dashboard.php">Dashboard</a>
                 <a href="dpc_manage_students.php">Manage Students</a>
                 <a href="dpc_topic_validation.php">Validate Topics</a>
+                <a href="dpc_change_password.php">Change Password</a>
             <?php elseif ($_SESSION['role'] === 'sup'): ?>
                 <a href="sup_dashboard.php">Dashboard</a>
+                <a href="sup_change_password.php">Change Password</a>
             <?php elseif ($_SESSION['role'] === 'stu'): ?>
                 <a href="stu_dashboard.php">Dashboard</a>
                 <a href="stu_submit_topic.php">Submit Topic</a>
                 <a href="stu_view_status.php">View Status</a>
+                <a href="stu_change_password.php">Change Password</a>
             <?php endif; ?>
             <a href="../logout.php">Logout</a>
         <?php endif; ?>
