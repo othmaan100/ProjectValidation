@@ -238,7 +238,12 @@ if (!empty($students)) {
                                 </div>
                             </td>
                             <td>
-                                <?php foreach ($st_topics as $idx => $t): ?>
+                                 <?php 
+                                 $display_topics = $st_topics;
+                                 if ($hasApproved) {
+                                     $display_topics = array_filter($st_topics, function($tp) { return $tp['status'] === 'approved'; });
+                                 }
+                                 foreach ($display_topics as $idx => $t): ?>
                                     <div class="topic-row <?= $t['status'] ?>">
                                         <div class="topic-content">
                                             <span style="font-weight: 700; color: #7f8c8d; font-size: 11px;">PROPOSAL #<?= $idx + 1 ?></span>

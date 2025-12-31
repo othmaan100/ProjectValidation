@@ -63,7 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['auto_allocate'])) {
             });
             
             if (empty($compatibleSupervisors)) {
-                $errors[] = "No available supervisors for {$student['name']}";
+                $errors[] = "No available supervisors for {$student['name']} ({$student['reg_no']})";
                 continue;
             }
             
@@ -78,19 +78,21 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['auto_allocate'])) {
                     
                     if ($checkStmt->rowCount() > 0) continue;
                     
-                    // Create allocation
-                    $stmt = $conn->prepare("INSERT INTO supervision (supervisor_id, student_id, project_id, allocation_date, status) VALUES (?, ?, ?, ?, 'active')");
-                    $stmt->execute([$supervisor['id'], $student['id'], $student['project_id'] ?: null, $currentDate]);
+                    // Create allocation - Removed project_id
+                    $stmt = $conn->prepare("INSERT INTO supervision (supervisor_id, student_id, allocation_date, status) VALUES (?, ?, ?, 'active')");
+                    $stmt->execute([$supervisor['id'], $student['id'], $currentDate]);
                     
                     // Update supervisor load
                     $stmt = $conn->prepare("UPDATE supervisors SET current_load = current_load + 1 WHERE id = ?");
                     $stmt->execute([$supervisor['id']]);
                     
-                    // Update project status if exists
+                    // Supervisor link is now purely through the supervision table
+                    /* 
                     if ($student['project_id']) {
-                        $stmt = $conn->prepare("UPDATE project_topics SET status = 'approved', supervisor_id = ?, supervisor_name = (SELECT name FROM supervisors WHERE id = ?) WHERE id = ?");
-                        $stmt->execute([$supervisor['id'], $supervisor['id'], $student['project_id']]);
+                        $stmt = $conn->prepare("UPDATE project_topics SET status = 'approved' WHERE id = ?");
+                        $stmt->execute([$student['project_id']]);
                     }
+                    */
                     
                     // Update local data
                     foreach ($supervisors as &$sup) {
@@ -106,7 +108,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['auto_allocate'])) {
                     break;
                 } catch (PDOException $e) { if ($e->getCode() != '23000') throw $e; }
             }
-            if (!$allocated) $errors[] = "Failed to allocate {$student['name']}";
+            if (!$allocated) $errors[] = "Failed to allocate {$student['name']} ({$student['reg_no']})";
         }
         
         $conn->commit();
@@ -144,18 +146,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['manual_allocate'])) {
         $checkStmt->execute([$studentId]);
         if ($checkStmt->rowCount() > 0) throw new Exception("Student already has an allocation!");
         
-        // Create allocation
-        $stmt = $conn->prepare("INSERT INTO supervision (supervisor_id, student_id, project_id, allocation_date, status) VALUES (?, ?, ?, ?, 'active')");
-        $stmt->execute([$supervisorId, $studentId, $projectId ?: null, $currentDate]);
+        // Create allocation - Removed project_id
+        $stmt = $conn->prepare("INSERT INTO supervision (supervisor_id, student_id, allocation_date, status) VALUES (?, ?, ?, 'active')");
+        $stmt->execute([$supervisorId, $studentId, $currentDate]);
         
         // Update records
         $stmt = $conn->prepare("UPDATE supervisors SET current_load = current_load + 1 WHERE id = ?");
         $stmt->execute([$supervisorId]);
         
+        /*
         if ($projectId) {
-            $stmt = $conn->prepare("UPDATE project_topics SET status = 'approved', supervisor_id = ?, supervisor_name = (SELECT name FROM supervisors WHERE id = ?) WHERE id = ?");
-            $stmt->execute([$supervisorId, $supervisorId, $projectId]);
+            $stmt = $conn->prepare("UPDATE project_topics SET status = 'approved' WHERE id = ?");
+            $stmt->execute([$projectId]);
         }
+        */
         
         $conn->commit();
         $_SESSION['success'] = "Manual allocation successful!";
@@ -186,7 +190,7 @@ $allocStmt = $conn->prepare("
     FROM supervision sp
     JOIN students s ON sp.student_id = s.id
     JOIN supervisors su ON sp.supervisor_id = su.id
-    LEFT JOIN project_topics p ON sp.project_id = p.id
+    LEFT JOIN project_topics p ON s.id = p.student_id AND p.status = 'approved'
     WHERE s.department = :dept
     ORDER BY su.name, s.name
 ");

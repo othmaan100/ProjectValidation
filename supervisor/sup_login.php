@@ -17,24 +17,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     if (empty($staff_no) || empty($password)) {
         $error = "Please enter both Staff Number and Password.";
     } else {
-        $stmt = $conn->prepare("SELECT * FROM supervisors WHERE staff_no = ?");
-        $stmt->execute([$staff_no]);
-        $supervisor = $stmt->fetch(PDO::FETCH_ASSOC);
+        // Authentication strictly via 'users' table
+        $stmt_user = $conn->prepare("SELECT * FROM users WHERE username = ? AND role = 'sup' AND is_active = '1'");
+        $stmt_user->execute([$staff_no]);
+        $user_row = $stmt_user->fetch(PDO::FETCH_ASSOC);
 
-        if ($supervisor) {
-            // For testing: if password is empty in DB, allow login with staff_no
-            $login_success = false;
-            if (empty($supervisor['password'])) {
-                if ($password === $supervisor['staff_no']) {
-                    $login_success = true;
-                }
-            } else {
-                if (password_verify($password, $supervisor['password'])) {
-                    $login_success = true;
-                }
-            }
+        if ($user_row && password_verify($password, $user_row['password'])) {
+            // Success - fetch profile data from supervisors table
+            $stmt_sup = $conn->prepare("SELECT * FROM supervisors WHERE id = ?");
+            $stmt_sup->execute([$user_row['id']]);
+            $supervisor = $stmt_sup->fetch(PDO::FETCH_ASSOC);
 
-            if ($login_success) {
+            if ($supervisor) {
                 $_SESSION['user_id'] = $supervisor['id'];
                 $_SESSION['staff_no'] = $supervisor['staff_no'];
                 $_SESSION['name'] = $supervisor['name'];
@@ -44,10 +38,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 header("Location: sup_dashboard.php");
                 exit();
             } else {
-                $error = "Invalid password.";
+                $error = "Supervisor profile not found. Contact Admin.";
             }
         } else {
-            $error = "Supervisor record not found.";
+            $error = "Invalid Staff Number or Password.";
         }
     }
 }

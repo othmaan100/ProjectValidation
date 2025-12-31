@@ -14,40 +14,46 @@ $error = '';
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $reg_no = trim($_POST['reg_no']);
     $password = trim($_POST['password']);
-
     if (empty($reg_no) || empty($password)) {
         $error = "Please enter both Registration Number and Password.";
     } else {
-        $stmt = $conn->prepare("SELECT * FROM students WHERE reg_no = :reg_no");
-        $stmt->execute([':reg_no' => $reg_no]);
-        $student = $stmt->fetch(PDO::FETCH_ASSOC);
+        // Authentication strictly via 'users' table
+        $stmt_user = $conn->prepare("SELECT * FROM users WHERE username = ? AND role = 'stu' AND is_active = '1'");
+        $stmt_user->execute([$reg_no]);
+        $user_row = $stmt_user->fetch(PDO::FETCH_ASSOC);
 
-        if ($student) {
-            // First login logic: check if password matches reg_no
-            if ($student['first_login'] == 1) {
-                if ($password === $student['reg_no']) {
-                    $_SESSION['user_id'] = $student['id'];
-                    $_SESSION['reg_no'] = $student['reg_no'];
-                    $_SESSION['role'] = 'stu';
+        if ($user_row && password_verify($password, $user_row['password'])) {
+            // Success - fetch profile data from students table
+            $stmt_stu = $conn->prepare("SELECT * FROM students WHERE id = ?");
+            $stmt_stu->execute([$user_row['id']]);
+            $student = $stmt_stu->fetch(PDO::FETCH_ASSOC);
+
+            if ($student) {
+                $_SESSION['user_id'] = $student['id'];
+                $_SESSION['reg_no'] = $student['reg_no'];
+                $_SESSION['role'] = 'stu';
+
+                // Redirect to change password if first login
+                if ($student['first_login'] == 1) {
                     header("Location: stu_change_password.php");
-                    exit();
                 } else {
-                    $error = "First login? Use your Registration Number as the password.";
-                }
-            } else {
-                // Regular login with hashed password
-                if (password_verify($password, $student['password'])) {
-                    $_SESSION['user_id'] = $student['id'];
-                    $_SESSION['reg_no'] = $student['reg_no'];
-                    $_SESSION['role'] = 'stu';
                     header("Location: stu_dashboard.php");
-                    exit();
-                } else {
-                    $error = "Invalid password. Please try again.";
                 }
+                exit();
+            } else {
+                $error = "Student profile not found. Contact Admin.";
             }
         } else {
-            $error = "Registration number not found.";
+            // Special helpful error for first-time login attempts with wrong password
+            $stmt_stu_check = $conn->prepare("SELECT first_login FROM students WHERE reg_no = ?");
+            $stmt_stu_check->execute([$reg_no]);
+            $stu_status = $stmt_stu_check->fetch();
+            
+            if ($stu_status && $stu_status['first_login'] == 1) {
+                $error = "First login? Use your Registration Number as the password.";
+            } else {
+                $error = "Invalid Registration Number or Password.";
+            }
         }
     }
 }

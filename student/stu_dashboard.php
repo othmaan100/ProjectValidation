@@ -46,6 +46,19 @@ if ($student['first_login']) {
     </script>";
     exit();
 }
+
+// Fetch Supervisor details if approved
+$assigned_supervisor = null;
+if ($approved_topic) {
+    $stmt = $conn->prepare("
+        SELECT su.name 
+        FROM supervision sp 
+        JOIN supervisors su ON sp.supervisor_id = su.id 
+        WHERE sp.student_id = ? AND sp.status = 'active'
+    ");
+    $stmt->execute([$student_id]);
+    $assigned_supervisor = $stmt->fetchColumn();
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -194,7 +207,7 @@ if ($student['first_login']) {
                             <p style="margin: 0; font-size: 13px; color: #636e72;">Assigned Supervisor:</p>
                             <p style="margin: 5px 0 0; font-weight: 700;">
                                 <i class="fas fa-user-tie"></i> 
-                                <?= htmlspecialchars($approved_topic['supervisor_name'] ?: 'Awaiting Allocation') ?>
+                                <?= htmlspecialchars($assigned_supervisor ?: 'Awaiting Allocation') ?>
                             </p>
                         </div>
                     </div>

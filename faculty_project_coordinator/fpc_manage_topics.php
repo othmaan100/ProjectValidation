@@ -14,6 +14,36 @@ $response = ['success' => false, 'message' => ''];
 // Get current session for defaults
 $currentSessionYear = date('Y') . '/' . (date('Y') + 1);
 
+// EXPORT APPROVED TOPICS
+if (isset($_GET['export'])) {
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="approved_topics_export_' . date('Y-m-d') . '.csv"');
+    
+    $output = fopen('php://output', 'w');
+    // Add UTF-8 BOM for Excel compatibility
+    fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
+    fputcsv($output, ['Topic', 'Reg_No', 'Student_Name', 'Session']);
+    
+    $stmt = $conn->prepare("SELECT pt.topic, s.reg_no, pt.student_name, pt.session 
+                           FROM project_topics pt 
+                           LEFT JOIN students s ON pt.student_id = s.id 
+                           WHERE pt.status = 'approved' 
+                           ORDER BY pt.id DESC");
+    $stmt->execute();
+    
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        fputcsv($output, [
+            $row['topic'],
+            $row['reg_no'] ?? 'N/A',
+            $row['student_name'],
+            $row['session']
+        ]);
+    }
+    
+    fclose($output);
+    exit();
+}
+
 // Handle AJAX requests
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
     header('Content-Type: application/json');
@@ -27,7 +57,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
             $student_reg_no = trim($_POST['student_reg_no']);
             $student_name = trim($_POST['student_name'] ?? '');
             $session = trim($_POST['session']);
-            $supervisor_name = trim($_POST['supervisor_name'] ?? '');
             $status = $_POST['status'] ?? 'pending';
 
             if (empty($topic) || empty($student_reg_no) || empty($session)) {
@@ -42,9 +71,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
             if (!$student) {
                 // If student doesn't exist, create them
                 $defaultDept = 1;
-                $stmt = $conn->prepare("INSERT INTO students (reg_no, name, password, department) VALUES (?, ?, ?, ?)");
-                $stmt->execute([$student_reg_no, $student_name, password_hash($student_reg_no, PASSWORD_DEFAULT), $defaultDept]);
+                // Create user account first
+                $hashed_pw = password_hash($student_reg_no, PASSWORD_DEFAULT);
+                $stmt = $conn->prepare("INSERT INTO users (username, password, role, name, department, is_active) VALUES (?, ?, 'stu', ?, ?, 1)");
+                $stmt->execute([$student_reg_no, $hashed_pw, $student_name, $defaultDept]);
                 $student_id = $conn->lastInsertId();
+
+                // Create student profile profile
+                $stmt = $conn->prepare("INSERT INTO students (id, reg_no, name, department, first_login) VALUES (?, ?, ?, ?, 1)");
+                $stmt->execute([$student_id, $student_reg_no, $student_name, $defaultDept]);
             } else {
                 $student_id = $student['id'];
                 if (!empty($student_name)) {
@@ -53,8 +88,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
                 }
             }
 
-            $stmt = $conn->prepare("INSERT INTO project_topics (topic, student_id, student_name, session, supervisor_name, status) VALUES (?, ?, ?, ?, ?, ?)");
-            $stmt->execute([$topic, $student_id, $student_name, $session, $supervisor_name, $status]);
+            $stmt = $conn->prepare("INSERT INTO project_topics (topic, student_id, student_name, session, status) VALUES (?, ?, ?, ?, ?)");
+            $stmt->execute([$topic, $student_id, $student_name, $session, $status]);
 
             $response['success'] = true;
             $response['message'] = "Project topic added successfully.";
@@ -66,15 +101,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
             $topic = trim($_POST['topic']);
             $student_name = trim($_POST['student_name'] ?? '');
             $session = trim($_POST['session']);
-            $supervisor_name = trim($_POST['supervisor_name'] ?? '');
             $status = $_POST['status'] ?? 'pending';
 
             if (empty($topic) || empty($session)) {
                 throw new Exception("Topic and Session are required.");
             }
 
-            $stmt = $conn->prepare("UPDATE project_topics SET topic = ?, student_name = ?, session = ?, supervisor_name = ?, status = ? WHERE id = ?");
-            $stmt->execute([$topic, $student_name, $session, $supervisor_name, $status, $id]);
+            $stmt = $conn->prepare("UPDATE project_topics SET topic = ?, student_name = ?, session = ?, status = ? WHERE id = ?");
+            $stmt->execute([$topic, $student_name, $session, $status, $id]);
 
             $response['success'] = true;
             $response['message'] = "Topic updated successfully!";
@@ -109,22 +143,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
                 $regNo = trim($data[1]);
                 $name = trim($data[2] ?? '');
                 $sessionStr = trim($data[3] ?? $currentSessionYear);
-                $supervisor = trim($data[4] ?? '');
 
                 $stmt = $conn->prepare("SELECT id FROM students WHERE reg_no = ?");
                 $stmt->execute([$regNo]);
                 $student = $stmt->fetch();
 
                 if (!$student) {
-                    $stmt = $conn->prepare("INSERT INTO students (reg_no, name, password, department) VALUES (?, ?, ?, 1)");
-                    $stmt->execute([$regNo, $name, password_hash($regNo, PASSWORD_DEFAULT)]);
+                    // Create user account first
+                    $hashed_pw = password_hash($regNo, PASSWORD_DEFAULT);
+                    $stmt = $conn->prepare("INSERT INTO users (username, password, role, name, department, is_active) VALUES (?, ?, 'stu', ?, 1, 1)");
+                    $stmt->execute([$regNo, $hashed_pw, $name]);
                     $student_id = $conn->lastInsertId();
+
+                    // Create student profile
+                    $stmt = $conn->prepare("INSERT INTO students (id, reg_no, name, department, first_login) VALUES (?, ?, ?, 1, 1)");
+                    $stmt->execute([$student_id, $regNo, $name]);
                 } else {
                     $student_id = $student['id'];
                 }
 
-                $stmt = $conn->prepare("INSERT INTO project_topics (topic, student_id, student_name, session, supervisor_name, status) VALUES (?, ?, ?, ?, ?, 'approved')");
-                $stmt->execute([$topicStr, $student_id, $name, $sessionStr, $supervisor]);
+                $stmt = $conn->prepare("INSERT INTO project_topics (topic, student_id, student_name, session, status) VALUES (?, ?, ?, ?, 'approved')");
+                $stmt->execute([$topicStr, $student_id, $name, $sessionStr]);
                 if ($stmt->rowCount() > 0) $successCount++; else $errorCount++;
             }
             $conn->commit();
@@ -252,6 +291,7 @@ $topics = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <div class="header-actions">
                 <button class="btn btn-primary" onclick="openAdd()"><i class="fas fa-plus"></i> Add New</button>
                 <button class="btn btn-warning" onclick="openModal('batchModal')"><i class="fas fa-upload"></i> Import CSV</button>
+                <a href="?export=1" class="btn btn-success" style="color: white; background: #10ac84;"><i class="fas fa-file-export"></i> Export Approved</a>
                 <a href="fpc_dashboard.php" class="btn btn-info"><i class="fas fa-home"></i> Home</a>
             </div>
         </div>
@@ -265,7 +305,6 @@ $topics = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     <tr>
                         <th>Topic & Student</th>
                         <th>Session</th>
-                        <th>Supervisor</th>
                         <th>Status</th>
                         <th>Actions</th>
                     </tr>
@@ -279,7 +318,6 @@ $topics = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                 <td><div class="topic-title"><?php echo htmlspecialchars($t['topic']); ?></div>
                                 <small><?php echo htmlspecialchars($t['student_name']); ?> (<?php echo htmlspecialchars($t['reg_no'] ?? 'N/A'); ?>)</small></td>
                                 <td><?php echo htmlspecialchars($t['session']); ?></td>
-                                <td><?php echo htmlspecialchars($t['supervisor_name'] ?: 'None'); ?></td>
                                 <td><span class="status-pill status-<?php echo strtolower($t['status']); ?>"><?php echo $t['status']; ?></span></td>
                                 <td style="display:flex; gap:5px;">
                                     <button class="icon-btn btn-edit-i" onclick='openEdit(<?php echo json_encode($t); ?>)'><i class="fas fa-edit"></i></button>
@@ -310,7 +348,6 @@ $topics = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <div class="form-group" id="reg-wrap"><label>Student Reg No</label><input type="text" name="student_reg_no" id="f-reg" class="form-control"></div>
             <div class="form-group"><label>Student Name</label><input type="text" name="student_name" id="f-name" class="form-control"></div>
             <div class="form-group"><label>Session</label><input type="text" name="session" id="f-sess" class="form-control" value="<?php echo $currentSessionYear; ?>"></div>
-            <div class="form-group"><label>Supervisor</label><input type="text" name="supervisor_name" id="f-sup" class="form-control"></div>
             <div class="form-group"><label>Status</label><select name="status" id="f-stat" class="form-control"><option value="pending">Pending</option><option value="approved">Approved</option></select></div>
             <button type="submit" class="btn btn-primary" style="width:100%">Save</button>
         </form></div>
@@ -320,6 +357,10 @@ $topics = $stmt->fetchAll(PDO::FETCH_ASSOC);
         <div class="modal-header"><h2>Import CSV</h2><span onclick="closeModal('batchModal')" style="cursor:pointer">&times;</span></div>
         <div class="modal-body"><form id="batchForm"><input type="hidden" name="ajax" value="1"><input type="hidden" name="action" value="batch_upload">
             <div class="form-group"><label>CSV File</label><input type="file" name="csv_file" accept=".csv" class="form-control" required></div>
+            <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; background: #f8faff; padding: 10px; border-radius: 8px; border: 1px dashed #667eea;">
+                <small style="color: #636e72;">Format: Topic, Reg_No, Name, Session</small>
+                <a href="../assets/topic_template.csv" download class="btn" style="padding: 5px 12px; font-size: 11px; background: #eee; color: #333; height: auto;"><i class="fas fa-download"></i> Template</a>
+            </div>
             <button type="submit" class="btn btn-warning" style="width:100%">Upload</button>
         </form></div>
     </div></div>
@@ -360,7 +401,7 @@ $topics = $stmt->fetchAll(PDO::FETCH_ASSOC);
             document.getElementById('m-title').innerText='Edit Topic'; document.getElementById('f-act').value='update_topic';
             document.getElementById('f-id').value=d.id; document.getElementById('f-topic').value=d.topic;
             document.getElementById('f-name').value=d.student_name; document.getElementById('f-sess').value=d.session;
-            document.getElementById('f-sup').value=d.supervisor_name; document.getElementById('f-stat').value=d.status;
+            document.getElementById('f-stat').value=d.status;
             document.getElementById('reg-wrap').style.display='none'; openModal('topicModal');
         }
         function openPDF(id){ document.getElementById('pdf-id').value=id; openModal('pdfModal'); }

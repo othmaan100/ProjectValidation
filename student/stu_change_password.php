@@ -28,9 +28,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['change_pw'])) {
 
             $conn->beginTransaction();
             try {
-                $stmt1 = $conn->prepare("UPDATE students SET password = :pw, first_login = 0 WHERE id = :id");
-                $stmt1->execute([':pw' => $hashed_password, ':id' => $user_id]);
+                // Update first_login status in students
+                $stmt1 = $conn->prepare("UPDATE students SET first_login = 0 WHERE id = :id");
+                $stmt1->execute([':id' => $user_id]);
 
+                // Update users table (primary authentication source)
                 $stmt2 = $conn->prepare("UPDATE users SET password = :pw WHERE id = :id");
                 $stmt2->execute([':pw' => $hashed_password, ':id' => $user_id]);
 

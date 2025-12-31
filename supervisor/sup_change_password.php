@@ -26,51 +26,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_pw'])) {
     } elseif (strlen($new_pw) < 6) {
         $error = "New password must be at least 6 characters.";
     } else {
-        // Verify current password against the users table (most reliable ID match)
-        $stmt = $conn->prepare("SELECT password, username FROM users WHERE id = ? AND role = 'sup'");
+        // Verify current password strictly against the users table
+        $stmt = $conn->prepare("SELECT password FROM users WHERE id = ? AND role = 'sup'");
         $stmt->execute([$supervisor_id]);
         $user_row = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        $valid = false;
-        if ($user_row) {
-            // First check: Hashed password in users table
-            if (password_verify($current_pw, $user_row['password'])) {
-                $valid = true;
-            } 
-            
-            // Second check: If first fails, check supervisors table using staff_no 
-            // This handles legacy empty-password states or ID mismatches
-            if (!$valid) {
-                $stmt_sup = $conn->prepare("SELECT password, staff_no FROM supervisors WHERE staff_no = ?");
-                $stmt_sup->execute([$user_row['username']]);
-                $sup_row = $stmt_sup->fetch(PDO::FETCH_ASSOC);
-                
-                if ($sup_row) {
-                    if (empty($sup_row['password'])) {
-                        if ($current_pw === $sup_row['staff_no']) {
-                            $valid = true;
-                        }
-                    } else {
-                        if (password_verify($current_pw, $sup_row['password'])) {
-                            $valid = true;
-                        }
-                    }
-                }
-            }
-        }
-
-        if ($valid) {
+        if ($user_row && password_verify($current_pw, $user_row['password'])) {
             $hashed = password_hash($new_pw, PASSWORD_DEFAULT);
             $conn->beginTransaction();
             try {
-                // Update users table (primary login source)
-                $stmt1 = $conn->prepare("UPDATE users SET password = ? WHERE id = ? AND role = 'sup'");
-                $stmt1->execute([$hashed, $supervisor_id]);
-
-                // Update supervisors table (synced profile data)
-                // Use staff_no from user_row for safety across ID divergence
-                $stmt2 = $conn->prepare("UPDATE supervisors SET password = ? WHERE staff_no = ?");
-                $stmt2->execute([$hashed, $user_row['username']]);
+                // Update users table (the only password location)
+                $stmt = $conn->prepare("UPDATE users SET password = ? WHERE id = ? AND role = 'sup'");
+                $stmt->execute([$hashed, $supervisor_id]);
 
                 $conn->commit();
                 $message = "Password updated successfully!";

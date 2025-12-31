@@ -60,9 +60,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
                 $stmt->execute([$reg_no, $password, $name, $email, $dept_id]);
                 $user_id = $conn->lastInsertId();
 
-                // Insert into students using the same ID
-                $stmt = $conn->prepare("INSERT INTO students (id, reg_no, name, phone, email, department, password, first_login) VALUES (?, ?, ?, ?, ?, ?, ?, 1)");
-                $stmt->execute([$user_id, $reg_no, $name, $phone, $email, $dept_id, $password]);
+                // Insert into students using the same ID - Removed password column
+                $stmt = $conn->prepare("INSERT INTO students (id, reg_no, name, phone, email, department, first_login) VALUES (?, ?, ?, ?, ?, ?, 1)");
+                $stmt->execute([$user_id, $reg_no, $name, $phone, $email, $dept_id]);
                 
                 $conn->commit();
                 $response['success'] = true;
@@ -134,10 +134,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
                 $conn->commit();
                 $response['success'] = true;
                 $response['message'] = "Student record and user account deleted!";
-            } catch (Exception $e) {
-                $conn->rollBack();
-                throw $e;
-            }
+            } catch (Exception $e) { $conn->rollBack(); throw $e; }
+        }
+
+        // RESET PASSWORD
+        elseif ($action === 'reset_password') {
+            $id = intval($_POST['id']);
+            
+            // Get reg_no
+            $stmt = $conn->prepare("SELECT reg_no FROM students WHERE id = ? AND department = ?");
+            $stmt->execute([$id, $dept_id]);
+            $reg_no = $stmt->fetchColumn();
+
+            if (!$reg_no) throw new Exception("Student not found.");
+
+            $new_password = password_hash($reg_no, PASSWORD_DEFAULT);
+
+            $conn->beginTransaction();
+            try {
+                $stmt = $conn->prepare("UPDATE users SET password = ? WHERE id = ? AND role = 'stu'");
+                $stmt->execute([$new_password, $id]);
+
+                $conn->commit();
+                $response['success'] = true;
+                $response['message'] = "Password reset to Registration Number ($reg_no) successfully!";
+            } catch (Exception $e) { $conn->rollBack(); throw $e; }
         }
 
         // BATCH UPLOAD
@@ -172,14 +193,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
                 $password = password_hash($reg_no, PASSWORD_DEFAULT);
                 
                 try {
-                    // Insert into users first to get a safe ID
                     $stmt = $conn->prepare("INSERT INTO users (username, password, role, name, email, department, is_active) VALUES (?, ?, 'stu', ?, ?, ?, 1)");
                     $stmt->execute([$reg_no, $password, $name, $email, $dept_id]);
                     $user_id = $conn->lastInsertId();
 
-                    // Insert into students using the same ID
-                    $stmt = $conn->prepare("INSERT INTO students (id, reg_no, name, phone, email, department, password, first_login) VALUES (?, ?, ?, ?, ?, ?, ?, 1)");
-                    $stmt->execute([$user_id, $reg_no, $name, $phone, $email, $dept_id, $password]);
+                    // Insert into students using the same ID - Removed password column
+                    $stmt = $conn->prepare("INSERT INTO students (id, reg_no, name, phone, email, department, first_login) VALUES (?, ?, ?, ?, ?, ?, 1)");
+                    $stmt->execute([$user_id, $reg_no, $name, $phone, $email, $dept_id]);
 
                     $successCount++;
                 } catch (Exception $e) {
@@ -252,6 +272,7 @@ $students = $stmt->fetchAll(PDO::FETCH_ASSOC);
         th { background: #f8faff; padding: 18px; text-align: left; color: #747d8c; font-size: 13px; text-transform: uppercase; }
         td { padding: 16px; border-bottom: 1px solid #eee; font-size: 14px; }
         .student-name { font-weight: 600; color: var(--primary); }
+        .btn-reset-i { background: #fff4e5; color: #ff9f43; }
         .icon-btn { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; border: none; cursor: pointer; transition: 0.3s; }
         .btn-edit-i { background: #ebf3ff; color: #1e90ff; }
         .btn-delete-i { background: #fff0f3; color: #ff4757; }
@@ -321,6 +342,7 @@ $students = $stmt->fetchAll(PDO::FETCH_ASSOC);
                             </td>
                             <td>
                                 <div style="display: flex; gap: 8px; justify-content: center;">
+                                    <button class="icon-btn btn-reset-i" onclick="resetPwd(<?= $s['id'] ?>, '<?= htmlspecialchars($s['reg_no']) ?>')" title="Reset Password to Reg No"><i class="fas fa-key"></i></button>
                                     <button class="icon-btn btn-edit-i" onclick='openEdit(<?= json_encode($s) ?>)' title="Edit"><i class="fas fa-edit"></i></button>
                                     <button class="icon-btn btn-delete-i" onclick="del(<?= $s['id'] ?>)" title="Delete"><i class="fas fa-trash"></i></button>
                                 </div>
@@ -478,6 +500,20 @@ $students = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 if(data.success) document.getElementById('row-'+id).remove();
             } catch(e) { showT('Error deleting record.', false); }
         }
+
+        async function resetPwd(id, reg_no){
+            if(!confirm(`Reset password for student to their Registration Number (${reg_no})?`)) return;
+            const fd = new FormData();
+            fd.append('ajax', '1');
+            fd.append('action', 'reset_password');
+            fd.append('id', id);
+            try {
+                const res = await fetch('dpc_manage_students.php', { method: 'POST', body: fd });
+                const data = await res.json();
+                showT(data.message, data.success);
+            } catch(e) { showT('Error resetting password.', false); }
+        }
+
 
         // Enter key for search
         document.getElementById('search-in').onkeypress = (e) => { if(e.key === 'Enter') doSearch(); };

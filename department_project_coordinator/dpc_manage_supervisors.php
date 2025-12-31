@@ -54,9 +54,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
                 $stmt->execute([$staff_no, $password, $name, $email, $dept_id]);
                 $user_id = $conn->lastInsertId();
 
-                // Insert into supervisors
-                $stmt = $conn->prepare("INSERT INTO supervisors (id, staff_no, name, email, department, max_students, current_load, password) VALUES (?, ?, ?, ?, ?, ?, 0, ?)");
-                $stmt->execute([$user_id, $staff_no, $name, $email, $dept_id, $max_students, $password]);
+                // Insert into supervisors - Removed password column
+                $stmt = $conn->prepare("INSERT INTO supervisors (id, staff_no, name, email, department, max_students, current_load) VALUES (?, ?, ?, ?, ?, ?, 0)");
+                $stmt->execute([$user_id, $staff_no, $name, $email, $dept_id, $max_students]);
                 
                 $conn->commit();
                 $response['success'] = true;
@@ -111,6 +111,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
             } catch (Exception $e) { $conn->rollBack(); throw $e; }
         }
 
+        // RESET PASSWORD
+        elseif ($action === 'reset_password') {
+            $id = intval($_POST['id']);
+            
+            // Get staff_no
+            $stmt = $conn->prepare("SELECT staff_no FROM supervisors WHERE id = ? AND department = ?");
+            $stmt->execute([$id, $dept_id]);
+            $staff_no = $stmt->fetchColumn();
+
+            if (!$staff_no) throw new Exception("Supervisor not found.");
+
+            $new_password = password_hash($staff_no, PASSWORD_DEFAULT);
+
+            $conn->beginTransaction();
+            try {
+                $stmt = $conn->prepare("UPDATE users SET password = ? WHERE id = ? AND role = 'sup'");
+                $stmt->execute([$new_password, $id]);
+
+                $conn->commit();
+                $response['success'] = true;
+                $response['message'] = "Password reset to Staff Number ($staff_no) successfully!";
+            } catch (Exception $e) { $conn->rollBack(); throw $e; }
+        }
+
         // BATCH UPLOAD
         elseif ($action === 'batch_upload') {
             if (!isset($_FILES['csv_file']) || $_FILES['csv_file']['error'] !== UPLOAD_ERR_OK) {
@@ -138,8 +162,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
                     $stmt->execute([$staff_no, $password, $name, $email, $dept_id]);
                     $user_id = $conn->lastInsertId();
 
-                    $stmt = $conn->prepare("INSERT INTO supervisors (id, staff_no, name, email, department, max_students, current_load, password) VALUES (?, ?, ?, ?, ?, ?, 0, ?)");
-                    $stmt->execute([$user_id, $staff_no, $name, $email, $dept_id, $max_students, $password]);
+                    $stmt = $conn->prepare("INSERT INTO supervisors (id, staff_no, name, email, department, max_students, current_load) VALUES (?, ?, ?, ?, ?, ?, 0)");
+                    $stmt->execute([$user_id, $staff_no, $name, $email, $dept_id, $max_students]);
                     $successCount++;
                 } catch (Exception $e) { $errorCount++; continue; }
             }
@@ -210,6 +234,7 @@ $supervisors = $stmt->fetchAll(PDO::FETCH_ASSOC);
         .modal.active { display: flex; opacity: 1; }
         .modal-content { background: white; width: 95%; max-width: 500px; border-radius: 20px; overflow: hidden; transform: translateY(20px); transition: 0.3s; }
         .modal.active .modal-content { transform: translateY(0); }
+        .btn-reset-i { background: #fff4e5; color: #ff9f43; }
         .modal-header { padding: 20px; background: var(--primary); color: white; display: flex; justify-content: space-between; align-items: center; }
         .modal-body { padding: 25px; }
         .form-group { margin-bottom: 15px; }
@@ -269,6 +294,7 @@ $supervisors = $stmt->fetchAll(PDO::FETCH_ASSOC);
                             </td>
                             <td>
                                 <div style="display: flex; gap: 8px; justify-content: center;">
+                                    <button class="icon-btn btn-reset-i" onclick="resetPwd(<?= $s['id'] ?>, '<?= htmlspecialchars($s['staff_no']) ?>')" title="Reset Password to Staff ID"><i class="fas fa-key"></i></button>
                                     <button class="icon-btn btn-edit-i" onclick='openEdit(<?= json_encode($s) ?>)' title="Edit"><i class="fas fa-edit"></i></button>
                                     <button class="icon-btn btn-delete-i" onclick="del(<?= $s['id'] ?>)" title="Delete"><i class="fas fa-trash"></i></button>
                                 </div>
@@ -412,6 +438,19 @@ $supervisors = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 showT(data.message, data.success);
                 if(data.success) document.getElementById('row-'+id).remove();
             } catch(e) { showT('Error deleting.', false); }
+        }
+
+        async function resetPwd(id, staff_no){
+            if(!confirm(`Reset password for supervisor to their Staff ID (${staff_no})?`)) return;
+            const fd = new FormData();
+            fd.append('ajax', '1');
+            fd.append('action', 'reset_password');
+            fd.append('id', id);
+            try {
+                const res = await fetch('dpc_manage_supervisors.php', { method: 'POST', body: fd });
+                const data = await res.json();
+                showT(data.message, data.success);
+            } catch(e) { showT('Error resetting password.', false); }
         }
         document.getElementById('search-in').onkeypress = (e) => { if(e.key === 'Enter') doSearch(); };
     </script>
