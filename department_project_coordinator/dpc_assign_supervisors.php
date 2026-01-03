@@ -17,20 +17,18 @@ $dpc_info = $stmt->fetch(PDO::FETCH_ASSOC);
 $dept_id = $dpc_info['dept_id'];
 $dept_name = $dpc_info['department_name'];
 
-// Function to get distinct unassigned students with their latest project for this department
+// Function to get distinct unassigned students with all their proposed topics
 function getUnassignedStudents($conn, $dept_id) {
     $stmt = $conn->prepare("
         SELECT s.id, s.reg_no, s.name, s.department, 
-               p.id AS project_id, p.topic, d.department_name
+               GROUP_CONCAT(p.topic SEPARATOR '||') AS topics, 
+               d.department_name
         FROM students s
         JOIN departments d ON d.id = s.department
-        LEFT JOIN project_topics p ON p.id = (
-            SELECT MAX(p2.id) 
-            FROM project_topics p2 
-            WHERE p2.student_id = s.id
-        )
+        LEFT JOIN project_topics p ON p.student_id = s.id
         WHERE s.id NOT IN (SELECT student_id FROM supervision)
         AND s.department = ?
+        GROUP BY s.id
         ORDER BY s.name
     ");
     $stmt->execute([$dept_id]);
@@ -186,12 +184,14 @@ $stats = $statsStmt->fetch(PDO::FETCH_ASSOC);
 $allocStmt = $conn->prepare("
     SELECT s.name AS student_name, s.reg_no, s.department AS student_dept,
            su.name AS supervisor_name, su.department AS supervisor_dept,
-           p.topic, p.status, sp.allocation_date, sp.status AS allocation_status
+           GROUP_CONCAT(p.topic SEPARATOR '||') AS topics, 
+           sp.allocation_date, sp.status AS allocation_status
     FROM supervision sp
     JOIN students s ON sp.student_id = s.id
     JOIN supervisors su ON sp.supervisor_id = su.id
-    LEFT JOIN project_topics p ON s.id = p.student_id AND p.status = 'approved'
+    LEFT JOIN project_topics p ON s.id = p.student_id
     WHERE s.department = :dept
+    GROUP BY sp.allocation_id
     ORDER BY su.name, s.name
 ");
 $allocStmt->execute([':dept' => $dept_id]);
@@ -353,7 +353,18 @@ $availableSupervisors = $supStmt->fetchAll(PDO::FETCH_ASSOC);
                                     <td><span style="font-weight: 600; color: var(--primary);"><?= htmlspecialchars($alloc['student_name']) ?></span></td>
                                     <td><code><?= htmlspecialchars($alloc['reg_no']) ?></code></td>
                                     <td><?= htmlspecialchars($alloc['supervisor_name']) ?></td>
-                                    <td style="max-width:300px;"><?= htmlspecialchars($alloc['topic'] ?: '[No Topic Record]') ?></td>
+                                    <td style="max-width:300px;">
+                                        <?php 
+                                        if ($alloc['topics']) {
+                                            $tps = explode('||', $alloc['topics']);
+                                            foreach ($tps as $index => $t) {
+                                                echo '<div style="font-size: 12px; margin-bottom: 4px; line-height: 1.4;">' . ($index + 1) . '. ' . htmlspecialchars($t) . '</div>';
+                                            }
+                                        } else {
+                                            echo '<span style="color:#999; font-style:italic;">[No Topics Submitted]</span>';
+                                        }
+                                        ?>
+                                    </td>
                                     <td><?= date('M j, Y', strtotime($alloc['allocation_date'])) ?></td>
                                     <td style="text-align: center;">
                                         <span class="status-badge status-active">Active</span>
@@ -380,9 +391,9 @@ $availableSupervisors = $supStmt->fetchAll(PDO::FETCH_ASSOC);
                                 <select name="student_id" id="sel_student" class="form-control select2" required>
                                     <option value="">-- Choose Student --</option>
                                     <?php foreach ($unassignedStudents as $student): ?>
-                                        <option value="<?= $student['id'] ?>" data-project="<?= $student['project_id'] ?>">
+                                        <option value="<?= $student['id'] ?>">
                                             <?= htmlspecialchars($student['name']) ?> (<?= htmlspecialchars($student['reg_no']) ?>)
-                                            <?= $student['project_id'] ? '' : '- [NO TOPIC]' ?>
+                                            <?= $student['topics'] ? '' : '- [NO TOPIC]' ?>
                                         </option>
                                     <?php endforeach; ?>
                                 </select>
@@ -398,7 +409,7 @@ $availableSupervisors = $supStmt->fetchAll(PDO::FETCH_ASSOC);
                                     <?php endforeach; ?>
                                 </select>
                             </div>
-                            <input type="hidden" name="project_id" id="manual_proj_id">
+                            <!-- Project ID is handled via topics relationship, no longer needed in supervision table -->
                             <button type="submit" name="manual_allocate" class="btn btn-primary" style="width:100%; justify-content: center; padding: 18px; font-size: 16px;">
                                 <i class="fas fa-save"></i> Complete Allocation
                             </button>
@@ -428,8 +439,23 @@ $availableSupervisors = $supStmt->fetchAll(PDO::FETCH_ASSOC);
                                 <tr>
                                     <td><span style="font-weight: 600; color: var(--primary);"><?= htmlspecialchars($s['name']) ?></span></td>
                                     <td><code><?= htmlspecialchars($s['reg_no']) ?></code></td>
-                                    <td><?= htmlspecialchars($s['topic'] ?: 'No project submitted yet') ?></td>
-                                    <td style="text-align: center;"><span class="status-badge <?= $s['project_id'] ? 'status-pending' : 'status-no-project' ?>"><?= $s['project_id'] ? 'Unassigned' : 'Missing Project' ?></span></td>
+                                    <td>
+                                        <?php 
+                                        if ($s['topics']) {
+                                            $tps = explode('||', $s['topics']);
+                                            foreach ($tps as $index => $t) {
+                                                echo '<div style="font-size: 12px; margin-bottom: 4px; line-height: 1.4;">' . ($index + 1) . '. ' . htmlspecialchars($t) . '</div>';
+                                            }
+                                        } else {
+                                            echo '<span style="color:#999; font-style:italic;">No project submitted yet</span>';
+                                        }
+                                        ?>
+                                    </td>
+                                    <td style="text-align: center;">
+                                        <span class="status-badge <?= $s['topics'] ? 'status-pending' : 'status-no-project' ?>">
+                                            <?= $s['topics'] ? 'Unassigned' : 'Missing Project' ?>
+                                        </span>
+                                    </td>
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>
@@ -462,14 +488,7 @@ $availableSupervisors = $supStmt->fetchAll(PDO::FETCH_ASSOC);
             document.getElementById(id).classList.add('active');
         }
 
-        const studentSel = document.getElementById('sel_student');
-        if(studentSel) {
-            $(studentSel).on('change', function() {
-                const opt = this.options[this.selectedIndex];
-                const projId = $(opt).data('project');
-                document.getElementById('manual_proj_id').value = projId || '';
-            });
-        }
+        /* Project ID linkage is handled automatically via student_id now */
     </script>
     <?php include_once __DIR__ . '/../includes/footer.php'; ?>
 </body>

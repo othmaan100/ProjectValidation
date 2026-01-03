@@ -68,10 +68,15 @@
                 <a href="fpc_dashboard.php">Dashboard</a>
                 <a href="fpc_manage_dpc.php">Manage DPC</a>
                 <a href="fpc_manage_topics.php">Manage Topics</a>
+                <a href="fpc_view_past_projects.php">Past Projects</a>
+                <a href="fpc_reports.php">Reports</a>
             <?php elseif ($_SESSION['role'] === 'dpc'): ?>
                 <a href="dpc_dashboard.php">Dashboard</a>
                 <a href="dpc_manage_students.php">Manage Students</a>
+                <a href="dpc_manage_supervisors.php">Manage Supervisors</a>
+                <a href="dpc_assign_supervisors.php">Assign Supervisors</a>
                 <a href="dpc_topic_validation.php">Validate Topics</a>
+                <a href="dpc_reports.php">Reports</a>
                 <a href="dpc_change_password.php">Change Password</a>
             <?php elseif ($_SESSION['role'] === 'sup'): ?>
                 <a href="sup_dashboard.php">Dashboard</a>

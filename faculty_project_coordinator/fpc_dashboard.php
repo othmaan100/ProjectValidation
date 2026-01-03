@@ -530,6 +530,18 @@ $userName = $_SESSION['name'] ?? $_SESSION['username'];
                     Upload Projects
                 </a>
             </div>
+
+            <div class="action-card fade-in-up">
+                <div class="card-icon" style="background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); color: #333;">
+                    <i class="fas fa-archive"></i>
+                </div>
+                <h2>Past Projects Gallery</h2>
+                <p>Browse, search, and access documentation for all historical project topics. Essential for similarity validation.</p>
+                <a href="fpc_view_past_projects.php" class="button">
+                    <i class="fas fa-search"></i>
+                    View Gallery
+                </a>
+            </div>
             
             <div class="action-card fade-in-up">
                 <div class="card-icon">
@@ -556,9 +568,9 @@ $userName = $_SESSION['name'] ?? $_SESSION['username'];
                     <i class="fas fa-search"></i>
                     <span>Search Topics</span>
                 </a>
-                <a href="fpc_upload_past_projects.php" class="quick-link">
-                    <i class="fas fa-upload"></i>
-                    <span>Upload Data</span>
+                <a href="fpc_view_past_projects.php" class="quick-link">
+                    <i class="fas fa-search"></i>
+                    <span>Search Past Projects</span>
                 </a>
                 <a href="../logout.php" class="quick-link">
                     <i class="fas fa-sign-out-alt"></i>
