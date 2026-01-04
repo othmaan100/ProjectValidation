@@ -36,6 +36,9 @@ if ($role === 'fpc' && !strpos($_SERVER['PHP_SELF'], 'faculty_project_coordinato
 } elseif ($role === 'stu' && !strpos($_SERVER['PHP_SELF'], 'student')) {
     header("Location: /projectval/student/stu_dashboard.php");
     exit();
+} elseif ($role === 'admin' && !strpos($_SERVER['PHP_SELF'], 'super_admin')) {
+    header("Location: /projectval/super_admin/sa_dashboard.php");
+    exit();
 }
 
 ?>

@@ -14,12 +14,13 @@ $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
 $perPage = 10;
 $offset = ($page - 1) * $perPage;
 
-$whereClause = "1=1";
-$params = [];
+$faculty_id = $_SESSION['faculty_id'];
+$whereClause = "faculty_id = ?";
+$params = [$faculty_id];
 if (!empty($search)) {
     $whereClause .= " AND (topic LIKE ? OR student_name LIKE ? OR reg_no LIKE ? OR session LIKE ? OR supervisor_name LIKE ?)";
     $ps = "%$search%";
-    $params = [$ps, $ps, $ps, $ps, $ps];
+    array_push($params, $ps, $ps, $ps, $ps, $ps);
 }
 
 $countStmt = $conn->prepare("SELECT COUNT(*) FROM past_projects WHERE $whereClause");

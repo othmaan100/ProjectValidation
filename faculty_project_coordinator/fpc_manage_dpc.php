@@ -11,6 +11,9 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'fpc') {
 // Initialize response array for AJAX requests
 $response = ['success' => false, 'message' => ''];
 
+// Get current faculty from session
+$faculty_id = $_SESSION['faculty_id'];
+
 // Get current session
 $currentSession = date('Y') . '/' . (date('Y') + 1);
 
@@ -39,9 +42,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
                 throw new Exception("Invalid email format.");
             }
             
-            // Verify department exists
-            $stmt = $conn->prepare("SELECT id FROM departments WHERE id = ?");
-            $stmt->execute([$departmentId]);
+            // Verify department exists in this faculty
+            $stmt = $conn->prepare("SELECT id FROM departments WHERE id = ? AND faculty_id = ?");
+            $stmt->execute([$departmentId, $faculty_id]);
             if ($stmt->rowCount() === 0) {
                 throw new Exception("Invalid department selected.");
             }
@@ -54,9 +57,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
                 throw new Exception("Username '$username' already exists. Please choose a different username.");
             }
             
+            
             // Insert new DPC
-            $stmt = $conn->prepare("INSERT INTO users (username, name, email, password, role, department, session, is_active) VALUES (?, ?, ?, ?, 'dpc', ?, ?, 1)");
-            $stmt->execute([$username, $name, $email, $hashedTempPassword, $departmentId, $currentSession]);
+            $stmt = $conn->prepare("INSERT INTO users (username, name, email, password, role, department, faculty_id, session, is_active) VALUES (?, ?, ?, ?, 'dpc', ?, ?, ?, 1)");
+            $stmt->execute([$username, $name, $email, $hashedTempPassword, $departmentId, $faculty_id, $currentSession]);
             
             $response['success'] = true;
             $response['message'] = "DPC created successfully! Username: $username, Temporary Password: $constantTempPassword";
@@ -80,9 +84,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
                 throw new Exception("Invalid email format.");
             }
             
-            // Verify department exists
-            $stmt = $conn->prepare("SELECT id FROM departments WHERE id = ?");
-            $stmt->execute([$departmentId]);
+            // Verify department exists in this faculty
+            $stmt = $conn->prepare("SELECT id FROM departments WHERE id = ? AND faculty_id = ?");
+            $stmt->execute([$departmentId, $faculty_id]);
             if ($stmt->rowCount() === 0) {
                 throw new Exception("Invalid department selected.");
             }
@@ -95,9 +99,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
                 throw new Exception("Username '$username' is already taken by another user.");
             }
             
+            
             // Update DPC
-            $stmt = $conn->prepare("UPDATE users SET username = ?, name = ?, email = ?, department = ? WHERE id = ? AND role = 'dpc'");
-            $stmt->execute([$username, $name, $email, $departmentId, $id]);
+            $stmt = $conn->prepare("UPDATE users SET username = ?, name = ?, email = ?, department = ? WHERE id = ? AND role = 'dpc' AND faculty_id = ?");
+            $stmt->execute([$username, $name, $email, $departmentId, $id, $faculty_id]);
             
             $response['success'] = true;
             $response['message'] = "DPC updated successfully!";
@@ -108,8 +113,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
             $id = intval($_POST['id']);
             
             // Delete DPC
-            $stmt = $conn->prepare("DELETE FROM users WHERE id = ? AND role = 'dpc'");
-            $stmt->execute([$id]);
+            $stmt = $conn->prepare("DELETE FROM users WHERE id = ? AND role = 'dpc' AND faculty_id = ?");
+            $stmt->execute([$id, $faculty_id]);
             
             $response['success'] = true;
             $response['message'] = "DPC deleted successfully!";
@@ -121,8 +126,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
             $isActive = intval($_POST['is_active']);
             
             // Toggle status
-            $stmt = $conn->prepare("UPDATE users SET is_active = ? WHERE id = ? AND role = 'dpc'");
-            $stmt->execute([$isActive, $id]);
+            $stmt = $conn->prepare("UPDATE users SET is_active = ? WHERE id = ? AND role = 'dpc' AND faculty_id = ?");
+            $stmt->execute([$isActive, $id, $faculty_id]);
             
             $response['success'] = true;
             $response['message'] = "Status updated successfully!";
@@ -131,10 +136,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
         // RESET PASSWORD
         elseif (isset($_POST['action']) && $_POST['action'] === 'reset_password') {
             $id = intval($_POST['id']);
-            
             // Reset password
-            $stmt = $conn->prepare("UPDATE users SET password = ?, password_changed = 0 WHERE id = ? AND role = 'dpc'");
-            $stmt->execute([$hashedTempPassword, $id]);
+            $stmt = $conn->prepare("UPDATE users SET password = ?, password_changed = 0 WHERE id = ? AND role = 'dpc' AND faculty_id = ?");
+            $stmt->execute([$hashedTempPassword, $id, $faculty_id]);
             
             $response['success'] = true;
             $response['message'] = "Password reset successfully! New temporary password: $constantTempPassword";
@@ -149,9 +153,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
                 throw new Exception("Session cannot be empty.");
             }
             
-            // Deactivate DPCs from previous sessions
-            $stmt = $conn->prepare("UPDATE users SET is_active = 0 WHERE role = 'dpc' AND session != ?");
-            $stmt->execute([$newSession]);
+            // Deactivate DPCs from previous sessions in this faculty
+            $stmt = $conn->prepare("UPDATE users SET is_active = 0 WHERE role = 'dpc' AND faculty_id = ? AND session != ?");
+            $stmt->execute([$faculty_id, $newSession]);
             
             $currentSession = $newSession;
             
@@ -174,14 +178,13 @@ $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
 $perPage = 10;
 $offset = ($page - 1) * $perPage;
 
-// Build query with JOIN to departments table
-$whereClause = "u.role = 'dpc'";
-$params = [];
+$whereClause = "u.role = 'dpc' AND u.faculty_id = ?";
+$params = [$faculty_id];
 
 if (!empty($search)) {
     $whereClause .= " AND (u.username LIKE ? OR u.name LIKE ? OR d.department_name LIKE ? OR u.email LIKE ?)";
     $searchParam = "%$search%";
-    $params = [$searchParam, $searchParam, $searchParam, $searchParam];
+    array_push($params, $searchParam, $searchParam, $searchParam, $searchParam);
 }
 
 // Get total count
@@ -196,9 +199,9 @@ $stmt = $conn->prepare($query);
 $stmt->execute($params);
 $dpcs = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Fetch departments from database
-$deptStmt = $conn->prepare("SELECT id, department_name FROM departments ORDER BY department_name ASC");
-$deptStmt->execute();
+// Fetch departments within this faculty
+$deptStmt = $conn->prepare("SELECT id, department_name FROM departments WHERE faculty_id = ? ORDER BY department_name ASC");
+$deptStmt->execute([$faculty_id]);
 $departments = $deptStmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 

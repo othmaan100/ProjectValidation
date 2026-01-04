@@ -9,56 +9,64 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'fpc') {
 }
 
 // Fetch statistics
+$faculty_id = $_SESSION['faculty_id'];
 $totalDPCs = 0;
 $activeDPCs = 0;
 $totalTopics = 0;
 $pendingTopics = 0;
 $approvedTopics = 0;
 $totalDepartments = 0;
+$facultyName = "Faculty";
 
 try {
-    // Count total DPCs
-    $stmt = $conn->prepare("SELECT COUNT(*) FROM users WHERE role = 'dpc'");
-    $stmt->execute();
+    // Get Faculty Name
+    $stmt = $conn->prepare("SELECT faculty FROM faculty WHERE id = ?");
+    $stmt->execute([$faculty_id]);
+    $facultyName = $stmt->fetchColumn() ?: "Faculty";
+
+    // Count total DPCs in this faculty
+    $stmt = $conn->prepare("SELECT COUNT(*) FROM users WHERE role = 'dpc' AND faculty_id = ?");
+    $stmt->execute([$faculty_id]);
     $totalDPCs = $stmt->fetchColumn();
     
-    // Count active DPCs
-    $stmt = $conn->prepare("SELECT COUNT(*) FROM users WHERE role = 'dpc' AND is_active = 1");
-    $stmt->execute();
+    // Count active DPCs in this faculty
+    $stmt = $conn->prepare("SELECT COUNT(*) FROM users WHERE role = 'dpc' AND is_active = 1 AND faculty_id = ?");
+    $stmt->execute([$faculty_id]);
     $activeDPCs = $stmt->fetchColumn();
     
-    // Count departments
-    $stmt = $conn->prepare("SELECT COUNT(*) FROM departments");
-    $stmt->execute();
+    // Count departments in this faculty
+    $stmt = $conn->prepare("SELECT COUNT(*) FROM departments WHERE faculty_id = ?");
+    $stmt->execute([$faculty_id]);
     $totalDepartments = $stmt->fetchColumn();
     
-    // Try to count topics (table might not exist)
+    // Count topics within this faculty
     try {
-        $stmt = $conn->prepare("SELECT (SELECT COUNT(*) FROM past_projects) + (SELECT COUNT(*) FROM project_topics WHERE status = 'approved')");
-        $stmt->execute();
+        // Total = Past Projects in this faculty + Approved topics from students in this faculty
+        $stmt = $conn->prepare("
+            SELECT 
+                (SELECT COUNT(*) FROM past_projects WHERE faculty_id = ?) + 
+                (SELECT COUNT(*) FROM project_topics pt JOIN students s ON pt.student_id = s.id WHERE s.faculty_id = ? AND pt.status = 'approved')
+        ");
+        $stmt->execute([$faculty_id, $faculty_id]);
         $totalTopics = $stmt->fetchColumn();
         
-        // Count pending topics
-        $stmt = $conn->prepare("SELECT COUNT(*) FROM project_topics WHERE status = 'pending'");
-        $stmt->execute();
+        // Count pending topics in this faculty
+        $stmt = $conn->prepare("SELECT COUNT(*) FROM project_topics pt JOIN students s ON pt.student_id = s.id WHERE s.faculty_id = ? AND pt.status = 'pending'");
+        $stmt->execute([$faculty_id]);
         $pendingTopics = $stmt->fetchColumn();
         
-        // Count approved topics
-        $stmt = $conn->prepare("SELECT COUNT(*) FROM project_topics WHERE status = 'approved'");
-        $stmt->execute();
+        // Count approved topics in this faculty
+        $stmt = $conn->prepare("SELECT COUNT(*) FROM project_topics pt JOIN students s ON pt.student_id = s.id WHERE s.faculty_id = ? AND pt.status = 'approved'");
+        $stmt->execute([$faculty_id]);
         $approvedTopics = $stmt->fetchColumn();
     } catch (PDOException $e) {
-        // Topics table doesn't exist or has different structure
         $totalTopics = 0;
         $pendingTopics = 0;
         $approvedTopics = 0;
     }
     
 } catch (PDOException $e) {
-    // Log error for debugging
     error_log("Dashboard stats error: " . $e->getMessage());
-    // Temporary debug output - remove after fixing
-    echo "<!-- Database Error: " . htmlspecialchars($e->getMessage()) . " -->";
 }
 
 // Get user info
@@ -437,7 +445,7 @@ $userName = $_SESSION['name'] ?? $_SESSION['username'];
     <div class="container">
         <!-- Header Section -->
         <div class="dashboard-header">
-            <p class="welcome-text">Welcome back, <strong><?php echo htmlspecialchars($userName); ?></strong>!</p>
+            <p class="welcome-text">Welcome back, <strong><?php echo htmlspecialchars($userName); ?></strong>! (<?php echo htmlspecialchars($facultyName); ?>)</p>
             <h1 class="dashboard-title"><i class="fas fa-user-tie"></i> Faculty Project Coordinator</h1>
             <p class="dashboard-subtitle">Manage and oversee all departmental project coordination activities</p>
         </div>
@@ -507,6 +515,18 @@ $userName = $_SESSION['name'] ?? $_SESSION['username'];
         
         <!-- Main Action Cards -->
         <div class="actions-grid">
+            <div class="action-card fade-in-up">
+                <div class="card-icon" style="background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);">
+                    <i class="fas fa-building"></i>
+                </div>
+                <h2>Manage Departments</h2>
+                <p>Add and configure departments within your faculty. This is required before you can assign DPCs to those departments.</p>
+                <a href="fpc_manage_departments.php" class="button">
+                    <i class="fas fa-arrow-right"></i>
+                    Manage Departments
+                </a>
+            </div>
+
             <div class="action-card fade-in-up">
                 <div class="card-icon">
                     <i class="fas fa-users-cog"></i>

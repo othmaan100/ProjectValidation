@@ -77,14 +77,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 // Helper Functions
 function validate_hybrid($conn, $topic, $currentId) {
     $cleanInput = clean_text_local($topic);
-    $stmt = $conn->prepare("SELECT topic, reg_no FROM past_projects");
-    $stmt->execute();
+    $faculty_id = $_SESSION['faculty_id'] ?? 0;
+
+    // Check against past projects in the same faculty
+    $stmt = $conn->prepare("SELECT topic, reg_no FROM past_projects WHERE faculty_id = ?");
+    $stmt->execute([$faculty_id]);
     while ($row = $stmt->fetch()) {
         similar_text($cleanInput, clean_text_local($row['topic']), $perc);
         if ($perc > 75) return "⚠️ Similarity Match ($perc%): " . $row['topic'] . " [Reg No: " . $row['reg_no'] . "] (Past Project)";
     }
-    $stmt = $conn->prepare("SELECT pt.topic, s.reg_no FROM project_topics pt JOIN students s ON pt.student_id = s.id WHERE pt.id != ?");
-    $stmt->execute([$currentId]);
+
+    // Check against other student topics in the same faculty
+    $stmt = $conn->prepare("SELECT pt.topic, s.reg_no FROM project_topics pt JOIN students s ON pt.student_id = s.id WHERE pt.id != ? AND s.faculty_id = ?");
+    $stmt->execute([$currentId, $faculty_id]);
     while ($row = $stmt->fetch()) {
         similar_text($cleanInput, clean_text_local($row['topic']), $perc);
         if ($perc > 75) return "⚠️ Similarity Match ($perc%): " . $row['topic'] . " [Reg No: " . $row['reg_no'] . "] (Other Student)";

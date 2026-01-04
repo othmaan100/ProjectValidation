@@ -66,6 +66,7 @@
         <?php if (isset($_SESSION['role'])): ?>
             <?php if ($_SESSION['role'] === 'fpc'): ?>
                 <a href="fpc_dashboard.php">Dashboard</a>
+                <a href="fpc_manage_departments.php">Manage Departments</a>
                 <a href="fpc_manage_dpc.php">Manage DPC</a>
                 <a href="fpc_manage_topics.php">Manage Topics</a>
                 <a href="fpc_view_past_projects.php">Past Projects</a>
@@ -88,8 +89,13 @@
                 <a href="stu_submit_topic.php">Submit Topic</a>
                 <a href="stu_view_status.php">View Status</a>
                 <a href="stu_change_password.php">Change Password</a>
+            <?php elseif ($_SESSION['role'] === 'admin'): ?>
+                <a href="sa_dashboard.php">Dashboard</a>
+                <a href="sa_manage_faculties.php">Manage Faculty</a>
+                <a href="sa_manage_fpc.php">Manage FPC</a>
+                <a href="sa_reports.php">Reports</a>
             <?php endif; ?>
-            <a href="../logout.php">Logout</a>
+            <a href="/projectval/index.php?logout=1">Logout</a>
         <?php endif; ?>
     </nav>
 

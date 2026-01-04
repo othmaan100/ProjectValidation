@@ -49,10 +49,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 }
 
-// Fetch some recently uploaded projects for display
+// Fetch some recently uploaded projects for display in this faculty
 try {
-    $stmt = $conn->prepare("SELECT * FROM past_projects ORDER BY id DESC LIMIT 10");
-    $stmt->execute();
+    $faculty_id = $_SESSION['faculty_id'];
+    $stmt = $conn->prepare("SELECT * FROM past_projects WHERE faculty_id = ? ORDER BY id DESC LIMIT 10");
+    $stmt->execute([$faculty_id]);
     $recentProjects = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
     $recentProjects = [];
@@ -71,8 +72,9 @@ function handleAddTopic($conn) {
         throw new Exception("Topic, Registration Number, and Session are required.");
     }
 
-    $stmt = $conn->prepare("INSERT INTO past_projects (topic, reg_no, student_name, session, supervisor_name) VALUES (?, ?, ?, ?, ?)");
-    if ($stmt->execute([$topic, $reg_no, $student_name, $session, $supervisor_name])) {
+    $faculty_id = $_SESSION['faculty_id'];
+    $stmt = $conn->prepare("INSERT INTO past_projects (topic, reg_no, student_name, session, supervisor_name, faculty_id) VALUES (?, ?, ?, ?, ?, ?)");
+    if ($stmt->execute([$topic, $reg_no, $student_name, $session, $supervisor_name, $faculty_id])) {
         return "Project topic added successfully.";
     } else {
         throw new Exception("Error adding project topic.");
@@ -100,8 +102,9 @@ function handleBatchUpload($conn) {
         $session = $data[3] ?? '';
         $supervisor_name = $data[4] ?? '';
 
-        $stmt = $conn->prepare("INSERT INTO past_projects (topic, reg_no, student_name, session, supervisor_name) VALUES (?, ?, ?, ?, ?)");
-        if ($stmt->execute([$topic, $reg_no, $student_name, $session, $supervisor_name])) {
+        $faculty_id = $_SESSION['faculty_id'];
+        $stmt = $conn->prepare("INSERT INTO past_projects (topic, reg_no, student_name, session, supervisor_name, faculty_id) VALUES (?, ?, ?, ?, ?, ?)");
+        if ($stmt->execute([$topic, $reg_no, $student_name, $session, $supervisor_name, $faculty_id])) {
             $successCount++;
         }
     }
@@ -117,9 +120,10 @@ function handleUploadPdf($conn) {
         throw new Exception("Project ID is required.");
     }
 
-    // Check existence
-    $stmt = $conn->prepare("SELECT id FROM past_projects WHERE id = ?");
-    $stmt->execute([$project_id]);
+    // Check existence in this faculty
+    $faculty_id = $_SESSION['faculty_id'];
+    $stmt = $conn->prepare("SELECT id FROM past_projects WHERE id = ? AND faculty_id = ?");
+    $stmt->execute([$project_id, $faculty_id]);
     if (!$stmt->fetch()) {
         throw new Exception("Project topic with ID #$project_id does not exist.");
     }

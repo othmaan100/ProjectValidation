@@ -22,6 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                 $_SESSION['department'] = $user['department'];
                 $_SESSION['name'] = $user['name'];
                 $_SESSION['email'] = $user['email'];
+                $_SESSION['faculty_id'] = $user['faculty_id'];
                 $_SESSION['logged_in'] = true;
                 $_SESSION['login_time'] = time();
                 
@@ -34,7 +35,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                     'stu' => "student/stu_dashboard.php",
                     'dpc' => "department_project_coordinator/dpc_dashboard.php",
                     'fpc' => "faculty_project_coordinator/fpc_dashboard.php",
-                    'sup' => "supervisor/sup_dashboard.php"
+                    'sup' => "supervisor/sup_dashboard.php",
+                    'admin' => "super_admin/sa_dashboard.php"
                 ];
                 
                 $location = isset($redirects[$user['role']]) ? $redirects[$user['role']] : "index.php";
@@ -360,7 +362,7 @@ $is_logged_in = isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true
                     </div>
                     <div class="dash-links">
                         <a href="<?php 
-                            $redirects = ['stu'=>'student/stu_dashboard.php', 'dpc'=>'department_project_coordinator/dpc_dashboard.php', 'fpc'=>'faculty_project_coordinator/fpc_dashboard.php', 'sup'=>'supervisor/sup_dashboard.php'];
+                            $redirects = ['stu'=>'student/stu_dashboard.php', 'dpc'=>'department_project_coordinator/dpc_dashboard.php', 'fpc'=>'faculty_project_coordinator/fpc_dashboard.php', 'sup'=>'supervisor/sup_dashboard.php', 'admin'=>'super_admin/sa_dashboard.php'];
                             echo $redirects[$_SESSION['role']] ?? '#';
                         ?>" class="btn-login" style="text-decoration: none; width: auto; padding: 15px 40px;">Enter Dashboard</a>
                         <a href="?logout=1" class="btn-secondary">Logout</a>
