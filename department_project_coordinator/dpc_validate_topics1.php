@@ -4,7 +4,7 @@ include_once __DIR__ .'/../includes/db.php';
 include __DIR__ . '/../includes/functions.php'; // Include functions.php
 
 if ($_SESSION['role'] !== 'dpc') {
-    header("Location: /projectval/");
+    header("Location: " . PROJECT_ROOT);
     exit();
 }
 
@@ -179,3 +179,4 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <?php include_once __DIR__ .'/../includes/footer.php'; ?>
 </body>
 </html>
+

@@ -3,7 +3,7 @@ session_start();
 
 // Redirect if the user is not logged in or is not a student
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'stu') {
-    header("Location: /projectval/");
+    header("Location: " . PROJECT_ROOT);
     exit();
 }
 
@@ -86,3 +86,4 @@ $topics = $stmt->fetchAll();
     <?php include_once __DIR__ . '/../includes/footer.php'; ?>
 </body>
 </html>
+

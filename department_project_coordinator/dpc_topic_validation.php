@@ -5,7 +5,7 @@ include_once __DIR__ .'/../includes/config.php';
 
 // Redirect if user is not DPC
 if ($_SESSION['role'] !== 'dpc') {
-    header("Location: /projectval/");
+    header("Location: " . PROJECT_ROOT);
     exit();
 }
 

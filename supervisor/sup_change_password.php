@@ -4,7 +4,7 @@ include_once __DIR__ . '/../includes/db.php';
 
 // Auth check
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'sup') {
-    header("Location: /projectval/");
+    header("Location: " . PROJECT_ROOT);
     exit();
 }
 
@@ -115,3 +115,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_pw'])) {
     <?php include_once __DIR__ . '/../includes/footer.php'; ?>
 </body>
 </html>
+

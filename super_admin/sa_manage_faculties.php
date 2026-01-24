@@ -4,7 +4,7 @@ include __DIR__ . '/../includes/db.php';
 
 // Check if the user is logged in as Admin
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
-    header("Location: /projectval/");
+    header("Location: " . PROJECT_ROOT);
     exit();
 }
 
@@ -224,3 +224,4 @@ $faculties = $stmt->fetchAll(PDO::FETCH_ASSOC);
     </script>
 </body>
 </html>
+

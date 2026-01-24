@@ -3,7 +3,7 @@ session_start();
 
 // Redirect if the user is not logged in or is not a student
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'stu') {
-    header("Location: /projectval/");
+    header("Location: " . PROJECT_ROOT);
     exit();
 }
 
@@ -58,6 +58,34 @@ if ($approved_topic) {
     ");
     $stmt->execute([$student_id]);
     $assigned_supervisor = $stmt->fetchColumn();
+}
+
+// Fetch submission schedule
+$dept_id = $student['department'];
+$stmt = $conn->prepare("SELECT * FROM submission_schedules WHERE department_id = ? AND is_active = 1");
+$stmt->execute([$dept_id]);
+$schedule = $stmt->fetch();
+
+$now = time();
+$can_submit = false;
+if ($schedule) {
+    if ($now >= strtotime($schedule['submission_start']) && $now <= strtotime($schedule['submission_end'])) {
+        $can_submit = true;
+    }
+}
+
+$schedule_msg = "";
+if (!$schedule) {
+    $schedule_msg = "No submission schedule has been set for your department yet.";
+} elseif ($now < strtotime($schedule['submission_start'])) {
+    $schedule_msg = "Submissions will open on " . date('M d, Y | h:i A', strtotime($schedule['submission_start']));
+} elseif ($now > strtotime($schedule['submission_end'])) {
+    $schedule_msg = "The submission window closed on " . date('M d, Y | h:i A', strtotime($schedule['submission_end']));
+}
+
+$error_msg = "";
+if (isset($_GET['error']) && $_GET['error'] === 'schedule_closed') {
+    $error_msg = "Sorry, project topic submissions are currently closed.";
 }
 ?>
 <!DOCTYPE html>
@@ -135,6 +163,19 @@ if ($approved_topic) {
             <i class="fas fa-graduation-cap" style="font-size: 60px; opacity: 0.3;"></i>
         </div>
 
+        <!-- Error/Schedule Display -->
+        <?php if ($error_msg): ?>
+            <div class="alert alert-danger" style="padding: 15px; border-radius: 12px; margin-bottom: 25px; text-align: center; background: #ffebee; color: #c62828;">
+                <i class="fas fa-exclamation-triangle"></i> <?= $error_msg ?>
+            </div>
+        <?php endif; ?>
+
+        <?php if ($schedule_msg): ?>
+            <div class="alert alert-info" style="padding: 15px; border-radius: 12px; margin-bottom: 25px; text-align: center; background: #e3f2fd; color: #1976d2;">
+                <i class="fas fa-calendar-alt"></i> <?= $schedule_msg ?>
+            </div>
+        <?php endif; ?>
+
         <!-- Stats Overview -->
         <div class="stats-grid">
             <div class="stat-card">
@@ -193,11 +234,16 @@ if ($approved_topic) {
             <!-- Side Actions -->
             <div class="side-actions">
                 <?php if (!$approved_topic && count($topics) < 3): ?>
-                    <div class="action-card">
+                    <div class="action-card" style="<?= !$can_submit ? 'filter: grayscale(1); opacity: 0.8;' : '' ?>">
                         <i class="fas fa-plus-circle" style="font-size: 40px;"></i>
                         <h2 style="margin: 0; font-size: 18px;">New Submission</h2>
                         <p style="font-size: 13px; opacity: 0.9;">You have submitted <?= count($topics) ?>/3 topics. Add more to increase approval chances.</p>
-                        <a href="stu_submit_topic.php" class="btn-action">Submit New Topic</a>
+                        
+                        <?php if ($can_submit): ?>
+                            <a href="stu_submit_topic.php" class="btn-action">Submit New Topic</a>
+                        <?php else: ?>
+                            <button class="btn-action" style="cursor: not-allowed; opacity: 0.7; width: 100%; border: none; font-family: inherit;" disabled>Submit New Topic</button>
+                        <?php endif; ?>
                     </div>
                 <?php elseif ($approved_topic): ?>
                     <div class="content-card">
@@ -209,6 +255,11 @@ if ($approved_topic) {
                                 <i class="fas fa-user-tie"></i> 
                                 <?= htmlspecialchars($assigned_supervisor ?: 'Awaiting Allocation') ?>
                             </p>
+                        </div>
+                        <div style="margin-top: 25px;">
+                            <a href="stu_upload_report.php" class="btn-action" style="display: block; background: var(--primary); color: white;">
+                                <i class="fas fa-upload"></i> Upload Final Report
+                            </a>
                         </div>
                     </div>
                 <?php else: ?>
@@ -224,3 +275,4 @@ if ($approved_topic) {
     <?php include_once __DIR__ . '/../includes/footer.php'; ?>
 </body>
 </html>
+

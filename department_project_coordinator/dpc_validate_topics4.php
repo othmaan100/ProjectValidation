@@ -10,7 +10,7 @@ include_once __DIR__ .'/../includes/db.php';
 
 // Redirect if user is not DPC
 // if ($_SESSION['role'] !== 'dpc') {
-//     header("Location: /projectval/");
+//     header("Location: " . PROJECT_ROOT);
 //     exit();
 // }
 
@@ -293,3 +293,4 @@ function send_feedback_to_student($topic_id, $decision, $reason = '') {
     <?php include_once __DIR__ .'/../includes/footer.php'; ?>
 </body>
 </html>
+

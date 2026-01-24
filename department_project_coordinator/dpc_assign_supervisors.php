@@ -4,7 +4,7 @@ include_once __DIR__ . '/../includes/db.php';
 
 // Authentication check
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'dpc') {
-    header("Location: /projectval/");
+    header("Location: " . PROJECT_ROOT);
     exit();
 }
 
@@ -493,3 +493,4 @@ $availableSupervisors = $supStmt->fetchAll(PDO::FETCH_ASSOC);
     <?php include_once __DIR__ . '/../includes/footer.php'; ?>
 </body>
 </html>
+

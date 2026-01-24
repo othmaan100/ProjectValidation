@@ -1,3 +1,13 @@
+<?php
+if (!defined('PROJECT_ROOT')) {
+    $script_directory = str_replace('\\', '/', dirname(__DIR__));
+    $document_root = str_replace('\\', '/', $_SERVER['DOCUMENT_ROOT']);
+    $base_path = str_replace($document_root, '', $script_directory);
+    $base_path = '/' . ltrim($base_path, '/') . '/';
+    $base_path = str_replace('//', '/', $base_path);
+    define('PROJECT_ROOT', $base_path);
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -77,6 +87,7 @@
                 <a href="dpc_manage_supervisors.php">Manage Supervisors</a>
                 <a href="dpc_assign_supervisors.php">Assign Supervisors</a>
                 <a href="dpc_topic_validation.php">Validate Topics</a>
+                <a href="dpc_submission_schedule.php">Submission Schedule</a>
                 <a href="dpc_reports.php">Reports</a>
                 <a href="dpc_change_password.php">Change Password</a>
             <?php elseif ($_SESSION['role'] === 'sup'): ?>
@@ -88,14 +99,19 @@
                 <a href="stu_dashboard.php">Dashboard</a>
                 <a href="stu_submit_topic.php">Submit Topic</a>
                 <a href="stu_view_status.php">View Status</a>
+                <a href="stu_upload_report.php">Upload Report</a>
                 <a href="stu_change_password.php">Change Password</a>
             <?php elseif ($_SESSION['role'] === 'admin'): ?>
                 <a href="sa_dashboard.php">Dashboard</a>
                 <a href="sa_manage_faculties.php">Manage Faculty</a>
                 <a href="sa_manage_fpc.php">Manage FPC</a>
                 <a href="sa_reports.php">Reports</a>
+            <?php elseif ($_SESSION['role'] === 'lib'): ?>
+                <a href="lib_dashboard.php">Dashboard</a>
+                <a href="lib_manage_projects.php">Project Repository</a>
+                <a href="lib_generate_reports.php">Statistics</a>
             <?php endif; ?>
-            <a href="/projectval/index.php?logout=1">Logout</a>
+            <a href="<?php echo PROJECT_ROOT; ?>index.php?logout=1">Logout</a>
         <?php endif; ?>
     </nav>
 

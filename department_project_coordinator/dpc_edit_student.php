@@ -3,7 +3,7 @@ include 'includes/auth.php';
 include __DIR__ . '/includes/db.php';
 
 if ($_SESSION['role'] !== 'dpc') {
-    header("Location: /projectval/");
+    header("Location: " . PROJECT_ROOT);
     exit();
 }
 
@@ -66,4 +66,5 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_student'])) {
     <?php include 'includes/footer.php'; ?>
 </body>
 </html>
+
 

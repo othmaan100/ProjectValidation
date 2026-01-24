@@ -4,7 +4,7 @@ include_once __DIR__ . '/../includes/db.php';
 
 // Auth check
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'sup') {
-    header("Location: /projectval/");
+    header("Location: " . PROJECT_ROOT);
     exit();
 }
 
@@ -122,3 +122,4 @@ $students = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <?php include_once __DIR__ . '/../includes/footer.php'; ?>
 </body>
 </html>
+

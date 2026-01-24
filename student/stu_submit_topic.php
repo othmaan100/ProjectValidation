@@ -3,7 +3,7 @@ session_start();
 
 // Redirect if the user is not logged in or is not a student
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'stu') {
-    header("Location: /projectval/");
+    header("Location: " . PROJECT_ROOT);
     exit();
 }
 
@@ -20,6 +20,30 @@ if (!$student) {
     header("Location: stu_login.php");
     exit();
 }
+
+// Check submission schedule
+$dept_id = $student['department'];
+$stmt = $conn->prepare("SELECT * FROM submission_schedules WHERE department_id = ? AND is_active = 1");
+$stmt->execute([$dept_id]);
+$schedule = $stmt->fetch();
+
+$now = time();
+$can_submit = false;
+$deadline_info = "No submission schedule set.";
+
+if ($schedule) {
+    $start_time = strtotime($schedule['submission_start']);
+    $end_time = strtotime($schedule['submission_end']);
+    
+    if ($now >= $start_time && $now <= $end_time) {
+        $can_submit = true;
+    }
+    
+    $deadline_info = "Window: " . date('M d, Y H:i', $start_time) . " to " . date('M d, Y H:i', $end_time);
+}
+
+// Redirect only if absolutely no schedule exists (optional, but let's be graceful)
+// if (!$schedule) { header("Location: stu_dashboard.php"); exit(); }
 
 // Check how many topics they have already submitted
 $stmt = $conn->prepare("SELECT COUNT(*) FROM project_topics WHERE student_id = ?");
@@ -122,21 +146,30 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_topics'])) {
                 <div class="alert alert-danger"><?= $error ?></div>
             <?php endif; ?>
 
-            <div class="limit-info">
-                <i class="fas fa-info-circle"></i>
-                Total limit: 3 topics. Currently submitted: <strong><?= $submitted_count ?></strong>
+            <div class="limit-info" style="<?= !$can_submit ? 'background: #ffebee; color: #c62828;' : '' ?>">
+                <i class="fas <?= $can_submit ? 'fa-info-circle' : 'fa-clock' ?>"></i>
+                <div>
+                    <div>Total limit: 3 topics. Currently submitted: <strong><?= $submitted_count ?></strong></div>
+                    <div style="font-size: 11px; margin-top: 4px; font-weight: 600; opacity: 0.8;"><?= $deadline_info ?></div>
+                </div>
             </div>
+
+            <?php if (!$can_submit): ?>
+                <div class="alert alert-danger" style="margin-bottom: 25px;">
+                    <i class="fas fa-exclamation-triangle"></i> Submission window is currently closed.
+                </div>
+            <?php endif; ?>
 
             <form method="POST">
                 <?php for ($i = 1; $i <= (3 - $submitted_count); $i++): ?>
-                    <div class="form-group">
+                    <div class="form-group" style="<?= !$can_submit ? 'opacity: 0.6;' : '' ?>">
                         <label>Proposed Topic #<?= $submitted_count + $i ?></label>
-                        <textarea name="topic<?= $i ?>" class="textarea-styled" placeholder="Enter topic title..."></textarea>
+                        <textarea name="topic<?= $i ?>" class="textarea-styled" placeholder="<?= $can_submit ? 'Enter topic title...' : 'Submissions closed' ?>" <?= !$can_submit ? 'disabled' : '' ?>></textarea>
                     </div>
                 <?php endfor; ?>
 
-                <button type="submit" name="submit_topics" class="btn-submit">
-                    Submit Proposals <i class="fas fa-chevron-right"></i>
+                <button type="submit" name="submit_topics" class="btn-submit" <?= !$can_submit ? 'disabled style="background: #ccc; cursor: not-allowed;"' : '' ?>>
+                    <?= $can_submit ? 'Submit Proposals' : 'Submissions Closed' ?> <i class="fas <?= $can_submit ? 'fa-chevron-right' : 'fa-lock' ?>"></i>
                 </button>
             </form>
 
@@ -149,3 +182,4 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_topics'])) {
     <?php include_once __DIR__ . '/../includes/footer.php'; ?>
 </body>
 </html>
+

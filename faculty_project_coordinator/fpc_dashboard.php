@@ -4,7 +4,7 @@ include __DIR__ . '/../includes/db.php';
 
 // Check if the user is logged in as FPC
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'fpc') {
-    header("Location: /projectval/");
+    header("Location: " . PROJECT_ROOT);
     exit();
 }
 
@@ -603,3 +603,4 @@ $userName = $_SESSION['name'] ?? $_SESSION['username'];
     <?php include_once __DIR__ .'/../includes/footer.php'; ?>
 </body>
 </html>
+

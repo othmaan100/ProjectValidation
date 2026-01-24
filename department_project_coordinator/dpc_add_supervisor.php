@@ -3,7 +3,7 @@ session_start();
 include 'includes/auth.php';
 
 if ($_SESSION['role'] !== 'dpc') {
-    header("Location: /projectval/");
+    header("Location: " . PROJECT_ROOT);
     exit();
 }
 
@@ -45,3 +45,4 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_supervisor'])) {
     <?php include 'includes/footer.php'; ?>
 </body>
 </html>
+

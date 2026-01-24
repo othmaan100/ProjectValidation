@@ -4,7 +4,7 @@ include __DIR__ . '/../includes/db.php';
 
 // Check if the user is logged in as FPC
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'fpc') {
-    header("Location: /projectval/");
+    header("Location: " . PROJECT_ROOT);
     exit();
 }
 
@@ -458,3 +458,4 @@ $faculty_departments = $featDeptsStmt->fetchAll(PDO::FETCH_ASSOC);
     </script>
 </body>
 </html>
+

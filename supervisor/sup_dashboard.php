@@ -4,7 +4,7 @@ include_once __DIR__ . '/../includes/db.php';
 
 // Auth check
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'sup') {
-    header("Location: /projectval/");
+    header("Location: " . PROJECT_ROOT);
     exit();
 }
 
@@ -215,3 +215,4 @@ $approved_projects = $stmt->fetchColumn();
     <?php include_once __DIR__ . '/../includes/footer.php'; ?>
 </body>
 </html>
+

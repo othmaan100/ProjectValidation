@@ -3,7 +3,7 @@ session_start();
 include 'includes/auth.php';
 
 if ($_SESSION['role'] !== 'dpc') {
-    header("Location: /projectval/");
+    header("Location: " . PROJECT_ROOT);
     exit();
 }
 
@@ -14,3 +14,4 @@ $stmt->execute([$student_id]);
 header("Location: dpc_manage_students.php");
 exit();
 ?>
+

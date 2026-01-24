@@ -5,7 +5,7 @@ include_once __DIR__ . '/../includes/config.php';
 
 // Auth check
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'sup') {
-    header("Location: /projectval/");
+    header("Location: " . PROJECT_ROOT);
     exit();
 }
 
@@ -364,3 +364,4 @@ foreach ($data as $row) {
     </script>
 </body>
 </html>
+

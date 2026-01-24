@@ -4,7 +4,7 @@ include_once __DIR__ .'/../includes/db.php';
 
 // Redirect if user is not DPC
 if ($_SESSION['role'] !== 'dpc') {
-    header("Location: /projectval/");
+    header("Location: " . PROJECT_ROOT);
     exit();
 }
 
@@ -273,6 +273,15 @@ $approved_topics = $stmt->fetchColumn();
             </div>
 
             <div class="action-card">
+                <i class="fas fa-calendar-alt"></i>
+                <h2>Submission Schedule</h2>
+                <p>Define the start and end dates for project topic submissions. Control when students can access the submission portal.</p>
+                <a href="dpc_submission_schedule.php" class="action-btn" style="background: #6f42c1;">
+                    Manage Schedule <i class="fas fa-clock"></i>
+                </a>
+            </div>
+
+            <div class="action-card">
                 <i class="fas fa-user-shield"></i>
                 <h2>Security Settings</h2>
                 <p>Maintain your account security by updating your password regularly.</p>
@@ -286,3 +295,4 @@ $approved_topics = $stmt->fetchColumn();
     <?php include_once __DIR__ .'/../includes/footer.php'; ?>
 </body>
 </html>
+

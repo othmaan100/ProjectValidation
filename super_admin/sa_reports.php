@@ -4,7 +4,7 @@ include_once __DIR__ . '/../includes/db.php';
 
 // Check if the user is logged in as Admin
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
-    header("Location: /projectval/");
+    header("Location: " . PROJECT_ROOT);
     exit();
 }
 
@@ -154,3 +154,4 @@ $recent_approved = $conn->query("
     <?php include_once __DIR__ . '/../includes/footer.php'; ?>
 </body>
 </html>
+

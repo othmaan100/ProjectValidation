@@ -4,7 +4,7 @@ include __DIR__ . '/../includes/db.php';
 
 // Check if the user is logged in as Admin
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
-    header("Location: /projectval/");
+    header("Location: " . PROJECT_ROOT);
     exit();
 }
 
@@ -198,6 +198,13 @@ try {
                 <div class="btn-act">Access Management <i class="fas fa-arrow-right"></i></div>
             </a>
 
+            <a href="sa_manage_library.php" class="action-card">
+                <i class="fas fa-book-reader main-icon"></i>
+                <h2>School Library</h2>
+                <p>Register and manage School Library staff accounts. Library staff can manage and archive all student projects.</p>
+                <div class="btn-act">Configure Library <i class="fas fa-arrow-right"></i></div>
+            </a>
+
             <a href="sa_reports.php" class="action-card">
                 <i class="fas fa-chart-pie main-icon"></i>
                 <h2>Global Project Reports</h2>
@@ -217,3 +224,4 @@ try {
     <?php include_once __DIR__ . '/../includes/footer.php'; ?>
 </body>
 </html>
+

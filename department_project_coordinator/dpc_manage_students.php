@@ -4,7 +4,7 @@ include_once __DIR__ . '/../includes/db.php';
 
 // Check if the user is logged in as DPC
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'dpc') {
-    header("Location: /projectval/");
+    header("Location: " . PROJECT_ROOT);
     exit();
 }
 
@@ -520,4 +520,5 @@ $students = $stmt->fetchAll(PDO::FETCH_ASSOC);
     </script>
 </body>
 </html>
+
 
