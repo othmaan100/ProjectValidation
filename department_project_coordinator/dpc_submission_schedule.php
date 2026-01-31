@@ -8,17 +8,77 @@ if ($_SESSION['role'] !== 'dpc') {
     exit();
 }
 
-$dept_id = $_SESSION['department']; // Assuming session department matches the DPC department ID
+$dpc_id = $_SESSION['user_id'];
+
+// Fetch the DPC's department info
+$stmt = $conn->prepare("SELECT u.department as dept_id, d.department_name FROM users u JOIN departments d ON u.department = d.id WHERE u.id = ?");
+$stmt->execute([$dpc_id]);
+$dpc_info = $stmt->fetch(PDO::FETCH_ASSOC);
+
+if (!$dpc_info) {
+    header("Location: " . PROJECT_ROOT);
+    exit();
+}
+
+$dept_id = $dpc_info['dept_id'];
+$dept_name = $dpc_info['department_name'];
 $message = '';
 $status = '';
 
-// Fetch existing schedule
+// Fetch existing general schedule
 $stmt = $conn->prepare("SELECT * FROM submission_schedules WHERE department_id = ?");
 $stmt->execute([$dept_id]);
 $schedule = $stmt->fetch(PDO::FETCH_ASSOC);
 
-// Handle form submission
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+// Fetch all students for the dropdown/search
+$students_stmt = $conn->prepare("SELECT id, name, reg_no FROM students WHERE department = ? ORDER BY name");
+$students_stmt->execute([$dept_id]);
+$all_students = $students_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Handle Student Override Assignment
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_override'])) {
+    $student_id = $_POST['student_id'];
+    $ov_start = $_POST['override_start'];
+    $ov_end = $_POST['override_end'];
+
+    if (empty($student_id) || empty($ov_start) || empty($ov_end)) {
+        $message = "Please select a student and provide both dates for the override.";
+        $status = "error";
+    } else {
+        try {
+            $stmt = $conn->prepare("INSERT INTO student_submission_overrides (student_id, submission_start, submission_end, is_active) 
+                                   VALUES (?, ?, ?, 1) ON DUPLICATE KEY UPDATE submission_start = ?, submission_end = ?, is_active = 1");
+            $stmt->execute([$student_id, $ov_start, $ov_end, $ov_start, $ov_end]);
+            $message = "Individual student override set successfully.";
+            $status = "success";
+        } catch (PDOException $e) {
+            $message = "Error setting override: " . $e->getMessage();
+            $status = "error";
+        }
+    }
+}
+
+// Handle Override Deletion
+if (isset($_GET['delete_override'])) {
+    $ov_id = $_GET['delete_override'];
+    $stmt = $conn->prepare("DELETE FROM student_submission_overrides WHERE id = ?");
+    $stmt->execute([$ov_id]);
+    $message = "Override removed.";
+    $status = "success";
+}
+
+// Fetch all active overrides for this department
+$overrides_stmt = $conn->prepare("
+    SELECT o.*, s.name, s.reg_no 
+    FROM student_submission_overrides o 
+    JOIN students s ON o.student_id = s.id 
+    WHERE s.department = ?
+");
+$overrides_stmt->execute([$dept_id]);
+$overrides = $overrides_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// General Schedule Update
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_general'])) {
     $start = $_POST['submission_start'];
     $end = $_POST['submission_end'];
     $is_active = isset($_POST['is_active']) ? 1 : 0;
@@ -122,11 +182,11 @@ $active_val = $schedule ? ($schedule['is_active'] ? 'checked' : '') : 'checked';
     <?php include_once __DIR__ .'/../includes/header.php'; ?>
     
     <div class="page-container">
-        <a href="dpc_dashboard.php" class="back-btn"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
+        <a href="index.php" class="back-btn"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
         
         <div class="card">
             <div class="header">
-                <h1><i class="fas fa-calendar-alt" style="color: var(--primary);"></i> Submission Schedule</h1>
+                <h1><i class="fas fa-calendar-alt" style="color: var(--primary);"></i> General Submission Schedule</h1>
                 <p>Control the window for project topic submissions for your department.</p>
             </div>
 
@@ -147,14 +207,14 @@ $active_val = $schedule ? ($schedule['is_active'] ? 'checked' : '') : 'checked';
                     <div class="status-box" style="border-left: 2px solid #eee; padding-left: 20px;">
                         <h4>Current Status</h4>
                         <?php 
-                            $now = time();
-                            $start = strtotime($schedule['submission_start']);
-                            $end = strtotime($schedule['submission_end']);
-                            $active = $schedule['is_active'];
+                            $now_check = time();
+                            $start_check = strtotime($schedule['submission_start']);
+                            $end_check = strtotime($schedule['submission_end']);
+                            $active_check = $schedule['is_active'];
 
-                            if (!$active) echo '<span style="color: #e74a3b;">Disabled by Admin</span>';
-                            elseif ($now < $start) echo '<span style="color: #f6c23e;">Not Yet Open</span>';
-                            elseif ($now > $end) echo '<span style="color: #e74a3b;">Closed</span>';
+                            if (!$active_check) echo '<span style="color: #e74a3b;">Disabled</span>';
+                            elseif ($now_check < $start_check) echo '<span style="color: #f6c23e;">Not Yet Open</span>';
+                            elseif ($now_check > $end_check) echo '<span style="color: #e74a3b;">Closed</span>';
                             else echo '<span style="color: #1cc88a;">Active / Open</span>';
                         ?>
                     </div>
@@ -162,6 +222,7 @@ $active_val = $schedule ? ($schedule['is_active'] ? 'checked' : '') : 'checked';
             <?php endif; ?>
 
             <form method="POST">
+                <input type="hidden" name="update_general" value="1">
                 <div class="form-group">
                     <label>Start Date & Time</label>
                     <input type="datetime-local" name="submission_start" class="input-styled" value="<?= $start_val ?>" required>
@@ -181,12 +242,98 @@ $active_val = $schedule ? ($schedule['is_active'] ? 'checked' : '') : 'checked';
                 </div>
 
                 <button type="submit" class="btn-save">
-                    Update Schedule <i class="fas fa-save"></i>
+                    Update General Schedule <i class="fas fa-save"></i>
                 </button>
             </form>
+        </div>
+
+        <div class="card" style="margin-top: 30px;">
+            <div class="header">
+                <h1><i class="fas fa-user-clock" style="color: var(--success);"></i> Individual Student Overrides</h1>
+                <p>Grant specific students access even when the general window is closed.</p>
+            </div>
+
+            <form method="POST" style="background: #f8f9fa; padding: 20px; border-radius: 12px; margin-bottom: 30px;">
+                <input type="hidden" name="add_override" value="1">
+                <div class="form-group">
+                    <label>Select Student</label>
+                    <select name="student_id" class="input-styled select2" required>
+                        <option value="">-- Choose Student --</option>
+                        <?php foreach ($all_students as $stu): ?>
+                            <option value="<?= $stu['id'] ?>"><?= htmlspecialchars($stu['name']) ?> (<?= htmlspecialchars($stu['reg_no']) ?>)</option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label>Override Start</label>
+                        <input type="datetime-local" name="override_start" class="input-styled" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Override End</label>
+                        <input type="datetime-local" name="override_end" class="input-styled" required>
+                    </div>
+                </div>
+                <button type="submit" class="btn-save" style="background: var(--success);">
+                    Grant Individual Access <i class="fas fa-plus"></i>
+                </button>
+            </form>
+
+            <h3>Existing Overrides</h3>
+            <?php if (empty($overrides)): ?>
+                <p style="text-align: center; color: #888; padding: 20px;">No individual student overrides found.</p>
+            <?php else: ?>
+                <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+                    <thead>
+                        <tr style="text-align: left; border-bottom: 2px solid #eee;">
+                            <th style="padding: 10px;">Student</th>
+                            <th style="padding: 10px;">Window</th>
+                            <th style="padding: 10px;">Status</th>
+                            <th style="padding: 10px;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($overrides as $ov): 
+                            $ov_start = strtotime($ov['submission_start']);
+                            $ov_end = strtotime($ov['submission_end']);
+                            $now = time();
+                            $is_current = ($now >= $ov_start && $now <= $ov_end);
+                        ?>
+                            <tr style="border-bottom: 1px solid #eee;">
+                                <td style="padding: 10px;">
+                                    <strong><?= htmlspecialchars($ov['name']) ?></strong><br>
+                                    <small><?= htmlspecialchars($ov['reg_no']) ?></small>
+                                </td>
+                                <td style="padding: 10px;">
+                                    <small><?= date('M d, H:i', $ov_start) ?> - <?= date('M d, H:i', $ov_end) ?></small>
+                                </td>
+                                <td style="padding: 10px;">
+                                    <span style="color: <?= $is_current ? 'var(--success)' : 'var(--danger)' ?>; font-weight: bold;">
+                                        <?= $is_current ? 'Active' : 'Expired/Future' ?>
+                                    </span>
+                                </td>
+                                <td style="padding: 10px;">
+                                    <a href="?delete_override=<?= $ov['id'] ?>" style="color: var(--danger);" onclick="return confirm('Remove student override?')"><i class="fas fa-trash"></i></a>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            <?php endif; ?>
         </div>
     </div>
 
     <?php include_once __DIR__ .'/../includes/footer.php'; ?>
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            $('.select2').select2({
+                placeholder: "Search and select student...",
+                width: '100%'
+            });
+        });
+    </script>
 </body>
 </html>

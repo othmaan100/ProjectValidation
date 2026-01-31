@@ -1,13 +1,7 @@
 <?php
-session_start();
+include_once __DIR__ . '/../includes/auth.php';
 include_once __DIR__ . '/../includes/db.php';
 include_once __DIR__ . '/../includes/config.php';
-
-// Auth check
-if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'sup') {
-    header("Location: " . PROJECT_ROOT);
-    exit();
-}
 
 $supervisor_id = $_SESSION['user_id'];
 $message = '';
@@ -77,6 +71,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $_SESSION['sup_validation_result'][$topic_id] = validate_hybrid($conn, $topic_text, $topic_id);
         }
     }
+    elseif ($_POST['action'] === 'check_similarity_ajax') {
+        // Ensure no output was sent before
+        if (ob_get_level()) ob_end_clean();
+        header('Content-Type: application/json');
+        
+        try {
+            $topic_id = intval($_POST['topic_id']);
+            $stmt = $conn->prepare("SELECT topic FROM project_topics WHERE id = ?");
+            $stmt->execute([$topic_id]);
+            $topic_text = $stmt->fetchColumn();
+            
+            if (!$topic_text) {
+                echo json_encode(['status' => 'error', 'message' => 'Topic not found.']);
+                exit();
+            }
+            
+            $result = validate_hybrid_detailed($conn, $topic_text, $topic_id);
+            echo json_encode($result);
+        } catch (Exception $e) {
+            echo json_encode(['status' => 'error', 'message' => 'Server Error: ' . $e->getMessage()]);
+        }
+        exit();
+    }
+}
+
+// Detailed validation for AJAX
+function validate_hybrid_detailed($conn, $topic, $currentId) {
+    if (!$topic) return ['status' => 'error', 'message' => 'No topic text.'];
+    $cleanInput = clean_text_local($topic);
+    $matches = [];
+    
+    // Check Past Projects
+    $stmt = $conn->prepare("SELECT topic, reg_no FROM past_projects");
+    $stmt->execute();
+    while ($row = $stmt->fetch()) {
+        similar_text($cleanInput, clean_text_local($row['topic']), $perc);
+        if ($perc > 75) $matches[] = ["topic" => $row['topic'], "source" => "Past Project (Reg No: ".$row['reg_no'].")", "score" => round($perc, 1)];
+    }
+    
+    // Check Other Student Submissions
+    $stmt = $conn->prepare("SELECT pt.topic, s.reg_no FROM project_topics pt JOIN students s ON pt.student_id = s.id WHERE pt.id != ?");
+    $stmt->execute([$currentId]);
+    while ($row = $stmt->fetch()) {
+        similar_text($cleanInput, clean_text_local($row['topic']), $perc);
+        if ($perc > 75) $matches[] = ["topic" => $row['topic'], "source" => "Other Student (Reg No: ".$row['reg_no'].")", "score" => round($perc, 1)];
+    }
+    
+    if (!empty($matches)) {
+        return ['status' => 'match', 'matches' => $matches];
+    }
+    
+    return ['status' => 'clear'];
 }
 
 // Helper Functions
@@ -165,72 +211,66 @@ foreach ($data as $row) {
     ];
 }
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Topic Validation | Supervisor</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        :root { --primary: #4e73df; --success: #1cc88a; --danger: #e74a3b; --warning: #f6c23e; --glass: rgba(255, 255, 255, 0.95); }
-        body { font-family: 'Segoe UI', sans-serif; background: #f8f9fc; margin: 0; color: #2d3436; }
-        .page-container { max-width: 1200px; margin: 0 auto; padding: 30px 20px; }
-        
-        .header-section { margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; }
-        .header-section h1 { font-size: 28px; color: #2c3e50; }
-        
-        .student-card { background: white; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 25px; overflow: hidden; }
-        .student-header { background: #f8f9fa; padding: 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
-        .student-info h3 { margin: 0; font-size: 18px; color: var(--primary); }
-        .student-info p { margin: 5px 0 0; font-size: 13px; color: #636e72; font-weight: 600; }
-        
-        .topics-list { padding: 20px; }
-        .topic-row { 
-            display: flex; justify-content: space-between; align-items: center; 
-            padding: 15px; border: 1px solid #f1f2f6; border-radius: 10px; margin-bottom: 10px;
-            transition: 0.3s; flex-wrap: wrap;
-        }
-        .topic-row:hover { background: #fcfdfe; border-color: var(--primary); }
-        .topic-content { flex: 1; min-width: 300px; margin-right: 20px; }
-        .topic-title { font-size: 15px; font-weight: 500; }
-        .topic-status { margin-top: 5px; display: flex; align-items: center; gap: 10px; }
-        .ai-result { background: #fff3cd; color: #856404; padding: 8px 12px; border-radius: 8px; font-size: 12px; margin-top: 10px; border-left: 4px solid #ffca28; width: 100%; }
+<?php include_once __DIR__ . '/../includes/header.php'; ?>
+<style>
+    :root { --primary: #4e73df; --success: #1cc88a; --danger: #e74a3b; --warning: #f6c23e; --glass: rgba(255, 255, 255, 0.95); }
+    body { font-family: 'Segoe UI', sans-serif; background: #f8f9fc; margin: 0; color: #2d3436; }
+    .page-container { max-width: 1200px; margin: 0 auto; padding: 30px 20px; }
+    
+    .header-section { margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; }
+    .header-section h1 { font-size: 28px; color: #2c3e50; }
+    
+    .student-card { background: white; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 25px; overflow: hidden; }
+    .student-header { background: #f8f9fa; padding: 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+    .student-info h3 { margin: 0; font-size: 18px; color: var(--primary); }
+    .student-info p { margin: 5px 0 0; font-size: 13px; color: #636e72; font-weight: 600; }
+    
+    .topics-list { padding: 20px; }
+    .topic-row { 
+        display: flex; justify-content: space-between; align-items: center; 
+        padding: 15px; border: 1px solid #f1f2f6; border-radius: 10px; margin-bottom: 10px;
+        transition: 0.3s; flex-wrap: wrap;
+    }
+    .topic-row:hover { background: #fcfdfe; border-color: var(--primary); }
+    .topic-content { flex: 1; min-width: 300px; margin-right: 20px; }
+    .topic-title { font-size: 15px; font-weight: 500; }
+    .topic-status { margin-top: 5px; display: flex; align-items: center; gap: 10px; }
+    .ai-result { background: #fff3cd; color: #856404; padding: 8px 12px; border-radius: 8px; font-size: 12px; margin-top: 10px; border-left: 4px solid #ffca28; width: 100%; }
 
-        .status-pill { padding: 4px 10px; border-radius: 20px; font-size: 10px; font-weight: 700; text-transform: uppercase; }
-        .status-pending { background: #fff8e1; color: #ff8f00; }
-        .status-approved { background: #e8f5e9; color: #2e7d32; }
-        .status-rejected { background: #ffebee; color: #c62828; }
+    .status-pill { padding: 4px 10px; border-radius: 20px; font-size: 10px; font-weight: 700; text-transform: uppercase; }
+    .status-pending { background: #fff8e1; color: #ff8f00; }
+    .status-approved { background: #e8f5e9; color: #2e7d32; }
+    .status-rejected { background: #ffebee; color: #c62828; }
 
-        .btn { padding: 8px 16px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.3s; font-size: 12px; display: inline-flex; align-items: center; gap: 5px; text-decoration: none; }
-        .btn-approve { background: var(--success); color: white; }
-        .btn-reject { background: var(--danger); color: white; }
-        .btn-edit { background: #e9ecef; color: #495057; }
-        .btn-validate { background: #e0f2f1; color: #00897b; }
-        .btn-back { background: #6c757d; color: white; }
-        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn { padding: 8px 16px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.3s; font-size: 12px; display: inline-flex; align-items: center; gap: 5px; text-decoration: none; }
+    .btn-approve { background: var(--success); color: white; }
+    .btn-reject { background: var(--danger); color: white; }
+    .btn-edit { background: #e9ecef; color: #495057; }
+    .btn-validate { background: #e0f2f1; color: #00897b; }
+    .btn-back { background: #6c757d; color: white; }
+    .btn:hover { opacity: 0.9; transform: translateY(-1px); }
 
-        /* Modal Styles */
-        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
-        .modal-content { background: white; padding: 30px; border-radius: 15px; width: 100%; max-width: 500px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
-        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .modal-header h2 { margin: 0; font-size: 20px; color: var(--primary); }
-        .close-modal { font-size: 24px; cursor: pointer; color: #999; }
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; margin-bottom: 5px; font-weight: 600; }
-        .form-control { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-family: inherit; box-sizing: border-box; }
-        .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
-        .alert { padding: 15px; border-radius: 10px; background: #e8f5e9; color: #2e7d32; margin-bottom: 25px; border: 1px solid #c8e6c9; }
-        
-        .empty-state { text-align: center; padding: 60px; color: #636e72; background: white; border-radius: 15px; }
-        .empty-state i { font-size: 50px; color: #dfe6e9; margin-bottom: 20px; }
-    </style>
-</head>
-<body>
-    <?php include_once __DIR__ . '/../includes/header.php'; ?>
-    </div> <!-- Close container from header -->
+    /* Modal Styles */
+    .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
+    .modal-content { background: white; padding: 30px; border-radius: 15px; width: 100%; max-width: 500px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .modal-header h2 { margin: 0; font-size: 20px; color: var(--primary); }
+    .close-modal { font-size: 24px; cursor: pointer; color: #999; }
+    .form-group { margin-bottom: 15px; }
+    .form-group label { display: block; margin-bottom: 5px; font-weight: 600; }
+    .form-control { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-family: inherit; box-sizing: border-box; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+    .alert { padding: 15px; border-radius: 10px; background: #e8f5e9; color: #2e7d32; margin-bottom: 25px; border: 1px solid #c8e6c9; }
+    
+    .empty-state { text-align: center; padding: 60px; color: #636e72; background: white; border-radius: 15px; }
+    .empty-state i { font-size: 50px; color: #dfe6e9; margin-bottom: 20px; }
 
-    <div class="page-container">
+    /* Similarity Modal */
+    .match-item { background: #fff5f5; border: 1px solid #feb2b2; padding: 10px; border-radius: 8px; margin-top: 10px; }
+    .match-score { color: var(--danger); font-weight: bold; }
+</style>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<div class="page-container">
         <div class="header-section">
             <div>
                 <h1><i class="fas fa-check-circle"></i> Topic Validation</h1>
@@ -299,11 +339,13 @@ foreach ($data as $row) {
                                             <button type="submit" class="btn btn-validate" title="Check for Similarity/AI Validity"><i class="fas fa-robot"></i> Validate</button>
                                         </form>
                                         <button class="btn btn-edit" onclick="openEditModal(<?= $t['id'] ?>, '<?= addslashes(htmlspecialchars($t['title'])) ?>', <?= $sid ?>)" title="Edit Topic"><i class="fas fa-edit"></i></button>
-                                        <form method="POST" style="display:inline;">
+                                        <button type="button" class="btn btn-approve" onclick="handleApprove(event, <?= $t['id'] ?>, <?= $sid ?>, '<?= addslashes(htmlspecialchars($t['title'])) ?>')"><i class="fas fa-check"></i> Approve</button>
+
+                                        <!-- Hidden dynamic approval form -->
+                                        <form id="approve-form-<?= $t['id'] ?>" method="POST" style="display:none;">
                                             <input type="hidden" name="student_id" value="<?= $sid ?>">
                                             <input type="hidden" name="topic_id" value="<?= $t['id'] ?>">
                                             <input type="hidden" name="action" value="approve">
-                                            <button type="submit" class="btn btn-approve"><i class="fas fa-check"></i> Approve</button>
                                         </form>
                                     <?php else: ?>
                                         <button class="btn btn-edit" onclick="openEditModal(<?= $t['id'] ?>, '<?= addslashes(htmlspecialchars($t['title'])) ?>', <?= $sid ?>)" title="Edit Topic"><i class="fas fa-edit"></i></button>
@@ -343,6 +385,21 @@ foreach ($data as $row) {
         </div>
     </div>
 
+    <!-- Similarity Warning Modal -->
+    <div id="similarityModal" class="modal">
+        <div class="modal-content" style="max-width: 600px; border-top: 5px solid var(--danger);">
+            <div class="modal-header">
+                <h2 style="color: var(--danger);"><i class="fas fa-exclamation-triangle"></i> Similarity Warning!</h2>
+                <span class="close-modal" onclick="closeSimilarityModal()">&times;</span>
+            </div>
+            <p>We found similar projects in our repository. It is highly recommended to review the topic before proceeding.</p>
+            <div id="match-results" style="margin: 20px 0;"></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-back" onclick="closeSimilarityModal()">Cancel & Review</button>
+                <button type="button" class="btn btn-approve" id="approve-anyway-btn" style="background: var(--danger);">Approve Anyway</button>
+            </div>
+        </div>
+    </div>
     <script>
         function openEditModal(topicId, topicTitle, studentId) {
             document.getElementById('edit_topic_id').value = topicId;
@@ -355,11 +412,73 @@ foreach ($data as $row) {
             document.getElementById('editModal').style.display = 'none';
         }
 
-        // Close modal when clicking outside
-        window.onclick = function(event) {
-            if (event.target == document.getElementById('editModal')) {
-                closeEditModal();
+        async function handleApprove(event, topicId, studentId, topicTitle) {
+            const btn = event.currentTarget;
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Checking...';
+
+            const formData = new FormData();
+            formData.append('action', 'check_similarity_ajax');
+            formData.append('topic_id', topicId);
+
+            try {
+                const response = await fetch(window.location.href, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) throw new Error('Network response was not ok');
+                
+                const result = await response.json();
+
+                if (result.status === 'match') {
+                    showSimilarityWarning(result.matches, topicId);
+                } else if (result.status === 'error') {
+                    throw new Error(result.message);
+                } else {
+                    if (confirm('No high similarities found. Are you sure you want to approve this project topic?')) {
+                        document.getElementById('approve-form-' + topicId).submit();
+                    }
+                }
+            } catch (error) {
+                console.error('Error checking similarity:', error);
+                if (confirm(`Validation Check Failed: ${error.message}\n\nDo you want to proceed with manual approval?`)) {
+                    document.getElementById('approve-form-' + topicId).submit();
+                }
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
             }
+        }
+
+        function showSimilarityWarning(matches, topicId) {
+            const container = document.getElementById('match-results');
+            container.innerHTML = '<strong>Found matches:</strong>';
+            
+            matches.forEach(m => {
+                container.innerHTML += `
+                    <div class="match-item">
+                        <div class="match-score">${m.score}% Similarity</div>
+                        <div style="font-weight: 600;">${m.topic}</div>
+                        <div style="font-size: 12px; color: #666;">Source: ${m.source}</div>
+                    </div>
+                `;
+            });
+
+            document.getElementById('similarityModal').style.display = 'flex';
+            document.getElementById('approve-anyway-btn').onclick = function() {
+                document.getElementById('approve-form-' + topicId).submit();
+            };
+        }
+
+        function closeSimilarityModal() {
+            document.getElementById('similarityModal').style.display = 'none';
+        }
+
+        window.onclick = function(event) {
+            if (event.target == document.getElementById('editModal')) closeEditModal();
+            if (event.target == document.getElementById('similarityModal')) closeSimilarityModal();
         }
     </script>
 </body>

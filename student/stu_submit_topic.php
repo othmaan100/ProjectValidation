@@ -23,23 +23,39 @@ if (!$student) {
 
 // Check submission schedule
 $dept_id = $student['department'];
-$stmt = $conn->prepare("SELECT * FROM submission_schedules WHERE department_id = ? AND is_active = 1");
-$stmt->execute([$dept_id]);
-$schedule = $stmt->fetch();
-
-$now = time();
 $can_submit = false;
 $deadline_info = "No submission schedule set.";
 
-if ($schedule) {
-    $start_time = strtotime($schedule['submission_start']);
-    $end_time = strtotime($schedule['submission_end']);
+// 1. Check for individual student override first
+$stmt = $conn->prepare("SELECT * FROM student_submission_overrides WHERE student_id = ? AND is_active = 1");
+$stmt->execute([$student_id]);
+$override = $stmt->fetch();
+
+$now = time();
+
+if ($override) {
+    $start_time = strtotime($override['submission_start']);
+    $end_time = strtotime($override['submission_end']);
     
     if ($now >= $start_time && $now <= $end_time) {
         $can_submit = true;
     }
-    
-    $deadline_info = "Window: " . date('M d, Y H:i', $start_time) . " to " . date('M d, Y H:i', $end_time);
+    $deadline_info = "Individual Extension: " . date('M d, Y H:i', $start_time) . " to " . date('M d, Y H:i', $end_time);
+} else {
+    // 2. Fallback to departmental schedule
+    $stmt = $conn->prepare("SELECT * FROM submission_schedules WHERE department_id = ? AND is_active = 1");
+    $stmt->execute([$dept_id]);
+    $schedule = $stmt->fetch();
+
+    if ($schedule) {
+        $start_time = strtotime($schedule['submission_start']);
+        $end_time = strtotime($schedule['submission_end']);
+        
+        if ($now >= $start_time && $now <= $end_time) {
+            $can_submit = true;
+        }
+        $deadline_info = "Dept Window: " . date('M d, Y H:i', $start_time) . " to " . date('M d, Y H:i', $end_time);
+    }
 }
 
 // Redirect only if absolutely no schedule exists (optional, but let's be graceful)
@@ -89,6 +105,46 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_topics'])) {
         }
     }
 }
+
+// Handle Similarity AJAX
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'check_similarity') {
+    header('Content-Type: application/json');
+    $topic = trim($_POST['topic'] ?? '');
+    
+    if (empty($topic)) {
+        echo json_encode(['status' => 'clear']);
+        exit();
+    }
+
+    $cleanInput = strtolower(trim(preg_replace('/[^\p{L}\p{N}\s]/u', ' ', $topic)));
+    $common = ['the', 'a', 'an', 'of', 'for', 'in', 'on', 'at', 'to', 'using', 'based', 'study', 'design', 'implementation', 'system'];
+    $cleanInput = preg_replace('/\b(' . implode('|', $common) . ')\b/i', '', $cleanInput);
+
+    $matches = [];
+    
+    // Check Past Projects
+    $stmt = $conn->prepare("SELECT topic FROM past_projects");
+    $stmt->execute();
+    while ($row = $stmt->fetch()) {
+        similar_text($cleanInput, strtolower($row['topic']), $perc);
+        if ($perc > 75) $matches[] = ["topic" => $row['topic'], "source" => "Past Project"];
+    }
+    
+    // Check Current Topics
+    $stmt = $conn->prepare("SELECT topic FROM project_topics");
+    $stmt->execute();
+    while ($row = $stmt->fetch()) {
+        similar_text($cleanInput, strtolower($row['topic']), $perc);
+        if ($perc > 75) $matches[] = ["topic" => $row['topic'], "source" => "Other Student Submission"];
+    }
+
+    if (!empty($matches)) {
+        echo json_encode(['status' => 'match', 'matches' => array_slice($matches, 0, 2)]);
+    } else {
+        echo json_encode(['status' => 'clear']);
+    }
+    exit();
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -131,6 +187,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_topics'])) {
             background: #e3f2fd; color: #1976d2; padding: 12px; border-radius: 12px; 
             font-size: 13px; margin-bottom: 25px; display: flex; align-items: center; gap: 10px;
         }
+        .similarity-warning {
+            background: #fff3cd; color: #856404; padding: 10px; border-radius: 10px; 
+            font-size: 12px; margin-top: 5px; border-left: 4px solid #ffca28; display: none;
+        }
     </style>
 </head>
 <body>
@@ -164,7 +224,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_topics'])) {
                 <?php for ($i = 1; $i <= (3 - $submitted_count); $i++): ?>
                     <div class="form-group" style="<?= !$can_submit ? 'opacity: 0.6;' : '' ?>">
                         <label>Proposed Topic #<?= $submitted_count + $i ?></label>
-                        <textarea name="topic<?= $i ?>" class="textarea-styled" placeholder="<?= $can_submit ? 'Enter topic title...' : 'Submissions closed' ?>" <?= !$can_submit ? 'disabled' : '' ?>></textarea>
+                        <textarea name="topic<?= $i ?>" class="textarea-styled topic-input" placeholder="<?= $can_submit ? 'Enter topic title...' : 'Submissions closed' ?>" <?= !$can_submit ? 'disabled' : '' ?> onblur="checkSimilarity(this)"></textarea>
+                        <div class="similarity-warning"></div>
                     </div>
                 <?php endfor; ?>
 
@@ -180,6 +241,43 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_topics'])) {
     </div>
 
     <?php include_once __DIR__ . '/../includes/footer.php'; ?>
+    <script>
+        async function checkSimilarity(textarea) {
+            const topic = textarea.value.trim();
+            const warningBox = textarea.nextElementSibling;
+            
+            if (topic.length < 10) {
+                warningBox.style.display = 'none';
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('action', 'check_similarity');
+            formData.append('topic', topic);
+
+            try {
+                const response = await fetch('stu_submit_topic.php', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+
+                if (result.status === 'match') {
+                    let html = '<strong>⚠️ Similarity Alert:</strong> Similar projects found:<br>';
+                    result.matches.forEach(m => {
+                        html += `• "${m.topic}" (${m.source})<br>`;
+                    });
+                    html += '<em>Suggest modifying your topic to ensure uniqueness.</em>';
+                    warningBox.innerHTML = html;
+                    warningBox.style.display = 'block';
+                } else {
+                    warningBox.style.display = 'none';
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+    </script>
 </body>
 </html>
 

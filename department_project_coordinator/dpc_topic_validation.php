@@ -70,8 +70,49 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $stmt->execute([$topic_id]);
         send_feedback_to_student($topic_id, 'rejected', $reason);
     }
+    elseif (isset($_POST['action']) && $_POST['action'] === 'check_similarity_ajax') {
+        header('Content-Type: application/json');
+        $topic_id = intval($_POST['topic_id']);
+        $stmt = $conn->prepare("SELECT topic FROM project_topics WHERE id = ?");
+        $stmt->execute([$topic_id]);
+        $topic_text = $stmt->fetchColumn();
+        
+        $result = validate_hybrid_detailed($conn, $topic_text, $topic_id);
+        echo json_encode($result);
+        exit();
+    }
     header("Location: " . $_SERVER['PHP_SELF'] . ($search ? "?search=" . urlencode($search) : ""));
     exit();
+}
+
+// Detailed validation for AJAX
+function validate_hybrid_detailed($conn, $topic, $currentId) {
+    if (!$topic) return ['status' => 'error', 'message' => 'No topic text.'];
+    $cleanInput = clean_text_local($topic);
+    $faculty_id = $_SESSION['faculty_id'] ?? 0;
+    $matches = [];
+    
+    // Check Past Projects
+    $stmt = $conn->prepare("SELECT topic, reg_no FROM past_projects WHERE faculty_id = ?");
+    $stmt->execute([$faculty_id]);
+    while ($row = $stmt->fetch()) {
+        similar_text($cleanInput, clean_text_local($row['topic']), $perc);
+        if ($perc > 75) $matches[] = ["topic" => $row['topic'], "source" => "Past Project (Reg No: ".$row['reg_no'].")", "score" => round($perc, 1)];
+    }
+    
+    // Check Other Student Submissions
+    $stmt = $conn->prepare("SELECT pt.topic, s.reg_no FROM project_topics pt JOIN students s ON pt.student_id = s.id WHERE pt.id != ? AND s.faculty_id = ?");
+    $stmt->execute([$currentId, $faculty_id]);
+    while ($row = $stmt->fetch()) {
+        similar_text($cleanInput, clean_text_local($row['topic']), $perc);
+        if ($perc > 75) $matches[] = ["topic" => $row['topic'], "source" => "Other Student (Reg No: ".$row['reg_no'].")", "score" => round($perc, 1)];
+    }
+    
+    if (!empty($matches)) {
+        return ['status' => 'match', 'matches' => $matches];
+    }
+    
+    return ['status' => 'clear'];
 }
 
 // Helper Functions
@@ -191,6 +232,18 @@ if (!empty($students)) {
         .badge-pending { background: #fff3e0; color: #ef6c00; }
         .badge-approved { background: #e8f5e9; color: #2e7d32; }
         .badge-rejected { background: #ffebee; color: #c62828; }
+
+        /* Modal Styles */
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
+        .modal-content { background: white; padding: 30px; border-radius: 15px; width: 100%; max-width: 600px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); border-top: 5px solid var(--danger); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .modal-header h2 { margin: 0; font-size: 20px; color: var(--danger); }
+        .close-modal { font-size: 24px; cursor: pointer; color: #999; }
+        .match-item { background: #fff5f5; border: 1px solid #feb2b2; padding: 10px; border-radius: 8px; margin-top: 10px; text-align: left; }
+        .match-score { color: var(--danger); font-weight: bold; }
+        .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.3s; color: white; }
+        .btn-cancel { background: #6c757d; }
     </style>
 </head>
 <body>
@@ -269,11 +322,15 @@ if (!empty($students)) {
                                                     <input type="hidden" name="topic_id" value="<?= $t['id'] ?>">
                                                     <button type="submit" name="validate_topic" class="btn-sm btn-check" title="Check Similarity"><i class="fas fa-shield-alt"></i></button>
                                                 </form>
-                                                <form method="POST" style="display: inline;" onsubmit="return confirm('Approve this topic? This will reject all other proposals for this student.')">
+                                                <button type="button" onclick="handleApprove(<?= $t['id'] ?>, <?= $s['id'] ?>, '<?= addslashes(htmlspecialchars($t['topic'])) ?>')" class="btn-sm btn-approve" title="Approve"><i class="fas fa-check"></i></button>
+                                                
+                                                <!-- Hidden dynamic approval form -->
+                                                <form id="approve-form-<?= $t['id'] ?>" method="POST" style="display: none;">
                                                     <input type="hidden" name="topic_id" value="<?= $t['id'] ?>">
                                                     <input type="hidden" name="student_id" value="<?= $s['id'] ?>">
-                                                    <button type="submit" name="approve_topic" class="btn-sm btn-approve" title="Approve"><i class="fas fa-check"></i></button>
+                                                    <input type="hidden" name="approve_topic" value="1">
                                                 </form>
+
                                                 <form method="POST" style="display: inline;">
                                                     <input type="hidden" name="topic_id" value="<?= $t['id'] ?>">
                                                     <button type="submit" name="reject_topic" class="btn-sm btn-reject" title="Reject"><i class="fas fa-times"></i></button>
@@ -307,5 +364,77 @@ if (!empty($students)) {
     </div>
 
     <?php include_once __DIR__ .'/../includes/footer.php'; ?>
+    <!-- Similarity Warning Modal -->
+    <div id="similarityModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-exclamation-triangle"></i> Similarity Warning!</h2>
+                <span class="close-modal" onclick="closeSimilarityModal()">&times;</span>
+            </div>
+            <p style="color: #636e72;">Found similar projects in our repository. Suggest reviewing the topic before approval.</p>
+            <div id="match-results" style="margin: 20px 0;"></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-cancel" onclick="closeSimilarityModal()">Cancel & Review</button>
+                <button type="button" class="btn btn-approve" id="approve-anyway-btn" style="background: var(--danger);">Approve Anyway</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function handleApprove(topicId, studentId, topicTitle) {
+            const formData = new FormData();
+            formData.append('action', 'check_similarity_ajax');
+            formData.append('topic_id', topicId);
+
+            try {
+                const response = await fetch(window.location.href, {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+
+                if (result.status === 'match') {
+                    showSimilarityWarning(result.matches, topicId);
+                } else {
+                    if (confirm('Approve this topic? This will reject all other proposals for this student.')) {
+                        document.getElementById('approve-form-' + topicId).submit();
+                    }
+                }
+            } catch (error) {
+                console.error('Error checking similarity:', error);
+                if (confirm('Error during validation. Do you want to proceed with approval?')) {
+                    document.getElementById('approve-form-' + topicId).submit();
+                }
+            }
+        }
+
+        function showSimilarityWarning(matches, topicId) {
+            const container = document.getElementById('match-results');
+            container.innerHTML = '<strong>Found matching topics:</strong>';
+            
+            matches.forEach(m => {
+                container.innerHTML += `
+                    <div class="match-item">
+                        <div class="match-score">${m.score}% Similarity</div>
+                        <div style="font-weight: 600; color: #2d3436;">${m.topic}</div>
+                        <div style="font-size: 11px; color: #64748b; margin-top: 4px;">Source: ${m.source}</div>
+                    </div>
+                `;
+            });
+
+            document.getElementById('similarityModal').style.display = 'flex';
+            document.getElementById('approve-anyway-btn').onclick = function() {
+                document.getElementById('approve-form-' + topicId).submit();
+            };
+        }
+
+        function closeSimilarityModal() {
+            document.getElementById('similarityModal').style.display = 'none';
+        }
+
+        window.onclick = function(event) {
+            if (event.target == document.getElementById('similarityModal')) closeSimilarityModal();
+        }
+    </script>
 </body>
 </html>

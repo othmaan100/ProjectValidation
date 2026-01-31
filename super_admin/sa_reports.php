@@ -25,9 +25,17 @@ try {
 $faculty_stats = $conn->query("
     SELECT 
         f.id, f.faculty as faculty_name,
-        (SELECT COUNT(*) FROM students s WHERE s.faculty_id = f.id) as students_count,
-        (SELECT COUNT(*) FROM project_topics pt JOIN students s2 ON pt.student_id = s2.id WHERE s2.faculty_id = f.id AND pt.status = 'approved') as approved_count,
-        (SELECT COUNT(*) FROM project_topics pt JOIN students s2 ON pt.student_id = s2.id WHERE s2.faculty_id = f.id AND pt.status = 'pending') as pending_count
+        (SELECT COUNT(*) FROM students s 
+         JOIN departments d ON s.department = d.id 
+         WHERE d.faculty_id = f.id) as students_count,
+        (SELECT COUNT(*) FROM project_topics pt 
+         JOIN students s2 ON pt.student_id = s2.id 
+         JOIN departments d2 ON s2.department = d2.id
+         WHERE d2.faculty_id = f.id AND pt.status = 'approved') as approved_count,
+        (SELECT COUNT(*) FROM project_topics pt 
+         JOIN students s2 ON pt.student_id = s2.id 
+         JOIN departments d2 ON s2.department = d2.id
+         WHERE d2.faculty_id = f.id AND pt.status = 'pending') as pending_count
     FROM faculty f
     ORDER BY f.faculty ASC
 ")->fetchAll(PDO::FETCH_ASSOC);
@@ -37,7 +45,8 @@ $recent_approved = $conn->query("
     SELECT pt.topic, pt.student_name, pt.session, f.faculty as faculty_name 
     FROM project_topics pt 
     JOIN students s ON pt.student_id = s.id 
-    JOIN faculty f ON s.faculty_id = f.id 
+    JOIN departments d ON s.department = d.id
+    JOIN faculty f ON d.faculty_id = f.id 
     WHERE pt.status = 'approved' 
     ORDER BY pt.id DESC LIMIT 10
 ")->fetchAll(PDO::FETCH_ASSOC);

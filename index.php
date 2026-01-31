@@ -1,6 +1,6 @@
 <?php
 session_start();
-include __DIR__ . '/includes/db.sample.php';
+include __DIR__ . '/includes/db.php';
 
 // Handle login form submission
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['action'] == 'login') {
@@ -32,18 +32,42 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                 
                 // Redirect based on role
                 $redirects = [
-                    'stu' => "student/stu_dashboard.php",
-                    'dpc' => "department_project_coordinator/dpc_dashboard.php",
-                    'fpc' => "faculty_project_coordinator/fpc_dashboard.php",
-                    'sup' => "supervisor/sup_dashboard.php",
-                    'admin' => "super_admin/sa_dashboard.php"
+                    'stu' => "student/index.php",
+                    'dpc' => "department_project_coordinator/index.php",
+                    'fpc' => "faculty_project_coordinator/index.php",
+                    'sup' => "supervisor/index.php",
+                    'admin' => "super_admin/index.php",
+                    'lib' => "library/index.php",
+                    'guest' => "library/guest_catalog.php"
                 ];
                 
                 $location = isset($redirects[$user['role']]) ? $redirects[$user['role']] : "index.php";
                 header("Location: $location");
                 exit();
             } else {
-                $error_message = "Invalid username or password.";
+                // Check Temporary Access Table
+                $stmt = $conn->prepare("SELECT * FROM library_temp_access WHERE username = ? AND passcode = ?");
+                $stmt->execute([$input_username, $input_password]);
+                $temp = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                if ($temp) {
+                    // Mark as used for accounting
+                    $stmt = $conn->prepare("UPDATE library_temp_access SET is_used = 1, used_at = NOW() WHERE id = ?");
+                    $stmt->execute([$temp['id']]);
+
+                    $_SESSION['user_id'] = $temp['id'];
+                    $_SESSION['username'] = $temp['username'];
+                    $_SESSION['role'] = 'guest'; // Special role
+                    $_SESSION['name'] = 'Guest Student';
+                    $_SESSION['logged_in'] = true;
+                    $_SESSION['is_temp'] = true; // Mark as temporary
+                    $_SESSION['login_time'] = time();
+
+                    header("Location: library/guest_catalog.php");
+                    exit();
+                } else {
+                    $error_message = "Invalid username or password.";
+                }
             }
         } catch(PDOException $e) {
             $error_message = "Authentication error. Please try again later.";
@@ -54,8 +78,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
 // Handle logout
 if (isset($_GET['logout'])) {
     if (isset($_SESSION['user_id'])) {
-        $stmt = $conn->prepare("UPDATE users SET session = NULL WHERE id = ?");
-        $stmt->execute([$_SESSION['user_id']]);
+        if (isset($_SESSION['is_temp']) && $_SESSION['is_temp'] === true) {
+            // Expire temporary passcode automatically
+            $stmt = $conn->prepare("DELETE FROM library_temp_access WHERE id = ?");
+            $stmt->execute([$_SESSION['user_id']]);
+        } else {
+            $stmt = $conn->prepare("UPDATE users SET session = NULL WHERE id = ?");
+            $stmt->execute([$_SESSION['user_id']]);
+        }
     }
     session_destroy();
     header("Location: index.php?logged_out=1");
@@ -362,7 +392,15 @@ $is_logged_in = isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true
                     </div>
                     <div class="dash-links">
                         <a href="<?php 
-                            $redirects = ['stu'=>'student/stu_dashboard.php', 'dpc'=>'department_project_coordinator/dpc_dashboard.php', 'fpc'=>'faculty_project_coordinator/fpc_dashboard.php', 'sup'=>'supervisor/sup_dashboard.php', 'admin'=>'super_admin/sa_dashboard.php'];
+                            $redirects = [
+                                'stu' => "student/index.php",
+                                'dpc' => "department_project_coordinator/index.php",
+                                'fpc' => "faculty_project_coordinator/index.php",
+                                'sup' => "supervisor/index.php",
+                                'admin' => "super_admin/index.php",
+                                'lib' => "library/index.php",
+                                'guest' => "library/guest_catalog.php"
+                            ];
                             echo $redirects[$_SESSION['role']] ?? '#';
                         ?>" class="btn-login" style="text-decoration: none; width: auto; padding: 15px 40px;">Enter Dashboard</a>
                         <a href="?logout=1" class="btn-secondary">Logout</a>
