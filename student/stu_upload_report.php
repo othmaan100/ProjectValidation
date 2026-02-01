@@ -52,12 +52,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['report_file'])) {
 
         if (move_uploaded_file($_FILES['report_file']['tmp_name'], $target_path)) {
             // Update the project_topics table
-            $update_stmt = $conn->prepare("UPDATE project_topics SET pdf_path = ? WHERE id = ?");
+            $update_stmt = $conn->prepare("UPDATE project_topics SET pdf_path = ?, report_status = 'pending' WHERE id = ?");
             if ($update_stmt->execute([$file_path, $approved_topic['id']])) {
-                $message = "Your project report has been successfully uploaded.";
+                $message = "Your project report has been successfully uploaded and is now awaiting supervisor approval.";
                 $status = "success";
                 // Refresh the approved topic data
                 $approved_topic['pdf_path'] = $file_path;
+                $approved_topic['report_status'] = 'pending';
             } else {
                 throw new Exception("Failed to update record in database.");
             }
@@ -146,30 +147,65 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['report_file'])) {
             </div>
 
             <?php if ($approved_topic['pdf_path']): ?>
-                <div class="alert alert-success" style="background: #e3f2fd; color: #1976d2; border-color: #bbdefb;">
-                    <i class="fas fa-info-circle"></i> You have already uploaded a report. You can re-upload to replace it.
+                <?php 
+                    $rs = $approved_topic['report_status'];
+                    $status_class = 'alert-info';
+                    $status_icon = 'fa-clock';
+                    $status_text = 'Pending Approval';
+                    $can_reupload = true;
+
+                    if ($rs === 'approved') {
+                        $status_class = 'alert-success';
+                        $status_icon = 'fa-check-circle';
+                        $status_text = 'Approved by Supervisor';
+                        $can_reupload = false;
+                    } elseif ($rs === 'rejected') {
+                        $status_class = 'alert-error';
+                        $status_icon = 'fa-times-circle';
+                        $status_text = 'Rejected by Supervisor';
+                        $can_reupload = true;
+                    }
+                ?>
+                <div class="alert <?= $status_class ?>" style="margin-bottom: 20px;">
+                    <i class="fas <?= $status_icon ?>"></i> Status: <strong><?= $status_text ?></strong>
+                    <?php if ($rs === 'rejected' && !empty($approved_topic['report_feedback'])): ?>
+                        <div style="margin-top: 10px; font-size: 13px; text-align: left; padding: 10px; background: rgba(0,0,0,0.05); border-radius: 8px;">
+                            <strong>Feedback:</strong> <?= htmlspecialchars($approved_topic['report_feedback']) ?>
+                        </div>
+                    <?php endif; ?>
                 </div>
+
                 <div class="current-file">
-                    <span style="font-size: 13px; color: #636e72;">Current Report:</span>
+                    <span style="font-size: 13px; color: #636e72;">Last Upload:</span>
                     <a href="<?= PROJECT_ROOT . $approved_topic['pdf_path'] ?>" target="_blank" class="file-link">
                         <i class="fas fa-file-pdf"></i> View Submitted Report
                     </a>
                 </div>
-                <div style="margin: 30px 0; border-top: 1px solid #eee;"></div>
+
+                <?php if (!$can_reupload): ?>
+                    <p style="color: var(--success); font-weight: 600; margin-top: 20px;">
+                        <i class="fas fa-lock"></i> Your report has been approved and cannot be changed.
+                    </p>
+                <?php else: ?>
+                    <div style="margin: 30px 0; border-top: 1px solid #eee;"></div>
+                    <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">You can upload a new version below to replace the current one.</p>
+                <?php endif; ?>
             <?php endif; ?>
 
-            <form method="POST" enctype="multipart/form-data" id="uploadForm">
-                <div class="upload-area" onclick="document.getElementById('report_file').click()">
-                    <i class="fas fa-file-pdf"></i>
-                    <h3 id="fileName">Select PDF Report</h3>
-                    <p>Click here to browse your files (Max 10MB)</p>
-                    <input type="file" name="report_file" id="report_file" class="file-input" accept=".pdf" onchange="handleFileSelect(this)">
-                </div>
+            <?php if (!isset($can_reupload) || $can_reupload): ?>
+                <form method="POST" enctype="multipart/form-data" id="uploadForm">
+                    <div class="upload-area" onclick="document.getElementById('report_file').click()">
+                        <i class="fas fa-file-pdf"></i>
+                        <h3 id="fileName">Select PDF Report</h3>
+                        <p>Click here to browse your files (Max 10MB)</p>
+                        <input type="file" name="report_file" id="report_file" class="file-input" accept=".pdf" onchange="handleFileSelect(this)">
+                    </div>
 
-                <button type="submit" class="btn-submit" id="submitBtn" disabled>
-                    Upload Report <i class="fas fa-paper-plane"></i>
-                </button>
-            </form>
+                    <button type="submit" class="btn-submit" id="submitBtn" disabled>
+                        Upload Report <i class="fas fa-paper-plane"></i>
+                    </button>
+                </form>
+            <?php endif; ?>
 
             <a href="stu_dashboard.php" style="display: block; text-align: center; margin-top: 25px; color: #636e72; text-decoration: none; font-weight: 600; font-size: 14px;">
                 <i class="fas fa-arrow-left"></i> Return to Dashboard

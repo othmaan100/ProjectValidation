@@ -96,6 +96,7 @@ if (!defined('PROJECT_ROOT')) {
                 <a href="index.php">Dashboard</a>
                 <a href="sup_view_students.php">My Students</a>
                 <a href="sup_topic_validation.php">Validate Topics</a>
+                <a href="sup_manage_submissions.php">Project Submissions</a>
                 <a href="sup_manage_panels.php">Defense Panels</a>
                 <a href="sup_change_password.php">Change Password</a>
             <?php elseif ($_SESSION['role'] === 'stu'): ?>

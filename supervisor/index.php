@@ -53,6 +53,16 @@ $stmt = $conn->prepare("
 $stmt->execute([$supervisor_id]);
 $pending_assessments = $stmt->fetchColumn();
 
+// 5. Project Reports Pending Approval
+$stmt = $conn->prepare("
+    SELECT COUNT(*) 
+    FROM supervision sp
+    JOIN project_topics pt ON sp.student_id = pt.student_id
+    WHERE sp.supervisor_id = ? AND pt.report_status = 'pending' AND sp.status = 'active'
+");
+$stmt->execute([$supervisor_id]);
+$pending_reports = $stmt->fetchColumn();
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -128,6 +138,10 @@ $pending_assessments = $stmt->fetchColumn();
                 <div class="stat-icon" style="background: var(--info);"><i class="fas fa-vial"></i></div>
                 <div class="stat-info"><h3><?php echo $pending_assessments; ?></h3><p>Assessments Needed</p></div>
             </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="background: var(--danger);"><i class="fas fa-file-upload"></i></div>
+                <div class="stat-info"><h3><?php echo $pending_reports; ?></h3><p>Pending Reports</p></div>
+            </div>
         </div>
 
         <h2 class="section-title"><i class="fas fa-tasks"></i> Supervisor Tasks</h2>
@@ -149,6 +163,12 @@ $pending_assessments = $stmt->fetchColumn();
                 <h2>Project Panels</h2>
                 <p>View the defense panels you are assigned to and assess the projects of students in those panels.</p>
                 <a href="sup_manage_panels.php" class="task-btn" style="background: var(--warning); color: #2d3436;">Go to Panels <i class="fas fa-arrow-right"></i></a>
+            </div>
+            <div class="task-card">
+                <i class="fas fa-file-invoice"></i>
+                <h2>Project Submissions</h2>
+                <p>Review final PDF project reports submitted by your students. You must verify the content before final approval.</p>
+                <a href="sup_manage_submissions.php" class="task-btn" style="background: var(--success);">Manage Submissions <i class="fas fa-file-export"></i></a>
             </div>
             <div class="task-card">
                 <i class="fas fa-user-shield"></i>
