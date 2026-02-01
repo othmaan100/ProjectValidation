@@ -23,15 +23,16 @@ $message_type = '';
 // Handle Panel Creation
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_panel'])) {
     $panel_name = trim($_POST['panel_name']);
+    $panel_type = $_POST['panel_type'];
     $max_students = (int)$_POST['max_students'];
     $supervisor_ids = $_POST['supervisor_ids'] ?? [];
 
-    if (!empty($panel_name) && !empty($supervisor_ids) && $max_students > 0) {
+    if (!empty($panel_name) && !empty($panel_type) && !empty($supervisor_ids) && $max_students > 0) {
         try {
             $conn->beginTransaction();
             
-            $stmt = $conn->prepare("INSERT INTO defense_panels (panel_name, department_id, max_students) VALUES (?, ?, ?)");
-            $stmt->execute([$panel_name, $dept_id, $max_students]);
+            $stmt = $conn->prepare("INSERT INTO defense_panels (panel_name, panel_type, department_id, max_students) VALUES (?, ?, ?, ?)");
+            $stmt->execute([$panel_name, $panel_type, $dept_id, $max_students]);
             $panel_id = $conn->lastInsertId();
 
             $stmt = $conn->prepare("INSERT INTO panel_members (panel_id, supervisor_id) VALUES (?, ?)");
@@ -40,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_panel'])) {
             }
 
             $conn->commit();
-            $message = "Panel '$panel_name' created successfully!";
+            $message = "Panel '$panel_name' ($panel_type) created successfully!";
             $message_type = "success";
         } catch (Exception $e) {
             $conn->rollBack();
@@ -48,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_panel'])) {
             $message_type = "error";
         }
     } else {
-        $message = "Please provide a panel name, valid max students, and select at least one supervisor.";
+        $message = "Please provide a panel name, type, valid max students, and select at least one supervisor.";
         $message_type = "error";
     }
 }
@@ -85,7 +86,7 @@ $panel_stmt = $conn->prepare("
     LEFT JOIN supervisors s ON pm.supervisor_id = s.id
     WHERE dp.department_id = ?
     GROUP BY dp.id
-    ORDER BY dp.panel_name
+    ORDER BY FIELD(dp.panel_type, 'proposal', 'internal', 'external'), dp.panel_name
 ");
 $panel_stmt->execute([$dept_id]);
 $panels = $panel_stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -143,6 +144,10 @@ $panels = $panel_stmt->fetchAll(PDO::FETCH_ASSOC);
         td { padding: 15px; border-bottom: 1px solid #f1f5f9; font-size: 15px; }
 
         .panel-badge { background: #f1f5f9; padding: 4px 10px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--primary); }
+        .type-badge { padding: 4px 10px; border-radius: 8px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+        .type-proposal { background: #e0f2fe; color: #0369a1; }
+        .type-internal { background: #fef3c7; color: #92400e; }
+        .type-external { background: #dcfce7; color: #166534; }
         
         /* Select2 Customization */
         .select2-container--default .select2-selection--multiple { border: 2px solid #e2e8f0; border-radius: 12px; padding: 8px; }
@@ -185,6 +190,14 @@ $panels = $panel_stmt->fetchAll(PDO::FETCH_ASSOC);
                         <input type="text" id="panel_name" name="panel_name" placeholder="e.g. Panel A, Software Dev Panel" required>
                     </div>
                     <div class="form-group">
+                        <label for="panel_type">Panel Type</label>
+                        <select name="panel_type" id="panel_type" style="width: 100%; padding: 14px; border: 2px solid #e2e8f0; border-radius: 12px; font-family: inherit; font-size: 16px;" required>
+                            <option value="proposal">Project Proposal Panel</option>
+                            <option value="internal">Internal Defense Panel</option>
+                            <option value="external">External Defense Panel</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
                         <label for="max_students">Max Students</label>
                         <input type="number" id="max_students" name="max_students" min="1" value="10" required>
                     </div>
@@ -209,7 +222,7 @@ $panels = $panel_stmt->fetchAll(PDO::FETCH_ASSOC);
                     <table>
                         <thead>
                             <tr>
-                                <th>Panel Name</th>
+                                <th>Panel Name/Type</th>
                                 <th>Max Students</th>
                                 <th>Members</th>
                                 <th style="text-align: right;">Actions</th>
@@ -218,7 +231,10 @@ $panels = $panel_stmt->fetchAll(PDO::FETCH_ASSOC);
                         <tbody>
                             <?php foreach ($panels as $panel): ?>
                                 <tr>
-                                    <td><strong><?= htmlspecialchars($panel['panel_name']) ?></strong></td>
+                                    <td>
+                                        <strong><?= htmlspecialchars($panel['panel_name']) ?></strong><br>
+                                        <span class="type-badge type-<?= $panel['panel_type'] ?>"><?= $panel['panel_type'] ?></span>
+                                    </td>
                                     <td><span class="panel-badge"><?= htmlspecialchars($panel['max_students']) ?></span></td>
                                     <td>
                                         <div style="color: var(--text-muted); font-size: 14px;">

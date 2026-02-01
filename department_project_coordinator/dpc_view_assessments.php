@@ -22,13 +22,13 @@ $session_stmt = $conn->query("SELECT setting_value FROM system_settings WHERE se
 $active_session = $session_stmt->fetchColumn() ?: date('Y') . '/' . (date('Y') + 1);
 
 // Fetch assessments for students in this department for the active session
-// We want: Student Name, Reg No, Panel Name, Individual Scores from Supervisors, and Average Score
 $query = "
     SELECT 
         s.id as student_id, 
         s.name as student_name, 
         s.reg_no,
         dp.panel_name,
+        dp.panel_type,
         GROUP_CONCAT(CONCAT(sup.name, ': ', ds.score) SEPARATOR ' | ') as individual_scores,
         AVG(ds.score) as average_score,
         COUNT(ds.score) as score_count
@@ -38,8 +38,8 @@ $query = "
     LEFT JOIN defense_scores ds ON s.id = ds.student_id AND ds.panel_id = dp.id
     LEFT JOIN supervisors sup ON ds.supervisor_id = sup.id
     WHERE s.department = ? AND spa.academic_session = ?
-    GROUP BY s.id, dp.id
-    ORDER BY dp.panel_name, s.name
+    GROUP BY s.id, dp.id, dp.panel_type
+    ORDER BY FIELD(dp.panel_type, 'proposal', 'internal', 'external'), dp.panel_name, s.name
 ";
 
 $stmt = $conn->prepare($query);
@@ -54,7 +54,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
     
     $output = fopen('php://output', 'w');
     // Header row
-    fputcsv($output, ['S/N', 'Registration Number', 'Student Name', 'Panel Name', 'Individual Scores', 'Average Score']);
+    fputcsv($output, ['S/N', 'Registration Number', 'Student Name', 'Defense Stage', 'Panel Name', 'Individual Scores', 'Average Score']);
     
     $sn = 1;
     foreach ($assessments as $as) {
@@ -62,6 +62,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
             $sn++,
             $as['reg_no'],
             $as['student_name'],
+            ucfirst($as['panel_type']),
             $as['panel_name'],
             $as['individual_scores'] ?: 'N/A',
             $as['average_score'] !== null ? number_format($as['average_score'], 2) : '0'
@@ -143,8 +144,29 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
         </div>
 
         <div class="card">
-            <?php if (count($assessments) > 0): ?>
-                <table>
+            <?php if (count($assessments) > 0): 
+                $grouped_assessments = [
+                    'proposal' => [],
+                    'internal' => [],
+                    'external' => []
+                ];
+                foreach ($assessments as $as) {
+                    $grouped_assessments[$as['panel_type']][] = $as;
+                }
+
+                $stages = [
+                    'proposal' => 'Project Proposal Defense',
+                    'internal' => 'Internal Defense',
+                    'external' => 'External Defense'
+                ];
+
+                foreach ($stages as $type => $label):
+                    if (!empty($grouped_assessments[$type])):
+            ?>
+                <h3 style="font-size: 18px; margin-top: 30px; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #f1f5f9; color: var(--primary); display: flex; align-items: center; gap: 10px;">
+                    <i class="fas fa-graduation-cap"></i> <?= $label ?> Results
+                </h3>
+                <table style="margin-bottom: 40px;">
                     <thead>
                         <tr>
                             <th>Student Information</th>
@@ -155,7 +177,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
                         </tr>
                     </thead>
                     <tbody>
-                        <?php foreach ($assessments as $as): ?>
+                        <?php foreach ($grouped_assessments[$type] as $as): ?>
                             <tr>
                                 <td>
                                     <strong><?= htmlspecialchars($as['student_name']) ?></strong><br>
@@ -185,7 +207,10 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
                         <?php endforeach; ?>
                     </tbody>
                 </table>
-            <?php else: ?>
+            <?php 
+                    endif;
+                endforeach;
+            else: ?>
                 <div style="text-align: center; padding: 60px; color: var(--text-muted);">
                     <i class="fas fa-folder-open" style="font-size: 48px; margin-bottom: 20px; opacity: 0.3;"></i>
                     <p>No assessment data found for this session.</p>

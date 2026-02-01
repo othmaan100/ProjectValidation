@@ -28,6 +28,7 @@ $query = "
         s.name as student_name, 
         s.reg_no,
         dp.panel_name,
+        dp.panel_type,
         GROUP_CONCAT(CONCAT(sup.name, ': ', ds.score) SEPARATOR ' | ') as individual_scores,
         AVG(ds.score) as average_score
     FROM students s
@@ -36,8 +37,8 @@ $query = "
     LEFT JOIN defense_scores ds ON s.id = ds.student_id AND ds.panel_id = dp.id
     LEFT JOIN supervisors sup ON ds.supervisor_id = sup.id
     WHERE s.department = ? AND spa.academic_session = ?
-    GROUP BY s.id, dp.id
-    ORDER BY dp.panel_name, s.name
+    GROUP BY s.id, dp.id, dp.panel_type
+    ORDER BY FIELD(dp.panel_type, 'proposal', 'internal', 'external'), dp.panel_name, s.name
 ";
 
 $stmt = $conn->prepare($query);
@@ -82,21 +83,41 @@ $assessments = $stmt->fetchAll(PDO::FETCH_ASSOC);
         <p>Academic Session: <?= $active_session ?></p>
     </div>
 
+    <?php 
+    $grouped_assessments = [
+        'proposal' => [],
+        'internal' => [],
+        'external' => []
+    ];
+    foreach ($assessments as $as) {
+        $grouped_assessments[$as['panel_type']][] = $as;
+    }
+
+    $stages = [
+        'proposal' => 'PROJECT PROPOSAL DEFENSE',
+        'internal' => 'INTERNAL DEFENSE',
+        'external' => 'EXTERNAL DEFENSE'
+    ];
+
+    foreach ($stages as $type => $label):
+        if (!empty($grouped_assessments[$type])):
+    ?>
+    <h4 style="margin-top: 30px; margin-bottom: 10px; border-bottom: 1px solid #000; display: inline-block;"><?= $label ?></h4>
     <table>
         <thead>
             <tr>
                 <th style="width: 5%;">S/N</th>
                 <th style="width: 25%;">Student Name</th>
                 <th style="width: 15%;">Reg No</th>
-                <th style="width: 15%;">Panel</th>
+                <th style="width: 15%;">Panel Name</th>
                 <th>Individual Scores (Lecturers)</th>
-                <th style="width: 10%; text-align: center;">Average (%)</th>
+                <th style="width: 10%; text-align: center;">Avg (%)</th>
             </tr>
         </thead>
         <tbody>
             <?php 
             $count = 1;
-            foreach ($assessments as $as): ?>
+            foreach ($grouped_assessments[$type] as $as): ?>
                 <tr>
                     <td><?= $count++ ?></td>
                     <td><?= htmlspecialchars($as['student_name']) ?></td>
@@ -108,6 +129,13 @@ $assessments = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <?php endforeach; ?>
         </tbody>
     </table>
+    <?php 
+        endif;
+    endforeach;
+
+    if (empty($assessments)): ?>
+        <p style="text-align: center; margin-top: 50px;">No assessment records found.</p>
+    <?php endif; ?>
 
     <div class="footer">
         <div class="signature">

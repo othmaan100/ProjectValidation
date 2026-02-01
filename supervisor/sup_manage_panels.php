@@ -41,10 +41,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_assessment']))
 
 // Fetch panels where current supervisor is a member
 $panel_stmt = $conn->prepare("
-    SELECT dp.id, dp.panel_name
+    SELECT dp.id, dp.panel_name, dp.panel_type
     FROM defense_panels dp
     JOIN panel_members pm ON dp.id = pm.panel_id
     WHERE pm.supervisor_id = ?
+    ORDER BY FIELD(dp.panel_type, 'proposal', 'internal', 'external'), dp.panel_name
 ");
 $panel_stmt->execute([$supervisor_id]);
 $panels = $panel_stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -60,14 +61,15 @@ foreach ($panels as $panel) {
         JOIN student_panel_assignments spa ON s.id = spa.student_id
         LEFT JOIN project_topics pt ON s.id = pt.student_id AND pt.status = 'approved'
         LEFT JOIN defense_scores ds ON s.id = ds.student_id AND ds.panel_id = ? AND ds.supervisor_id = ?
-        WHERE spa.panel_id = ? AND spa.academic_session = ?
+        WHERE spa.panel_id = ? AND spa.academic_session = ? AND spa.panel_type = ?
         GROUP BY s.id
     ");
-    $student_stmt->execute([$panel['id'], $supervisor_id, $panel['id'], $active_session]);
+    $student_stmt->execute([$panel['id'], $supervisor_id, $panel['id'], $active_session, $panel['panel_type']]);
     $students = $student_stmt->fetchAll(PDO::FETCH_ASSOC);
     
     $panels_data[] = [
         'panel_name' => $panel['panel_name'],
+        'panel_type' => $panel['panel_type'],
         'panel_id' => $panel['id'],
         'students' => $students
     ];
@@ -116,6 +118,11 @@ foreach ($panels as $panel) {
         .score-badge { padding: 5px 12px; border-radius: 20px; font-weight: 700; font-size: 14px; }
         .score-yes { background: #e8f5e9; color: #2e7d32; }
         .score-no { background: #fff3e0; color: #ef6c00; }
+
+        .type-badge { padding: 4px 10px; border-radius: 8px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-left: 10px; }
+        .type-proposal { background: #e0f2fe; color: #0369a1; }
+        .type-internal { background: #fef3c7; color: #92400e; }
+        .type-external { background: #dcfce7; color: #166534; }
 
         .btn { padding: 10px 20px; border-radius: 8px; font-weight: 600; text-decoration: none; cursor: pointer; transition: 0.3s; border: none; display: inline-flex; align-items: center; gap: 8px; }
         .btn-assess { background: var(--info); color: white; }
@@ -168,7 +175,10 @@ foreach ($panels as $panel) {
             <?php foreach ($panels_data as $data): ?>
                 <div class="panel-card">
                     <div class="panel-header">
-                        <h2><i class="fas fa-users"></i> <?= htmlspecialchars($data['panel_name']) ?></h2>
+                        <div style="display: flex; align-items: center;">
+                            <h2><i class="fas fa-users"></i> <?= htmlspecialchars($data['panel_name']) ?></h2>
+                            <span class="type-badge type-<?= $data['panel_type'] ?>"><?= $data['panel_type'] ?></span>
+                        </div>
                         <span style="font-size: 14px; opacity: 0.9;">Academic Session: <?= $active_session ?></span>
                     </div>
                     <?php if (empty($data['students'])): ?>

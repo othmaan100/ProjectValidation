@@ -63,6 +63,23 @@ $stmt = $conn->prepare("
 $stmt->execute([$supervisor_id]);
 $pending_reports = $stmt->fetchColumn();
 
+// 6. Fetch student defense results summary for my students
+$results_stmt = $conn->prepare("
+    SELECT s.name, s.reg_no,
+           AVG(CASE WHEN dp.panel_type = 'proposal' THEN ds.score END) as proposal_score,
+           AVG(CASE WHEN dp.panel_type = 'internal' THEN ds.score END) as internal_score,
+           AVG(CASE WHEN dp.panel_type = 'external' THEN ds.score END) as external_score
+    FROM students s
+    JOIN supervision sp ON s.id = sp.student_id
+    LEFT JOIN defense_scores ds ON s.id = ds.student_id
+    LEFT JOIN defense_panels dp ON ds.panel_id = dp.id
+    WHERE sp.supervisor_id = ? AND sp.status = 'active'
+    GROUP BY s.id
+    ORDER BY s.name ASC
+");
+$results_stmt->execute([$supervisor_id]);
+$student_results = $results_stmt->fetchAll(PDO::FETCH_ASSOC);
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -98,6 +115,17 @@ $pending_reports = $stmt->fetchColumn();
         .stat-info p { font-size: 14px; color: #777; margin: 0; text-transform: uppercase; font-weight: 700; }
 
         .section-title { font-size: 22px; color: #2c3e50; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+        
+        .performance-card { background: white; border-radius: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); padding: 30px; margin-bottom: 30px; }
+        .performance-table { width: 100%; border-collapse: collapse; }
+        .performance-table th { text-align: left; padding: 12px; border-bottom: 2px solid #f1f2f6; color: var(--primary); font-size: 13px; text-transform: uppercase; }
+        .performance-table td { padding: 15px 12px; border-bottom: 1px solid #f1f2f6; }
+        .score-pill { padding: 4px 10px; border-radius: 8px; font-size: 12px; font-weight: 700; color: white; display: inline-block; min-width: 45px; text-align: center; }
+        .bg-proposal { background: #36b9cc; }
+        .bg-internal { background: #f6c23e; }
+        .bg-external { background: #1cc88a; }
+        .bg-none { background: #eaecf4; color: #858796; }
+
         .tasks-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 25px; }
         .task-card {
             background: white; padding: 30px; border-radius: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); display: flex; flex-direction: column; gap: 15px; transition: 0.3s; border: 1px solid transparent;
@@ -142,6 +170,49 @@ $pending_reports = $stmt->fetchColumn();
                 <div class="stat-icon" style="background: var(--danger);"><i class="fas fa-file-upload"></i></div>
                 <div class="stat-info"><h3><?php echo $pending_reports; ?></h3><p>Pending Reports</p></div>
             </div>
+        </div>
+
+        <h2 class="section-title"><i class="fas fa-chart-line"></i> Current Students Performance</h2>
+        <div class="performance-card">
+            <?php if (empty($student_results)): ?>
+                <p style="text-align: center; color: #777;">No student performance data available.</p>
+            <?php else: ?>
+                <table class="performance-table">
+                    <thead>
+                        <tr>
+                            <th>Student Details</th>
+                            <th>Proposal Defense</th>
+                            <th>Internal Defense</th>
+                            <th>External Defense</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($student_results as $res): ?>
+                            <tr>
+                                <td>
+                                    <strong><?= htmlspecialchars($res['name']) ?></strong><br>
+                                    <small style="color: #888;"><?= htmlspecialchars($res['reg_no']) ?></small>
+                                </td>
+                                <td>
+                                    <span class="score-pill <?= $res['proposal_score'] !== null ? 'bg-proposal' : 'bg-none' ?>">
+                                        <?= $res['proposal_score'] !== null ? number_format($res['proposal_score'], 1) . '%' : 'N/A' ?>
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="score-pill <?= $res['internal_score'] !== null ? 'bg-internal' : 'bg-none' ?>">
+                                        <?= $res['internal_score'] !== null ? number_format($res['internal_score'], 1) . '%' : 'N/A' ?>
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="score-pill <?= $res['external_score'] !== null ? 'bg-external' : 'bg-none' ?>">
+                                        <?= $res['external_score'] !== null ? number_format($res['external_score'], 1) . '%' : 'N/A' ?>
+                                    </span>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            <?php endif; ?>
         </div>
 
         <h2 class="section-title"><i class="fas fa-tasks"></i> Supervisor Tasks</h2>

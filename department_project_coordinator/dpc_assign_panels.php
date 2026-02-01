@@ -33,22 +33,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['assign_students'])) {
         try {
             $conn->beginTransaction();
             
-            // Check panel capacity
-            $stmt = $conn->prepare("SELECT max_students, (SELECT COUNT(*) FROM student_panel_assignments WHERE panel_id = ? AND academic_session = ?) as current_count FROM defense_panels WHERE id = ?");
+            // Fetch panel type and capacity
+            $stmt = $conn->prepare("SELECT panel_type, max_students, (SELECT COUNT(*) FROM student_panel_assignments WHERE panel_id = ? AND academic_session = ?) as current_count FROM defense_panels WHERE id = ?");
             $stmt->execute([$panel_id, $active_session, $panel_id]);
             $panel_info = $stmt->fetch(PDO::FETCH_ASSOC);
+            $panel_type = $panel_info['panel_type'];
 
             if (($panel_info['current_count'] + count($student_ids)) > $panel_info['max_students']) {
                 throw new Exception("Panel capacity exceeded! Max: {$panel_info['max_students']}, Current: {$panel_info['current_count']}. Cannot add " . count($student_ids) . " more.");
             }
             
-            $stmt = $conn->prepare("INSERT INTO student_panel_assignments (student_id, panel_id, academic_session) VALUES (?, ?, ?)");
+            $stmt = $conn->prepare("INSERT INTO student_panel_assignments (student_id, panel_id, panel_type, academic_session) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE panel_id = VALUES(panel_id)");
             foreach ($student_ids as $stu_id) {
-                // Remove existing assignment first if any for this session
-                $del = $conn->prepare("DELETE FROM student_panel_assignments WHERE student_id = ? AND academic_session = ?");
-                $del->execute([$stu_id, $active_session]);
-
-                $stmt->execute([$stu_id, $panel_id, $active_session]);
+                $stmt->execute([$stu_id, $panel_id, $panel_type, $active_session]);
             }
 
             $conn->commit();
@@ -67,29 +64,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['assign_students'])) {
 
 // Handle Auto Allocation
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['auto_allocate'])) {
+    $stage = $_POST['stage'];
     try {
         $conn->beginTransaction();
 
-        // 1. Fetch all panels with capacity info
+        // 1. Fetch all panels for this stage with capacity info
         $stmt = $conn->prepare("
-            SELECT dp.id, dp.max_students, 
+            SELECT dp.id, dp.panel_type, dp.max_students, 
             (SELECT COUNT(*) FROM student_panel_assignments spa WHERE spa.panel_id = dp.id AND spa.academic_session = ?) as current_count
             FROM defense_panels dp
-            WHERE dp.department_id = ?
+            WHERE dp.department_id = ? AND dp.panel_type = ?
             ORDER BY dp.id
         ");
-        $stmt->execute([$active_session, $dept_id]);
+        $stmt->execute([$active_session, $dept_id, $stage]);
         $panels_list = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        // 2. Fetch all unassigned students
+        // 2. Fetch all unassigned students for THIS stage
         $stu_stmt = $conn->prepare("
             SELECT s.id 
             FROM students s 
             WHERE s.department = ? 
-            AND s.id NOT IN (SELECT student_id FROM student_panel_assignments WHERE academic_session = ?)
+            AND s.id NOT IN (SELECT student_id FROM student_panel_assignments WHERE academic_session = ? AND panel_type = ?)
             ORDER BY s.id
         ");
-        $stu_stmt->execute([$dept_id, $active_session]);
+        $stu_stmt->execute([$dept_id, $active_session, $stage]);
         $unassigned_students = $stu_stmt->fetchAll(PDO::FETCH_COLUMN);
 
         $assigned_count = 0;
@@ -106,9 +104,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['auto_allocate'])) {
             
             if (empty($to_assign)) break; // No more students to assign
 
-            $insert_stmt = $conn->prepare("INSERT INTO student_panel_assignments (student_id, panel_id, academic_session) VALUES (?, ?, ?)");
+            $insert_stmt = $conn->prepare("INSERT INTO student_panel_assignments (student_id, panel_id, panel_type, academic_session) VALUES (?, ?, ?, ?)");
             foreach ($to_assign as $stu_id) {
-                $insert_stmt->execute([$stu_id, $panel['id'], $active_session]);
+                $insert_stmt->execute([$stu_id, $panel['id'], $panel['panel_type'], $active_session]);
                 $assigned_count++;
             }
 
@@ -118,7 +116,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['auto_allocate'])) {
         $conn->commit();
         
         $remaining = $total_unassigned - $assigned_count;
-        $message = "Auto-allocation complete! Assigned $assigned_count students. Remaining unassigned: $remaining.";
+        $message = "Auto-allocation for " . ucfirst($stage) . " complete! Assigned $assigned_count students. Remaining: $remaining.";
         $message_type = $remaining > 0 ? "warning" : "success";
 
     } catch (Exception $e) {
@@ -143,29 +141,23 @@ if (isset($_GET['remove_assignment'])) {
 }
 
 // Fetch all panels in this department
-$panel_stmt = $conn->prepare("SELECT id, panel_name FROM defense_panels WHERE department_id = ? ORDER BY panel_name");
+$panel_stmt = $conn->prepare("SELECT id, panel_name, panel_type FROM defense_panels WHERE department_id = ? ORDER BY panel_type, panel_name");
 $panel_stmt->execute([$dept_id]);
 $panels = $panel_stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Fetch students who haven't been assigned to a panel for the active session
-$stu_stmt = $conn->prepare("
-    SELECT s.id, s.name, s.reg_no 
-    FROM students s 
-    WHERE s.department = ? 
-    AND s.id NOT IN (SELECT student_id FROM student_panel_assignments WHERE academic_session = ?)
-    ORDER BY s.name
-");
-$stu_stmt->execute([$dept_id, $active_session]);
-$unassigned_students = $stu_stmt->fetchAll(PDO::FETCH_ASSOC);
+// For the UI, we'll need unassigned students per type or just all students
+$all_stu_stmt = $conn->prepare("SELECT id, name, reg_no FROM students WHERE department = ? ORDER BY name");
+$all_stu_stmt->execute([$dept_id]);
+$all_students = $all_stu_stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Fetch current assignments for display
 $assign_stmt = $conn->prepare("
-    SELECT spa.id as assignment_id, s.name as student_name, s.reg_no, dp.panel_name, spa.academic_session
+    SELECT spa.id as assignment_id, s.name as student_name, s.reg_no, dp.panel_name, dp.panel_type, spa.academic_session
     FROM student_panel_assignments spa
     JOIN students s ON spa.student_id = s.id
     JOIN defense_panels dp ON spa.panel_id = dp.id
     WHERE dp.department_id = ?
-    ORDER BY dp.panel_name, s.name
+    ORDER BY FIELD(dp.panel_type, 'proposal', 'internal', 'external'), dp.panel_name, s.name
 ");
 $assign_stmt->execute([$dept_id]);
 $assignments = $assign_stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -258,10 +250,18 @@ $assignments = $assign_stmt->fetchAll(PDO::FETCH_ASSOC);
                 <!-- Auto Allocation Section -->
                 <div style="background: #f8fafc; padding: 20px; border-radius: 12px; margin-bottom: 25px; border: 1px dashed #cbd5e1;">
                     <h3 style="margin-top: 0; font-size: 16px; color: var(--text-main);">Auto-Allocation</h3>
-                    <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 15px;">Automatically assign <strong><?= count($unassigned_students) ?></strong> unassigned students to available panels based on capacity.</p>
-                    <form method="POST" onsubmit="return confirm('This will automatically assign students to available panels based on their capacity limits. Continue?');">
-                        <button type="submit" name="auto_allocate" class="btn" style="background: var(--primary-light); color: white;" <?= count($unassigned_students) === 0 ? 'disabled' : '' ?>>
-                            <i class="fas fa-magic"></i> Auto Allocate Remaining Students
+                    <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 15px;">Automatically assign students to available panels for a specific stage.</p>
+                    <form method="POST" onsubmit="return confirm('This will automatically assign students to available panels for the selected stage. Continue?');">
+                        <div class="form-group">
+                            <label for="stage">Select Defense Stage</label>
+                            <select name="stage" id="stage" class="form-control" style="margin-bottom: 15px;" required>
+                                <option value="proposal">Project Proposal</option>
+                                <option value="internal">Internal Defense</option>
+                                <option value="external">External Defense</option>
+                            </select>
+                        </div>
+                        <button type="submit" name="auto_allocate" class="btn" style="background: var(--primary-light); color: white;">
+                            <i class="fas fa-magic"></i> Run Auto Allocation
                         </button>
                     </form>
                 </div>
@@ -273,25 +273,20 @@ $assignments = $assign_stmt->fetchAll(PDO::FETCH_ASSOC);
                         <select name="panel_id" class="form-control" required>
                             <option value="">-- Choose Panel --</option>
                             <?php foreach ($panels as $panel): ?>
-                                <option value="<?= $panel['id'] ?>"><?= htmlspecialchars($panel['panel_name']) ?></option>
+                                <option value="<?= $panel['id'] ?>"><?= htmlspecialchars($panel['panel_name']) ?> (<?= ucfirst($panel['panel_type']) ?>)</option>
                             <?php endforeach; ?>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>Select Students (Unassigned)</label>
-                        <?php if (count($unassigned_students) > 0): ?>
-                            <select name="student_ids[]" class="select2" multiple required>
-                                <?php foreach ($unassigned_students as $stu): ?>
-                                    <option value="<?= $stu['id'] ?>"><?= htmlspecialchars($stu['name']) ?> (<?= htmlspecialchars($stu['reg_no']) ?>)</option>
-                                <?php endforeach; ?>
-                            </select>
-                        <?php else: ?>
-                            <p style="color: var(--success); font-weight: 600; font-size: 14px; padding: 10px; background: #ecfdf5; border-radius: 8px;">
-                                <i class="fas fa-check-circle"></i> All students have been assigned!
-                            </p>
-                        <?php endif; ?>
+                        <label>Select Students</label>
+                        <select name="student_ids[]" class="select2" multiple required>
+                            <?php foreach ($all_students as $stu): ?>
+                                <option value="<?= $stu['id'] ?>"><?= htmlspecialchars($stu['name']) ?> (<?= htmlspecialchars($stu['reg_no']) ?>)</option>
+                            <?php endforeach; ?>
+                        </select>
+                        <small style="color: var(--text-muted); display: block; margin-top: 5px;">Note: Students can be assigned to one panel for each stage (Proposal, Internal, External).</small>
                     </div>
-                    <button type="submit" name="assign_students" class="btn btn-primary" <?= count($unassigned_students) === 0 ? 'disabled' : '' ?>>
+                    <button type="submit" name="assign_students" class="btn btn-primary">
                         <i class="fas fa-save"></i> Assign to Panel
                     </button>
                 </form>
@@ -299,28 +294,51 @@ $assignments = $assign_stmt->fetchAll(PDO::FETCH_ASSOC);
 
             <!-- Assignments List Card -->
             <div class="card">
-                <h2><i class="fas fa-clipboard-list"></i> Panel List</h2>
-                <?php if (count($assignments) > 0): ?>
-                    <table>
+                <h2><i class="fas fa-clipboard-list"></i> Assignment Records</h2>
+                <?php if (count($assignments) > 0): 
+                    $grouped_assignments = [
+                        'proposal' => [],
+                        'internal' => [],
+                        'external' => []
+                    ];
+                    foreach ($assignments as $asgn) {
+                        $grouped_assignments[$asgn['panel_type']][] = $asgn;
+                    }
+
+                    $stages = [
+                        'proposal' => 'Project Proposal Defense',
+                        'internal' => 'Internal Defense',
+                        'external' => 'External Defense'
+                    ];
+
+                    foreach ($stages as $type => $label):
+                        if (!empty($grouped_assignments[$type])):
+                ?>
+                    <h3 style="font-size: 16px; margin-top: 25px; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #f1f5f9; color: var(--primary);">
+                        <?= $label ?> assignments
+                    </h3>
+                    <table style="margin-bottom: 30px;">
                         <thead>
                             <tr>
                                 <th>Student</th>
-                                <th>Panel</th>
+                                <th>Panel Name</th>
                                 <th>Session</th>
                                 <th style="text-align: right;">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ($assignments as $asgn): ?>
+                            <?php foreach ($grouped_assignments[$type] as $asgn): ?>
                                 <tr>
                                     <td>
                                         <strong><?= htmlspecialchars($asgn['student_name']) ?></strong><br>
                                         <small style="color: var(--text-muted);"><?= htmlspecialchars($asgn['reg_no']) ?></small>
                                     </td>
-                                    <td><span class="panel-badge"><?= htmlspecialchars($asgn['panel_name']) ?></span></td>
+                                    <td>
+                                        <span class="panel-badge"><?= htmlspecialchars($asgn['panel_name']) ?></span>
+                                    </td>
                                     <td><span class="session-badge"><?= htmlspecialchars($asgn['academic_session']) ?></span></td>
                                     <td style="text-align: right;">
-                                        <a href="?remove_assignment=<?= $asgn['assignment_id'] ?>" class="btn btn-danger" onclick="return confirm('Remove student from this panel?')">
+                                        <a href="?remove_assignment=<?= $asgn['assignment_id'] ?>" class="btn btn-danger" style="padding: 8px 12px;" onclick="return confirm('Remove student from this panel?')">
                                             <i class="fas fa-user-minus"></i>
                                         </a>
                                     </td>
@@ -328,7 +346,10 @@ $assignments = $assign_stmt->fetchAll(PDO::FETCH_ASSOC);
                             <?php endforeach; ?>
                         </tbody>
                     </table>
-                <?php else: ?>
+                <?php 
+                        endif;
+                    endforeach;
+                else: ?>
                     <div style="text-align: center; padding: 40px; color: var(--text-muted);">
                         <i class="fas fa-user-tag" style="font-size: 40px; margin-bottom: 15px; opacity: 0.2;"></i>
                         <p>No student assignments yet.</p>
