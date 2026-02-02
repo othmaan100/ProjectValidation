@@ -15,23 +15,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
         
-      - name: Deploy to cPanel via FTP
-        uses: SamKirkland/FTP-Deploy-Action@4.3.3
+      - name: Deploy to cPanel via SFTP
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.4
         with:
           server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USER }}
-          password: ${{ secrets.FTP_PASS }}
-          protocol: ftps  # Use ftps for secure connection, change to ftp if needed
-          port: 21  # Default FTP port, change if your server uses a different port
-          local-dir: ./  # Deploy everything from root directory
-          server-dir: ./  # Root directory (FTP already points to subdomain)
-          dangerous-clean-slate: false  # Set to true to delete files on server not in repo
-          exclude: |
-            **/.git*
-            **/.git*/**
-            **/node_modules/**
-            **/.env
-            **/.vscode/**
-            **/.idea/**
-            **/README.md
-            **/.gitignore
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: 22  # SFTP typically uses port 22
+          local_path: './*'  # Deploy everything from root
+          remote_path: '/home/fuded535/projectvalidation.fud.edu.ng/'  # Subdomain directory
+          sftp_only: true
