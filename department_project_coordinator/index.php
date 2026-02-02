@@ -258,6 +258,12 @@ $approved_topics = $stmt->fetchColumn();
                 <a href="dpc_view_assessments.php" class="action-btn" style="background: #36b9cc;">View All Scores <i class="fas fa-arrow-right"></i></a>
             </div>
             <div class="action-card">
+                <i class="fas fa-file-invoice-dollar"></i>
+                <h2>Final Scores Summary</h2>
+                <p>Access the aggregated scores for all students, including Proposal, Internal, External defenses, and Supervisor assessments. Export to CSV.</p>
+                <a href="dpc_final_scores.php" class="action-btn" style="background: #e67e22;">View Final Scores <i class="fas fa-file-csv"></i></a>
+            </div>
+            <div class="action-card">
                 <i class="fas fa-user-shield"></i>
                 <h2>Security Settings</h2>
                 <p>Maintain your account security by updating your password regularly.</p>

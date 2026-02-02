@@ -15,6 +15,10 @@ $stmt = $conn->prepare("SELECT name FROM supervisors WHERE id = ?");
 $stmt->execute([$supervisor_id]);
 $sup_name = $stmt->fetchColumn() ?: "Supervisor";
 
+// Get current session
+$session_stmt = $conn->query("SELECT setting_value FROM system_settings WHERE setting_key = 'current_session'");
+$active_session = $session_stmt->fetchColumn() ?: date('Y') . '/' . (date('Y') + 1);
+
 // Statistics
 // 1. Total Allocated Students
 $stmt = $conn->prepare("SELECT COUNT(*) FROM supervision WHERE supervisor_id = ? AND status = 'active'");
@@ -68,18 +72,21 @@ $results_stmt = $conn->prepare("
     SELECT s.name, s.reg_no,
            AVG(CASE WHEN dp.panel_type = 'proposal' THEN ds.score END) as proposal_score,
            AVG(CASE WHEN dp.panel_type = 'internal' THEN ds.score END) as internal_score,
-           AVG(CASE WHEN dp.panel_type = 'external' THEN ds.score END) as external_score
+           AVG(CASE WHEN dp.panel_type = 'external' THEN ds.score END) as external_score,
+           sa.score as sup_score
     FROM students s
     JOIN supervision sp ON s.id = sp.student_id
     LEFT JOIN defense_scores ds ON s.id = ds.student_id
     LEFT JOIN defense_panels dp ON ds.panel_id = dp.id
+    LEFT JOIN supervisor_assessments sa ON s.id = sa.student_id AND sa.supervisor_id = ? AND sa.academic_session = ?
     WHERE sp.supervisor_id = ? AND sp.status = 'active'
     GROUP BY s.id
     ORDER BY s.name ASC
 ");
-$results_stmt->execute([$supervisor_id]);
+$results_stmt->execute([$supervisor_id, $active_session, $supervisor_id]);
 $student_results = $results_stmt->fetchAll(PDO::FETCH_ASSOC);
 
+$current_session = $active_session;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -124,9 +131,10 @@ $student_results = $results_stmt->fetchAll(PDO::FETCH_ASSOC);
         .bg-proposal { background: #36b9cc; }
         .bg-internal { background: #f6c23e; }
         .bg-external { background: #1cc88a; }
+        .bg-sup { background: #4e73df; }
         .bg-none { background: #eaecf4; color: #858796; }
 
-        .tasks-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 25px; }
+        .tasks-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 25px; }
         .task-card {
             background: white; padding: 30px; border-radius: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); display: flex; flex-direction: column; gap: 15px; transition: 0.3s; border: 1px solid transparent;
         }
@@ -181,9 +189,10 @@ $student_results = $results_stmt->fetchAll(PDO::FETCH_ASSOC);
                     <thead>
                         <tr>
                             <th>Student Details</th>
-                            <th>Proposal Defense</th>
-                            <th>Internal Defense</th>
-                            <th>External Defense</th>
+                            <th>Proposal</th>
+                            <th>Internal</th>
+                            <th>External</th>
+                            <th>Supervisor Score</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -208,6 +217,11 @@ $student_results = $results_stmt->fetchAll(PDO::FETCH_ASSOC);
                                         <?= $res['external_score'] !== null ? number_format($res['external_score'], 1) . '%' : 'N/A' ?>
                                     </span>
                                 </td>
+                                <td>
+                                    <span class="score-pill <?= $res['sup_score'] !== null ? 'bg-sup' : 'bg-none' ?>">
+                                        <?= $res['sup_score'] !== null ? number_format($res['sup_score'], 1) . '%' : 'N/A' ?>
+                                    </span>
+                                </td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
@@ -218,10 +232,16 @@ $student_results = $results_stmt->fetchAll(PDO::FETCH_ASSOC);
         <h2 class="section-title"><i class="fas fa-tasks"></i> Supervisor Tasks</h2>
         <div class="tasks-grid">
             <div class="task-card">
+                <i class="fas fa-user-edit"></i>
+                <h2>Assess My Students</h2>
+                <p>Grade the overall performance and effort of students under your direct supervision for this session.</p>
+                <a href="sup_assess_my_students.php" class="task-btn" style="background: var(--primary);">Assess Students <i class="fas fa-arrow-right"></i></a>
+            </div>
+            <div class="task-card">
                 <i class="fas fa-clipboard-check"></i>
                 <h2>Validate Topics</h2>
                 <p>Review and approve project topics submitted by your allocated students. You can approve one topic per student or request revisions.</p>
-                <a href="sup_topic_validation.php" class="task-btn">Launch Validation <i class="fas fa-arrow-right"></i></a>
+                <a href="sup_topic_validation.php" class="task-btn" style="background: var(--info);">Launch Validation <i class="fas fa-arrow-right"></i></a>
             </div>
             <div class="task-card">
                 <i class="fas fa-id-card"></i>
