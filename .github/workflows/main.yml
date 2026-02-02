@@ -1,0 +1,37 @@
+name: Deploy to cPanel via FTP
+
+on:
+  push:
+    branches:
+      - main  # Trigger on push to main branch
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  deploy:
+    name: Deploy to cPanel
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        
+      - name: Deploy to cPanel via FTP
+        uses: SamKirkland/FTP-Deploy-Action@4.3.3
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USER }}
+          password: ${{ secrets.FTP_PASS }}
+          protocol: ftps  # Use ftps for secure connection, change to ftp if needed
+          port: 21  # Default FTP port, change if your server uses a different port
+          local-dir: ./  # Deploy everything from root directory
+          server-dir: ./  # Root directory (FTP already points to subdomain)
+          dangerous-clean-slate: false  # Set to true to delete files on server not in repo
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            **/.env
+            **/.vscode/**
+            **/.idea/**
+            **/README.md
+            **/.gitignore
