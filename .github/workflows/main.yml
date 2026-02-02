@@ -15,23 +15,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
         
-      - name: Deploy to cPanel via FTP
-        uses: SamKirkland/FTP-Deploy-Action@4.3.3
+      - name: 📂 Sync files via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USER }}
           password: ${{ secrets.FTP_PASS }}
-          protocol: ftp  # Try plain FTP first
-          port: 21  # Standard FTP port
-          local-dir: ./  # Deploy everything from root directory
-          server-dir: /  # Root of FTP account
-          dangerous-clean-slate: false
-          exclude: |
-            **/.git*
-            **/.git*/**
-            **/node_modules/**
-            **/.env
-            **/.vscode/**
-            **/.idea/**
-            **/README.md
-            **/.gitignore
+          protocol: ftp
+          port: 21
+          server-dir: /
+          timeout: 600000
+          log-level: verbose
