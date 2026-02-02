@@ -24,7 +24,7 @@ jobs:
           protocol: ftp  # Try plain FTP first
           port: 21  # Standard FTP port
           local-dir: ./  # Deploy everything from root directory
-          server-dir: /home/fuded535/projectvalidation.fud.edu.ng/  # Absolute path to subdomain
+          server-dir: ./  # Relative path (FTP already points to subdomain)
           dangerous-clean-slate: false
           exclude: |
             **/.git*
