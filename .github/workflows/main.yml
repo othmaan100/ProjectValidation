@@ -23,6 +23,6 @@ jobs:
           password: ${{ secrets.FTP_PASS }}
           protocol: ftp
           port: 21
-          server-dir: /
+          server-dir: /home/fuded535/projectvalidation.fud.edu.ng/
           timeout: 600000
           log-level: verbose
