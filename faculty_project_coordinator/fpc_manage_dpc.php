@@ -500,11 +500,11 @@ $departments = $deptStmt->fetchAll(PDO::FETCH_ASSOC);
         
         .modal-content {
             background: white;
-            margin: auto;
+            margin: 60px auto;
             padding: 0;
             border-radius: 20px;
             width: 90%;
-            max-width: 600px;
+            max-width: 800px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
             animation: slideDown 0.3s ease;
         }

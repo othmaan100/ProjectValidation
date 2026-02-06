@@ -276,9 +276,9 @@ $faculty_departments = $featDeptsStmt->fetchAll(PDO::FETCH_ASSOC);
         .icon-btn { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; border: none; cursor: pointer; transition: 0.3s; }
         .btn-edit-i { background: #ebf3ff; color: #1e90ff; }
         .btn-delete-i { background: #fff0f3; color: #ff4757; }
-        .modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(5px); align-items: center; justify-content: center; }
+        .modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(5px); align-items: flex-start; justify-content: center; padding-top: 60px; }
         .modal.active { display: flex; }
-        .modal-content { background: white; width: 95%; max-width: 600px; border-radius: 20px; overflow: hidden; }
+        .modal-content { background: white; width: 95%; max-width: 800px; border-radius: 20px; overflow: hidden; }
         .modal-header { padding: 20px; background: var(--primary); color: white; display: flex; justify-content: space-between; }
         .modal-body { padding: 30px; }
         .form-group { margin-bottom: 15px; }

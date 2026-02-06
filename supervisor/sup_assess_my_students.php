@@ -104,7 +104,7 @@ $students = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         /* Modal Styles */
         .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(5px); }
-        .modal-content { background: white; margin: 10% auto; padding: 30px; border-radius: 20px; width: 500px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); position: relative; }
+        .modal-content { background: white; margin: 60px auto; padding: 30px; border-radius: 20px; width: 650px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); position: relative; }
         .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .modal-header h2 { margin: 0; color: var(--primary); }
         .close { font-size: 28px; cursor: pointer; color: #999; }

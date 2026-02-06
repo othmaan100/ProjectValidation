@@ -94,8 +94,8 @@ $librarians = $stmt->fetchAll(PDO::FETCH_ASSOC);
         th { text-align: left; padding: 15px; background: #f8fafc; color: #64748b; text-transform: uppercase; font-size: 13px; }
         td { padding: 15px; border-bottom: 1px solid #e2e8f0; font-size: 15px; }
         
-        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(5px); z-index: 1000; align-items: center; justify-content: center; }
-        .modal-content { background: white; width: 500px; padding: 40px; border-radius: 24px; position: relative; }
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(5px); z-index: 1000; align-items: flex-start; justify-content: center; padding-top: 60px; }
+        .modal-content { background: white; width: 650px; padding: 40px; border-radius: 24px; position: relative; }
         .form-group { margin-bottom: 20px; }
         .form-group label { display: block; margin-bottom: 8px; font-weight: 600; color: #475569; }
         .form-control { width: 100%; padding: 12px 16px; border: 1px solid #e2e8f0; border-radius: 12px; font-family: inherit; }
