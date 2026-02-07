@@ -14,8 +14,8 @@ $response = ['success' => false, 'message' => ''];
 // Get current faculty from session
 $faculty_id = $_SESSION['faculty_id'];
 
-// Get current session
-$currentSession = date('Y') . '/' . (date('Y') + 1);
+// Get current session from global settings
+$currentSession = $current_session;
 
 // Constant temporary password for all DPCs
 $constantTempPassword = 'TempPassword123';
@@ -300,6 +300,16 @@ $departments = $deptStmt->fetchAll(PDO::FETCH_ASSOC);
             color: white;
         }
         
+        .btn-cancel {
+            background: #e2e8f0;
+            color: #475569;
+            border: 1px solid #cbd5e1;
+        }
+        
+        .btn-cancel:hover {
+            background: #cbd5e1;
+        }
+        
         .btn-sm {
             padding: 8px 16px;
             font-size: 13px;
@@ -490,6 +500,10 @@ $departments = $deptStmt->fetchAll(PDO::FETCH_ASSOC);
             height: 100%;
             background-color: rgba(0, 0, 0, 0.6);
             backdrop-filter: blur(5px);
+            align-items: flex-start;
+            justify-content: center;
+            padding-top: 40px;
+            overflow-y: auto;
             animation: fadeIn 0.3s ease;
         }
         
@@ -500,13 +514,14 @@ $departments = $deptStmt->fetchAll(PDO::FETCH_ASSOC);
         
         .modal-content {
             background: white;
-            margin: 60px auto;
+            margin-bottom: 40px;
             padding: 0;
             border-radius: 20px;
-            width: 90%;
-            max-width: 800px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            width: 95%;
+            max-width: 1100px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
             animation: slideDown 0.3s ease;
+            position: relative;
         }
         
         @keyframes slideDown {
@@ -558,27 +573,43 @@ $departments = $deptStmt->fetchAll(PDO::FETCH_ASSOC);
         
         .form-group label {
             display: block;
-            margin-bottom: 8px;
-            color: #333;
-            font-weight: 600;
-            font-size: 14px;
+            margin-bottom: 10px;
+            color: #475569;
+            font-weight: 700;
+            font-size: 15px;
+            letter-spacing: 0.3px;
         }
         
         .form-group input,
         .form-group select {
             width: 100%;
-            padding: 14px 16px;
-            border: 2px solid #e1e8f0;
-            border-radius: 10px;
-            font-size: 15px;
-            transition: all 0.3s ease;
+            padding: 18px 20px;
+            border: 2px solid #e2e8f0;
+            border-radius: 14px;
+            font-size: 16px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background-color: #f8fafc;
+            color: #1e293b;
         }
         
         .form-group input:focus,
         .form-group select:focus {
             outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            border-color: #6366f1;
+            background-color: white;
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+        }
+        
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        @media (max-width: 600px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
         }
         
         .form-actions {
@@ -875,34 +906,36 @@ $departments = $deptStmt->fetchAll(PDO::FETCH_ASSOC);
                     <input type="hidden" id="dpcId" name="id">
                     <input type="hidden" id="formAction" name="action" value="create">
                     
-                    <div class="form-group">
-                        <label for="username">Username <span style="color: red;">*</span></label>
-                        <input type="text" id="username" name="username" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="name">Full Name</label>
-                        <input type="text" id="name" name="name">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="email">Email</label>
-                        <input type="email" id="email" name="email">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="department">Department <span style="color: red;">*</span></label>
-                        <select id="department" name="department" required>
-                            <option value="">Select Department</option>
-                            <?php foreach ($departments as $dept): ?>
-                            <option value="<?php echo htmlspecialchars($dept['id']); ?>"><?php echo htmlspecialchars($dept['department_name']); ?></option>
-                            <?php endforeach; ?>
-                        </select>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="username">Username <span style="color: red;">*</span></label>
+                            <input type="text" id="username" name="username" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="name">Full Name</label>
+                            <input type="text" id="name" name="name">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="email">Email</label>
+                            <input type="email" id="email" name="email">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="department">Department <span style="color: red;">*</span></label>
+                            <select id="department" name="department" required>
+                                <option value="">Select Department</option>
+                                <?php foreach ($departments as $dept): ?>
+                                <option value="<?php echo htmlspecialchars($dept['id']); ?>"><?php echo htmlspecialchars($dept['department_name']); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
                     </div>
                     
                     <div class="form-actions">
-                        <button type="button" class="btn btn-secondary" onclick="closeModal('dpcModal')">Cancel</button>
-                        <button type="submit" class="btn btn-primary" id="submitBtn">
+                        <button type="button" class="btn btn-cancel" onclick="closeModal('dpcModal')" style="flex: 1; justify-content: center;">Cancel</button>
+                        <button type="submit" class="btn btn-primary" id="submitBtn" style="flex: 1; justify-content: center;">
                             <i class="fas fa-save"></i> Save DPC
                         </button>
                     </div>
@@ -958,7 +991,7 @@ $departments = $deptStmt->fetchAll(PDO::FETCH_ASSOC);
             document.getElementById('dpcForm').reset();
             document.getElementById('dpcId').value = '';
             document.getElementById('formAction').value = 'create';
-            document.getElementById('dpcModal').style.display = 'block';
+            document.getElementById('dpcModal').style.display = 'flex';
         }
         
         function openEditModal(dpc) {
@@ -969,11 +1002,11 @@ $departments = $deptStmt->fetchAll(PDO::FETCH_ASSOC);
             document.getElementById('email').value = dpc.email || '';
             document.getElementById('department').value = dpc.department;
             document.getElementById('formAction').value = 'update';
-            document.getElementById('dpcModal').style.display = 'block';
+            document.getElementById('dpcModal').style.display = 'flex';
         }
         
         function openSessionModal() {
-            document.getElementById('sessionModal').style.display = 'block';
+            document.getElementById('sessionModal').style.display = 'flex';
         }
         
         function closeModal(modalId) {

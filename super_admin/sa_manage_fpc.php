@@ -98,11 +98,14 @@ $faculties = $conn->query("SELECT id, faculty FROM faculty ORDER BY faculty ASC"
         td { padding: 15px; border-bottom: 1px solid #e2e8f0; font-size: 15px; }
         
         /* Modal */
-        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(5px); z-index: 1000; align-items: flex-start; justify-content: center; padding-top: 60px; }
-        .modal-content { background: white; width: 650px; padding: 40px; border-radius: 24px; position: relative; }
-        .form-group { margin-bottom: 20px; }
-        .form-group label { display: block; margin-bottom: 8px; font-weight: 600; color: #475569; }
-        .form-control { width: 100%; padding: 12px 16px; border: 1px solid #e2e8f0; border-radius: 12px; font-family: inherit; }
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(5px); z-index: 1000; align-items: flex-start; justify-content: center; padding-top: 40px; overflow-y: auto; }
+        .modal-content { background: white; width: 1100px; padding: 40px; border-radius: 24px; position: relative; margin-bottom: 40px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .form-group { margin-bottom: 0; }
+        .form-group.full-width { grid-column: span 2; }
+        .form-group label { display: block; margin-bottom: 10px; font-weight: 700; color: #475569; font-size: 15px; letter-spacing: 0.3px; }
+        .form-control { width: 100%; padding: 18px 20px; border: 2px solid #e2e8f0; border-radius: 14px; font-family: inherit; box-sizing: border-box; font-size: 16px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); background-color: #f8fafc; color: #1e293b; }
+        .form-control:focus { outline: none; border-color: #6366f1; background-color: white; box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1); }
         
         .toast { position: fixed; bottom: 20px; right: 20px; padding: 15px 25px; border-radius: 10px; background: #333; color: white; display: none; z-index: 1001; }
     </style>
@@ -166,35 +169,37 @@ $faculties = $conn->query("SELECT id, faculty FROM faculty ORDER BY faculty ASC"
                 <input type="hidden" name="action" id="f-action" value="create">
                 <input type="hidden" name="id" id="f-id">
                 
-                <div class="form-group">
-                    <label>Username</label>
-                    <input type="text" name="username" id="f-username" class="form-control" required>
-                </div>
-                <div class="form-group">
-                    <label>Full Name</label>
-                    <input type="text" name="name" id="f-name" class="form-control">
-                </div>
-                <div class="form-group">
-                    <label>Email Address</label>
-                    <input type="email" name="email" id="f-email" class="form-control">
-                </div>
-                <div class="form-group">
-                    <label>Faculty</label>
-                    <select name="faculty_id" id="f-faculty" class="form-control" required>
-                        <option value="">Select Faculty</option>
-                        <?php foreach ($faculties as $fac): ?>
-                            <option value="<?= $fac['id'] ?>"><?= htmlspecialchars($fac['faculty']) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Password (Leave blank to keep current if editing)</label>
-                    <input type="password" name="password" id="f-password" class="form-control">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Username</label>
+                        <input type="text" name="username" id="f-username" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Full Name</label>
+                        <input type="text" name="name" id="f-name" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Email Address</label>
+                        <input type="email" name="email" id="f-email" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Faculty</label>
+                        <select name="faculty_id" id="f-faculty" class="form-control" required>
+                            <option value="">Select Faculty</option>
+                            <?php foreach ($faculties as $fac): ?>
+                                <option value="<?= $fac['id'] ?>"><?= htmlspecialchars($fac['faculty']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="form-group full-width">
+                        <label>Password (Leave blank to keep current if editing)</label>
+                        <input type="password" name="password" id="f-password" class="form-control">
+                    </div>
                 </div>
                 
                 <div style="display: flex; gap: 15px; margin-top: 30px;">
-                    <button type="submit" class="btn btn-primary" style="flex: 1;">Save Changes</button>
-                    <button type="button" class="btn" style="background: #f1f5f9;" onclick="closeModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary" style="flex: 1; justify-content: center;">Save Changes</button>
+                    <button type="button" class="btn" style="background: #e2e8f0; color: #475569; border: 1px solid #cbd5e1; flex: 1; justify-content: center;" onclick="closeModal()">Cancel</button>
                 </div>
             </form>
         </div>

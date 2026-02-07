@@ -17,9 +17,8 @@ $dpc_info = $stmt->fetch(PDO::FETCH_ASSOC);
 $dept_id = $dpc_info['dept_id'];
 $dept_name = $dpc_info['department_name'];
 
-// Get current session
-$session_stmt = $conn->query("SELECT setting_value FROM system_settings WHERE setting_key = 'current_session'");
-$active_session = $session_stmt->fetchColumn() ?: date('Y') . '/' . (date('Y') + 1);
+// Use current session from global settings
+$active_session = $current_session;
 
 // Fetch all panels for this department
 $panel_stmt = $conn->prepare("

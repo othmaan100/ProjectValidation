@@ -20,9 +20,8 @@ $dept_name = $dpc_info['department_name'];
 $message = '';
 $message_type = '';
 
-// Fetch active session from global settings
-$session_stmt = $conn->query("SELECT setting_value FROM system_settings WHERE setting_key = 'current_session'");
-$active_session = $session_stmt->fetchColumn() ?: date('Y') . '/' . (date('Y') + 1);
+// Use current session from global settings
+$active_session = $current_session;
 
 // Handle Student Assignment
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['assign_students'])) {

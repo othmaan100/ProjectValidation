@@ -89,7 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_topics'])) {
     } else {
         try {
             $conn->beginTransaction();
-            $session = "2025/2026"; // Default session
+            $session = $current_session; // Use global session from settings
             $stmt = $conn->prepare("INSERT INTO project_topics (topic, student_id, student_name, session, status) VALUES (?, ?, ?, ?, 'pending')");
             
             foreach ($new_topics as $topic) {

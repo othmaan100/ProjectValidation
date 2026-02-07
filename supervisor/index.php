@@ -15,9 +15,8 @@ $stmt = $conn->prepare("SELECT name FROM supervisors WHERE id = ?");
 $stmt->execute([$supervisor_id]);
 $sup_name = $stmt->fetchColumn() ?: "Supervisor";
 
-// Get current session
-$session_stmt = $conn->query("SELECT setting_value FROM system_settings WHERE setting_key = 'current_session'");
-$active_session = $session_stmt->fetchColumn() ?: date('Y') . '/' . (date('Y') + 1);
+// Use current session from global settings
+$active_session = $current_session;
 
 // Statistics
 // 1. Total Allocated Students

@@ -264,6 +264,8 @@ $students = $stmt->fetchAll(PDO::FETCH_ASSOC);
         .btn-primary { background: var(--primary); }
         .btn-success { background: var(--success); }
         .btn-warning { background: #feca57; }
+        .btn-cancel { background: #e2e8f0; color: #475569; border: 1px solid #cbd5e1; }
+        .btn-cancel:hover { background: #cbd5e1; }
         .main-card { background: var(--glass); padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
         .search-container { display: flex; gap: 10px; margin-bottom: 25px; }
         .search-input { flex: 1; padding: 14px; border: 2px solid #eee; border-radius: 12px; outline: none; transition: 0.3s; }
@@ -276,16 +278,26 @@ $students = $stmt->fetchAll(PDO::FETCH_ASSOC);
         .icon-btn { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; border: none; cursor: pointer; transition: 0.3s; }
         .btn-edit-i { background: #ebf3ff; color: #1e90ff; }
         .btn-delete-i { background: #fff0f3; color: #ff4757; }
-        .modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(5px); align-items: flex-start; justify-content: center; padding-top: 60px; opacity: 0; transition: 0.3s; }
+        .modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(5px); align-items: flex-start; justify-content: center; padding-top: 40px; opacity: 0; transition: 0.3s; overflow-y: auto; }
         .modal.active { display: flex; opacity: 1; }
-        .modal-content { background: white; width: 95%; max-width: 700px; border-radius: 20px; overflow: hidden; transform: translateY(20px); transition: 0.3s; }
+        .modal-content { background: white; width: 95%; max-width: 1100px; border-radius: 20px; overflow: hidden; transform: translateY(20px); transition: 0.3s; margin-bottom: 40px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); }
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 600px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+        }
         .modal.active .modal-content { transform: translateY(0); }
         .modal-header { padding: 20px; background: var(--primary); color: white; display: flex; justify-content: space-between; align-items: center; }
         .modal-body { padding: 25px; }
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 14px; color: #2d3436; }
-        .form-control { width: 100%; padding: 12px; border: 2px solid #eee; border-radius: 10px; font-family: inherit; transition: 0.3s; }
-        .form-control:focus { border-color: var(--primary); outline: none; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 10px; font-weight: 700; font-size: 15px; color: #475569; letter-spacing: 0.3px; }
+        .form-control { width: 100%; padding: 18px 20px; border: 2px solid #e2e8f0; border-radius: 14px; font-family: inherit; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); font-size: 16px; background-color: #f8fafc; color: #1e293b; }
+        .form-control:focus { border-color: #6366f1; background-color: white; box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1); outline: none; }
         #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; }
         .toast { background: white; padding: 15px 25px; border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.15); margin-bottom: 10px; border-left: 5px solid var(--primary); animation: slideIn 0.3s; }
         @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
@@ -377,23 +389,28 @@ $students = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     <input type="hidden" name="action" id="f-act" value="add_student">
                     <input type="hidden" name="id" id="f-id">
                     
-                    <div class="form-group">
-                        <label>Registration Number</label>
-                        <input type="text" name="reg_no" id="f-reg" class="form-control" placeholder="e.g. FCP/CSC/19/1001" required>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Registration Number</label>
+                            <input type="text" name="reg_no" id="f-reg" class="form-control" placeholder="e.g. FCP/CSC/19/1001" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Full Name</label>
+                            <input type="text" name="name" id="f-name" class="form-control" placeholder="Student's name" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Email Address</label>
+                            <input type="email" name="email" id="f-email" class="form-control" placeholder="student@example.com">
+                        </div>
+                        <div class="form-group">
+                            <label>Phone Number</label>
+                            <input type="text" name="phone" id="f-phone" class="form-control" placeholder="080...">
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label>Full Name</label>
-                        <input type="text" name="name" id="f-name" class="form-control" placeholder="Student's name" required>
+                    <div style="display: flex; gap: 15px; margin-top: 20px;">
+                        <button type="submit" class="btn btn-primary" style="flex: 1; justify-content: center;">Save Student</button>
+                        <button type="button" class="btn btn-cancel" style="flex: 1; justify-content: center;" onclick="closeModal('studentModal')">Cancel</button>
                     </div>
-                    <div class="form-group">
-                        <label>Email Address</label>
-                        <input type="email" name="email" id="f-email" class="form-control" placeholder="student@example.com">
-                    </div>
-                    <div class="form-group">
-                        <label>Phone Number</label>
-                        <input type="text" name="phone" id="f-phone" class="form-control" placeholder="080...">
-                    </div>
-                    <button type="submit" class="btn btn-primary" style="width:100%; margin-top: 10px;">Save Student</button>
                 </form>
             </div>
         </div>

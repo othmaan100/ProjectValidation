@@ -11,8 +11,8 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'fpc') {
 // Initialize response array for AJAX requests
 $response = ['success' => false, 'message' => ''];
 
-// Get current session for defaults
-$currentSessionYear = date('Y') . '/' . (date('Y') + 1);
+// Get current session from global settings
+$currentSessionYear = $current_session;
 
 // EXPORT APPROVED TOPICS
 if (isset($_GET['export'])) {

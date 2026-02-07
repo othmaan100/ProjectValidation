@@ -11,9 +11,8 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'dpc') {
 $dpc_id = $_SESSION['user_id'];
 $panel_id = $_GET['id'] ?? null;
 
-// Fetch active session from global settings
-$session_stmt = $conn->query("SELECT setting_value FROM system_settings WHERE setting_key = 'current_session'");
-$active_session = $session_stmt->fetchColumn() ?: date('Y') . '/' . (date('Y') + 1);
+// Use current session from global settings
+$active_session = $current_session;
 
 if (!$panel_id) {
     header("Location: dpc_manage_panels.php");

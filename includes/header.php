@@ -110,6 +110,7 @@ if (!defined('PROJECT_ROOT')) {
                 <a href="sa_manage_faculties.php">Manage Faculty</a>
                 <a href="sa_manage_fpc.php">Manage FPC</a>
                 <a href="sa_reports.php">Reports</a>
+                <a href="sa_settings.php">System Settings</a>
             <?php elseif ($_SESSION['role'] === 'lib'): ?>
                 <a href="index.php">Dashboard</a>
                 <a href="lib_manage_projects.php">Project Repository</a>
