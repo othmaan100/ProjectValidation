@@ -1,6 +1,7 @@
 <?php
 include_once __DIR__ . '/../includes/auth.php';
 include_once __DIR__ . '/../includes/db.php';
+include_once __DIR__ . '/../includes/functions.php';
 
 // Check if the user is logged in as DPC
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'dpc') {
@@ -23,6 +24,10 @@ $response = ['success' => false, 'message' => ''];
 // Handle AJAX requests
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
     header('Content-Type: application/json');
+    if (!isset($_POST['csrf_token']) || !verify_csrf_token($_POST['csrf_token'])) {
+        echo json_encode(['success' => false, 'message' => 'Invalid CSRF token']);
+        exit();
+    }
     
     try {
         $action = $_POST['action'] ?? '';
@@ -254,6 +259,7 @@ $supervisors = $stmt->fetchAll(PDO::FETCH_ASSOC);
     </div> <!-- Close header's container -->
 
     <div class="page-container">
+        <?php echo csrf_field(); ?>
         <div class="header-card">
             <div>
                 <h1><i class="fas fa-user-tie"></i> Manage Supervisors</h1>
@@ -417,6 +423,8 @@ $supervisors = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 
                 try {
                     const fd = new FormData(f);
+                    const token = document.querySelector('input[name="csrf_token"]').value;
+                    fd.append('csrf_token', token);
                     const res = await fetch('dpc_manage_supervisors.php', { method: 'POST', body: fd });
                     const data = await res.json();
                     showT(data.message, data.success);
@@ -432,6 +440,8 @@ $supervisors = $stmt->fetchAll(PDO::FETCH_ASSOC);
             fd.append('ajax', '1');
             fd.append('action', 'delete_supervisor');
             fd.append('id', id);
+            const token = document.querySelector('input[name="csrf_token"]').value;
+            fd.append('csrf_token', token);
             try {
                 const res = await fetch('dpc_manage_supervisors.php', { method: 'POST', body: fd });
                 const data = await res.json();
@@ -446,6 +456,8 @@ $supervisors = $stmt->fetchAll(PDO::FETCH_ASSOC);
             fd.append('ajax', '1');
             fd.append('action', 'reset_password');
             fd.append('id', id);
+            const token = document.querySelector('input[name="csrf_token"]').value;
+            fd.append('csrf_token', token);
             try {
                 const res = await fetch('dpc_manage_supervisors.php', { method: 'POST', body: fd });
                 const data = await res.json();

@@ -1,76 +1,82 @@
 <?php
 session_start();
 include __DIR__ . '/includes/db.php';
+include __DIR__ . '/includes/functions.php';
 
 // Handle login form submission
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['action'] == 'login') {
-    $input_username = trim($_POST['username']);
-    $input_password = trim($_POST['password']);
-    
-    if (empty($input_username) || empty($input_password)) {
-        $error_message = "Please fill in all required fields.";
+    // CSRF Verification
+    if (!isset($_POST['csrf_token']) || !verify_csrf_token($_POST['csrf_token'])) {
+        $error_message = "Session expired or invalid request. Please refresh and try again.";
     } else {
-        try {
-            $stmt = $conn->prepare("SELECT * FROM users WHERE username = ? AND is_active = '1'");
-            $stmt->execute([$input_username]);
-            $user = $stmt->fetch(PDO::FETCH_ASSOC);
-            
-            if ($user && password_verify($input_password, $user['password'])) {
-                $_SESSION['user_id'] = $user['id'];
-                $_SESSION['username'] = $user['username'];
-                $_SESSION['role'] = $user['role'];
-                $_SESSION['department'] = $user['department'];
-                $_SESSION['name'] = $user['name'];
-                $_SESSION['email'] = $user['email'];
-                $_SESSION['faculty_id'] = $user['faculty_id'];
-                $_SESSION['logged_in'] = true;
-                $_SESSION['login_time'] = time();
+        $input_username = trim($_POST['username']);
+        $input_password = trim($_POST['password']);
+        
+        if (empty($input_username) || empty($input_password)) {
+            $error_message = "Please fill in all required fields.";
+        } else {
+            try {
+                $stmt = $conn->prepare("SELECT * FROM users WHERE username = ? AND is_active = '1'");
+                $stmt->execute([$input_username]);
+                $user = $stmt->fetch(PDO::FETCH_ASSOC);
                 
-                $update_stmt = $conn->prepare("UPDATE users SET first_login = NOW(), session = ? WHERE id = ?");
-                $session_id = session_id();
-                $update_stmt->execute([$session_id, $user['id']]);
-                
-                // Redirect based on role
-                $redirects = [
-                    'stu' => "student/index.php",
-                    'dpc' => "department_project_coordinator/index.php",
-                    'fpc' => "faculty_project_coordinator/index.php",
-                    'sup' => "supervisor/index.php",
-                    'admin' => "super_admin/index.php",
-                    'lib' => "library/index.php",
-                    'guest' => "library/guest_catalog.php"
-                ];
-                
-                $location = isset($redirects[$user['role']]) ? $redirects[$user['role']] : "index.php";
-                header("Location: $location");
-                exit();
-            } else {
-                // Check Temporary Access Table
-                $stmt = $conn->prepare("SELECT * FROM library_temp_access WHERE username = ? AND passcode = ?");
-                $stmt->execute([$input_username, $input_password]);
-                $temp = $stmt->fetch(PDO::FETCH_ASSOC);
-
-                if ($temp) {
-                    // Mark as used for accounting
-                    $stmt = $conn->prepare("UPDATE library_temp_access SET is_used = 1, used_at = NOW() WHERE id = ?");
-                    $stmt->execute([$temp['id']]);
-
-                    $_SESSION['user_id'] = $temp['id'];
-                    $_SESSION['username'] = $temp['username'];
-                    $_SESSION['role'] = 'guest'; // Special role
-                    $_SESSION['name'] = 'Guest Student';
+                if ($user && password_verify($input_password, $user['password'])) {
+                    $_SESSION['user_id'] = $user['id'];
+                    $_SESSION['username'] = $user['username'];
+                    $_SESSION['role'] = $user['role'];
+                    $_SESSION['department'] = $user['department'];
+                    $_SESSION['name'] = $user['name'];
+                    $_SESSION['email'] = $user['email'];
+                    $_SESSION['faculty_id'] = $user['faculty_id'];
                     $_SESSION['logged_in'] = true;
-                    $_SESSION['is_temp'] = true; // Mark as temporary
                     $_SESSION['login_time'] = time();
-
-                    header("Location: library/guest_catalog.php");
+                    
+                    $update_stmt = $conn->prepare("UPDATE users SET first_login = NOW(), session = ? WHERE id = ?");
+                    $session_id = session_id();
+                    $update_stmt->execute([$session_id, $user['id']]);
+                    
+                    // Redirect based on role
+                    $redirects = [
+                        'stu' => "student/index.php",
+                        'dpc' => "department_project_coordinator/index.php",
+                        'fpc' => "faculty_project_coordinator/index.php",
+                        'sup' => "supervisor/index.php",
+                        'admin' => "super_admin/index.php",
+                        'lib' => "library/index.php",
+                        'guest' => "library/guest_catalog.php"
+                    ];
+                    
+                    $location = isset($redirects[$user['role']]) ? $redirects[$user['role']] : "index.php";
+                    header("Location: $location");
                     exit();
                 } else {
-                    $error_message = "Invalid username or password.";
+                    // Check Temporary Access Table
+                    $stmt = $conn->prepare("SELECT * FROM library_temp_access WHERE username = ? AND passcode = ?");
+                    $stmt->execute([$input_username, $input_password]);
+                    $temp = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                    if ($temp) {
+                        // Mark as used for accounting
+                        $stmt = $conn->prepare("UPDATE library_temp_access SET is_used = 1, used_at = NOW() WHERE id = ?");
+                        $stmt->execute([$temp['id']]);
+
+                        $_SESSION['user_id'] = $temp['id'];
+                        $_SESSION['username'] = $temp['username'];
+                        $_SESSION['role'] = 'guest'; // Special role
+                        $_SESSION['name'] = 'Guest Student';
+                        $_SESSION['logged_in'] = true;
+                        $_SESSION['is_temp'] = true; // Mark as temporary
+                        $_SESSION['login_time'] = time();
+
+                        header("Location: library/guest_catalog.php");
+                        exit();
+                    } else {
+                        $error_message = "Invalid username or password.";
+                    }
                 }
+            } catch(PDOException $e) {
+                $error_message = "Authentication error. Please try again later.";
             }
-        } catch(PDOException $e) {
-            $error_message = "Authentication error. Please try again later.";
         }
     }
 }
@@ -437,6 +443,7 @@ $is_logged_in = isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true
                 <?php endif; ?>
 
                 <form method="POST">
+                    <?php echo csrf_field(); ?>
                     <input type="hidden" name="action" value="login">
                     <div class="form-group">
                         <input type="text" name="username" placeholder="Username" required autofocus>

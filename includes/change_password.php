@@ -1,9 +1,13 @@
 <?php
 session_start();
-include 'includes/auth.php';
-include 'includes/db.php';
+include __DIR__ . '/auth.php';
+include __DIR__ . '/db.php';
+include __DIR__ . '/functions.php';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['change_password'])) {
+    if (!isset($_POST['csrf_token']) || !verify_csrf_token($_POST['csrf_token'])) {
+        die("Invalid CSRF token.");
+    }
     $current_password = $_POST['current_password'];
     $new_password = $_POST['new_password'];
     $confirm_password = $_POST['confirm_password'];
@@ -56,6 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['change_password'])) {
     <div class="container">
         <h1>Change Password</h1>
         <form method="POST">
+            <?php echo csrf_field(); ?>
             <input type="password" name="current_password" placeholder="Current Password" required>
             <input type="password" name="new_password" placeholder="New Password" required>
             <input type="password" name="confirm_password" placeholder="Confirm New Password" required>

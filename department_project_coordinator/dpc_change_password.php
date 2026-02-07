@@ -1,6 +1,7 @@
 <?php
 include_once __DIR__ . '/../includes/auth.php';
 include_once __DIR__ . '/../includes/db.php';
+include_once __DIR__ . '/../includes/functions.php';
 
 // Check if the user is logged in as DPC
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'dpc') {
@@ -13,9 +14,13 @@ $message = '';
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_pw'])) {
-    $current_pw = $_POST['current_password'];
-    $new_pw = $_POST['new_password'];
-    $confirm_pw = $_POST['confirm_password'];
+    if (!isset($_POST['csrf_token']) || !verify_csrf_token($_POST['csrf_token'])) {
+        $error = "Session expired. Please refresh and try again.";
+    } else {
+        $current_pw = $_POST['current_password'];
+        $new_pw = $_POST['new_password'];
+        $confirm_pw = $_POST['confirm_password'];
+    }
 
     // Basic validation
     if (empty($current_pw) || empty($new_pw) || empty($confirm_pw)) {
@@ -37,7 +42,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_pw'])) {
                 $message = "Password updated successfully!";
             } else {
                 $error = "Failed to update password.";
-            }
+                }
+
         } else {
             $error = "Incorrect current password.";
         }
@@ -83,6 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_pw'])) {
             <?php endif; ?>
 
             <form method="POST">
+                <?php echo csrf_field(); ?>
                 <div class="form-group">
                     <label>Current Password</label>
                     <input type="password" name="current_password" class="form-control" required>

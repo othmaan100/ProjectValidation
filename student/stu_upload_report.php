@@ -9,6 +9,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'stu') {
 }
 
 include_once __DIR__ . '/../includes/db.php';
+include_once __DIR__ . '/../includes/functions.php';
 
 $student_id = $_SESSION['user_id'];
 $message = '';
@@ -26,8 +27,12 @@ if (!$approved_topic) {
 
 // Handle report upload
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['report_file'])) {
-    try {
-        if ($_FILES['report_file']['error'] !== UPLOAD_ERR_OK) {
+    if (!isset($_POST['csrf_token']) || !verify_csrf_token($_POST['csrf_token'])) {
+        $message = "Session expired or invalid request.";
+        $status = "error";
+    } else {
+        try {
+            if ($_FILES['report_file']['error'] !== UPLOAD_ERR_OK) {
             throw new Exception("Error during file upload.");
         }
 
@@ -68,6 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['report_file'])) {
     } catch (Exception $e) {
         $message = $e->getMessage();
         $status = "error";
+    }
     }
 }
 
@@ -194,6 +200,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['report_file'])) {
 
             <?php if (!isset($can_reupload) || $can_reupload): ?>
                 <form method="POST" enctype="multipart/form-data" id="uploadForm">
+                    <?php echo csrf_field(); ?>
                     <div class="upload-area" onclick="document.getElementById('report_file').click()">
                         <i class="fas fa-file-pdf"></i>
                         <h3 id="fileName">Select PDF Report</h3>

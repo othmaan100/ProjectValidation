@@ -3,6 +3,7 @@ session_start();
 
 // Include the database connection file
 include_once __DIR__ . '/../includes/db.php';
+include_once __DIR__ . '/../includes/functions.php';
 
 // Redirect to the login page if not logged in
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'stu') {
@@ -15,7 +16,11 @@ $error = '';
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['change_pw'])) {
-    $new_password = $_POST['new_password'];
+    if (!isset($_POST['csrf_token']) || !verify_csrf_token($_POST['csrf_token'])) {
+        $error = "Session expired. Please refresh and try again.";
+    } else {
+        $new_password = $_POST['new_password'];
+    }
     $confirm_password = $_POST['confirm_password'];
 
     if (empty($new_password)) {
@@ -42,7 +47,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['change_pw'])) {
             } catch (Exception $e) {
                 $conn->rollBack();
                 $error = "Update failed: " . $e->getMessage();
-            }
+                }
+
         }
     } else {
         $error = "Passwords do not match.";
@@ -118,6 +124,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['change_pw'])) {
         <p style="color: #636e72; font-size: 14px; margin-bottom: 25px;">Please set a new password for your account.</p>
 
         <form method="POST">
+            <?php echo csrf_field(); ?>
             <div class="form-group">
                 <label>New Password</label>
                 <input type="password" name="new_password" class="form-control" required placeholder="••••••••">

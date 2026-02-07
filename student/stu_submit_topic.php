@@ -8,6 +8,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'stu') {
 }
 
 include_once __DIR__ . '/../includes/db.php';
+include_once __DIR__ . '/../includes/functions.php';
 
 $student_id = $_SESSION['user_id'];
 
@@ -76,7 +77,10 @@ $error = '';
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_topics'])) {
-    $topic1 = trim($_POST['topic1'] ?? '');
+    if (!isset($_POST['csrf_token']) || !verify_csrf_token($_POST['csrf_token'])) {
+        $error = "Session expired. Please refresh and try again.";
+    } else {
+        $topic1 = trim($_POST['topic1'] ?? '');
     $topic2 = trim($_POST['topic2'] ?? '');
     $topic3 = trim($_POST['topic3'] ?? '');
 
@@ -104,11 +108,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_topics'])) {
             $error = "An error occurred while saving your topics. Please try again.";
         }
     }
+    }
 }
 
 // Handle Similarity AJAX
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'check_similarity') {
     header('Content-Type: application/json');
+    if (!isset($_POST['csrf_token']) || !verify_csrf_token($_POST['csrf_token'])) {
+        echo json_encode(['status' => 'error', 'message' => 'Invalid CSRF token']);
+        exit();
+    }
     $topic = trim($_POST['topic'] ?? '');
     
     if (empty($topic)) {
@@ -221,6 +230,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             <?php endif; ?>
 
             <form method="POST">
+                <?php echo csrf_field(); ?>
                 <?php for ($i = 1; $i <= (3 - $submitted_count); $i++): ?>
                     <div class="form-group" style="<?= !$can_submit ? 'opacity: 0.6;' : '' ?>">
                         <label>Proposed Topic #<?= $submitted_count + $i ?></label>
@@ -254,6 +264,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             const formData = new FormData();
             formData.append('action', 'check_similarity');
             formData.append('topic', topic);
+            const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+            formData.append('csrf_token', csrfToken);
 
             try {
                 const response = await fetch('stu_submit_topic.php', {
