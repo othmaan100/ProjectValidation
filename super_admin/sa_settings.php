@@ -24,9 +24,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_settings'])) {
             'similarity_threshold' => $_POST['similarity_threshold'] ?? '30'
         ];
 
-        $stmt = $conn->prepare("UPDATE system_settings SET setting_value = ? WHERE setting_key = ?");
+        $stmt = $conn->prepare("INSERT INTO system_settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)");
         foreach ($settings_to_update as $key => $value) {
-            $stmt->execute([$value, $key]);
+            $stmt->execute([$key, $value]);
         }
 
         $conn->commit();
