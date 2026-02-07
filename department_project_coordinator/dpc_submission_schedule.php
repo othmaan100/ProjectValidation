@@ -128,7 +128,7 @@ $active_val = $schedule ? ($schedule['is_active'] ? 'checked' : '') : 'checked';
     <style>
         :root { --primary: #4e73df; --secondary: #2e59d9; --bg: #f8f9fc; --glass: rgba(255, 255, 255, 0.95); }
         body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; }
-        .page-container { max-width: 800px; margin: 50px auto; padding: 20px; }
+        .page-container { max-width: 800px; margin: 10px auto 50px auto; padding: 20px; }
         .card { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
         .header { text-align: center; margin-bottom: 30px; }
         .header h1 { color: #2c3e50; font-size: 28px; margin-bottom: 10px; }
@@ -176,6 +176,21 @@ $active_val = $schedule ? ($schedule['is_active'] ? 'checked' : '') : 'checked';
         }
         .status-box h4 { margin: 0 0 5px; font-size: 12px; text-transform: uppercase; color: #777; }
         .status-box p { margin: 0; font-weight: 700; color: #333; }
+
+        @media (max-width: 600px) {
+            .page-container { margin: 20px auto; padding: 0 15px; }
+            .card { padding: 25px; }
+            .header h1 { font-size: 22px; }
+            .current-status { flex-direction: column; gap: 20px; text-align: left; }
+            .status-box { padding: 0 !important; border: none !important; }
+            .form-group div[style*="grid-template-columns: 1fr 1fr"] { grid-template-columns: 1fr !important; }
+            .switch-group { align-items: flex-start; }
+            table thead { display: none; }
+            table, table tbody, table tr, table td { display: block; width: 100%; }
+            table tr { margin-bottom: 20px; border: 1px solid #e3e6f0; border-radius: 12px; padding: 10px; }
+            table td { border-bottom: none; padding: 8px 10px; position: relative; }
+            table td:before { content: attr(data-label); font-weight: 700; color: #777; display: block; font-size: 11px; text-transform: uppercase; margin-bottom: 4px; }
+        }
     </style>
 </head>
 <body>
@@ -300,19 +315,19 @@ $active_val = $schedule ? ($schedule['is_active'] ? 'checked' : '') : 'checked';
                             $is_current = ($now >= $ov_start && $now <= $ov_end);
                         ?>
                             <tr style="border-bottom: 1px solid #eee;">
-                                <td style="padding: 10px;">
+                                <td data-label="Student" style="padding: 10px;">
                                     <strong><?= htmlspecialchars($ov['name']) ?></strong><br>
                                     <small><?= htmlspecialchars($ov['reg_no']) ?></small>
                                 </td>
-                                <td style="padding: 10px;">
+                                <td data-label="Window" style="padding: 10px;">
                                     <small><?= date('M d, H:i', $ov_start) ?> - <?= date('M d, H:i', $ov_end) ?></small>
                                 </td>
-                                <td style="padding: 10px;">
+                                <td data-label="Status" style="padding: 10px;">
                                     <span style="color: <?= $is_current ? 'var(--success)' : 'var(--danger)' ?>; font-weight: bold;">
                                         <?= $is_current ? 'Active' : 'Expired/Future' ?>
                                     </span>
                                 </td>
-                                <td style="padding: 10px;">
+                                <td data-label="Action" style="padding: 10px;">
                                     <a href="?delete_override=<?= $ov['id'] ?>" style="color: var(--danger);" onclick="return confirm('Remove student override?')"><i class="fas fa-trash"></i></a>
                                 </td>
                             </tr>

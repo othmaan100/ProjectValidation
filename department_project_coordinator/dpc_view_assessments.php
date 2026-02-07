@@ -94,7 +94,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
         }
 
         body { font-family: 'Outfit', sans-serif; background-color: var(--bg-body); color: var(--text-main); margin: 0; padding: 0; }
-        .container { max-width: 1200px; margin: 40px auto; padding: 0 20px; }
+        .container { max-width: 1200px; margin: 10px auto 40px auto; padding: 0 20px; }
 
         .header { background: white; padding: 30px; border-radius: 24px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; }
         .header h1 { font-size: 24px; font-weight: 700; color: var(--primary); margin: 0; }
@@ -117,6 +117,24 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
         .score-none { background: #fef2f2; color: #991b1b; }
 
         .individual-scores { font-size: 12px; color: var(--text-muted); font-style: italic; }
+
+        @media (max-width: 900px) {
+            .header { flex-direction: column; text-align: center; gap: 20px; }
+            .header div:last-child { flex-direction: column; width: 100%; }
+            .btn { width: 100%; justify-content: center; }
+        }
+
+        @media (max-width: 600px) {
+            .container { margin: 20px auto; padding: 0 15px; }
+            .card { padding: 20px; }
+            .header h1 { font-size: 20px; }
+            table thead { display: none; }
+            table, table tbody, table tr, table td { display: block; width: 100%; }
+            table tr { margin-bottom: 25px; border: 1px solid #e2e8f0; border-radius: 15px; padding: 15px; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+            table td { border: none; padding: 10px 0; text-align: left !important; position: relative; }
+            table td:before { content: attr(data-label); font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+            .score-badge { width: 100%; justify-content: center; }
+        }
 
         @media print {
             .header .btn, .footer { display: none; }
@@ -178,20 +196,20 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
                     <tbody>
                         <?php foreach ($grouped_assessments[$type] as $as): ?>
                             <tr>
-                                <td>
+                                <td data-label="Student Information">
                                     <strong><?= htmlspecialchars($as['student_name']) ?></strong><br>
                                     <small style="color: var(--text-muted);"><?= htmlspecialchars($as['reg_no']) ?></small>
                                 </td>
-                                <td><span class="panel-badge"><?= htmlspecialchars($as['panel_name']) ?></span></td>
-                                <td>
+                                <td data-label="Panel"><span class="panel-badge"><?= htmlspecialchars($as['panel_name']) ?></span></td>
+                                <td data-label="Individual Scores">
                                     <div class="individual-scores">
                                         <?= $as['individual_scores'] ?: 'No scores yet' ?>
                                     </div>
                                 </td>
-                                <td style="text-align: center;">
+                                <td data-label="Average Score" style="text-align: center;">
                                     <strong><?= $as['average_score'] !== null ? number_format($as['average_score'], 2) . '%' : '--' ?></strong>
                                 </td>
-                                <td style="text-align: center;">
+                                <td data-label="Status" style="text-align: center;">
                                     <?php if ($as['score_count'] > 0): ?>
                                         <span class="score-badge score-good">
                                             <i class="fas fa-check-circle"></i> Assessed (<?= $as['score_count'] ?>)

@@ -260,7 +260,8 @@ $students = $stmt->fetchAll(PDO::FETCH_ASSOC);
         :root { --primary: #667eea; --secondary: #764ba2; --success: #1cc88a; --danger: #e74a3b; --glass: rgba(255, 255, 255, 0.95); }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding-bottom: 50px; }
-        .page-container { max-width: 1300px; margin: 0 auto; padding: 20px; }
+        .page-container { max-width: 1300px; margin: 0 auto; padding: 5px 20px 20px 20px; }
+        .container { padding: 0 !important; }
         .header-card { background: var(--glass); padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; }
         .header-card h1 { color: var(--primary); font-size: 28px; }
         .header-actions { display: flex; gap: 12px; }

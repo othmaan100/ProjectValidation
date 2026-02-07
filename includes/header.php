@@ -88,6 +88,7 @@ if (!defined('PROJECT_ROOT')) {
                 <a href="dpc_assign_supervisors.php">Assign Supervisors</a>
                 <a href="dpc_topic_validation.php">Validate Topics</a>
                 <a href="dpc_submission_schedule.php">Submission Schedule</a>
+                <a href="dpc_manage_submissions.php">Manage Submissions</a>
                 <a href="dpc_manage_panels.php">Manage Panels</a>
                 <a href="dpc_view_assessments.php">View Assessments</a>
                 <a href="dpc_reports.php">Reports</a>

@@ -138,7 +138,7 @@ $supervisor_loads = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         .container {
             max-width: 1200px;
-            margin: 30px auto;
+            margin: 10px auto 30px auto;
             padding: 0 20px;
         }
 
@@ -269,6 +269,26 @@ $supervisor_loads = $stmt->fetchAll(PDO::FETCH_ASSOC);
         .badge-none { background: #858796; }
         .badge-active { background: var(--success); }
 
+        @media (max-width: 768px) {
+            .header-actions { flex-direction: column; text-align: center; gap: 20px; }
+            .header-actions div:last-child { width: 100%; flex-direction: column; }
+            .btn { width: 100%; justify-content: center; }
+            .stats-row { flex-direction: column; }
+            .stat-box { width: 100%; }
+        }
+
+        @media (max-width: 600px) {
+            .container { margin: 20px auto; padding: 0 15px; }
+            .card { border-radius: 12px; }
+            .card-header { font-size: 15px; }
+            table thead { display: none; }
+            table, table tbody, table tr, table td { display: block; width: 100%; }
+            table tr { margin-bottom: 20px; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; }
+            table td { border-bottom: none; padding: 10px 15px; text-align: left !important; position: relative; }
+            table td:before { content: attr(data-label); font-weight: 700; color: #777; display: block; font-size: 11px; text-transform: uppercase; margin-bottom: 4px; }
+            .progress { width: 100%; }
+        }
+
         @media print {
             .btn, nav, .header-actions h1 p { display: none; }
             header { display: none; }
@@ -329,16 +349,16 @@ $supervisor_loads = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     <tbody>
                         <?php foreach ($students_report as $row): ?>
                         <tr>
-                            <td><?php echo htmlspecialchars($row['reg_no']); ?></td>
-                            <td><?php echo htmlspecialchars($row['student_name']); ?></td>
-                            <td>
+                            <td data-label="Reg No"><?php echo htmlspecialchars($row['reg_no']); ?></td>
+                            <td data-label="Student Name"><?php echo htmlspecialchars($row['student_name']); ?></td>
+                            <td data-label="Approved Topic">
                                 <?php if ($row['approved_topic']): ?>
                                     <?php echo htmlspecialchars($row['approved_topic']); ?>
                                 <?php else: ?>
                                     <span class="badge badge-none">No approved topic</span>
                                 <?php endif; ?>
                             </td>
-                            <td>
+                            <td data-label="Supervisor">
                                 <?php if ($row['supervisor_name']): ?>
                                     <?php echo htmlspecialchars($row['supervisor_name']); ?>
                                 <?php else: ?>
@@ -368,10 +388,10 @@ $supervisor_loads = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         $pct = $sup['max_students'] > 0 ? ($sup['assigned_count'] / $sup['max_students']) * 100 : 0;
                     ?>
                     <tr>
-                        <td><?php echo htmlspecialchars($sup['name']); ?></td>
-                        <td><?php echo $sup['assigned_count']; ?></td>
-                        <td><?php echo $sup['max_students']; ?></td>
-                        <td>
+                        <td data-label="Supervisor"><?php echo htmlspecialchars($sup['name']); ?></td>
+                        <td data-label="Assigned"><?php echo $sup['assigned_count']; ?></td>
+                        <td data-label="Capacity"><?php echo $sup['max_students']; ?></td>
+                        <td data-label="Load">
                             <div class="progress">
                                 <div class="progress-bar" style="width: <?php echo $pct; ?>%; background: <?php echo $pct > 90 ? 'var(--danger)' : ($pct > 70 ? 'var(--warning)' : 'var(--success)'); ?>"></div>
                             </div>

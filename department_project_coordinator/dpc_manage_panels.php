@@ -114,7 +114,7 @@ $panels = $panel_stmt->fetchAll(PDO::FETCH_ASSOC);
         }
 
         body { font-family: 'Outfit', sans-serif; background-color: var(--bg-body); color: var(--text-main); margin: 0; padding: 0; }
-        .container { max-width: 1200px; margin: 40px auto; padding: 0 20px; }
+        .container { max-width: 1200px; margin: 10px auto 40px auto; padding: 0 20px; }
 
         .header { background: white; padding: 30px; border-radius: 24px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; }
         .header h1 { font-size: 24px; font-weight: 700; color: var(--primary); }
@@ -155,7 +155,25 @@ $panels = $panel_stmt->fetchAll(PDO::FETCH_ASSOC);
         .select2-container--default .select2-selection--multiple .select2-selection__choice__remove { color: white; margin-right: 8px; border: none; }
         .select2-container--default .select2-selection--multiple .select2-selection__choice__remove:hover { background: none; color: #f8fafc; }
 
-        @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+        @media (max-width: 900px) { 
+            .grid { grid-template-columns: 1fr; } 
+            .header { flex-direction: column; text-align: center; gap: 20px; }
+            .header div:last-child { flex-direction: column; width: 100%; }
+            .btn { width: 100%; justify-content: center; }
+        }
+        
+        @media (max-width: 600px) {
+            .container { margin: 20px auto; padding: 0 15px; }
+            .card { padding: 20px; }
+            .header h1 { font-size: 20px; }
+            table thead { display: none; }
+            table, table tbody, table tr, table td { display: block; width: 100%; }
+            table tr { margin-bottom: 20px; border: 1px solid #e2e8f0; border-radius: 15px; padding: 10px; background: #fff; }
+            table td { border: none; padding: 8px 10px; text-align: left; position: relative; }
+            table td:before { content: attr(data-label); font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px; font-size: 11px; text-transform: uppercase; }
+            .btn-danger { width: auto; }
+            td[style*="text-align: right"] { text-align: left !important; justify-content: flex-start !important; }
+        }
     </style>
 </head>
 <body>
@@ -231,17 +249,17 @@ $panels = $panel_stmt->fetchAll(PDO::FETCH_ASSOC);
                         <tbody>
                             <?php foreach ($panels as $panel): ?>
                                 <tr>
-                                    <td>
+                                    <td data-label="Panel Name/Type">
                                         <strong><?= htmlspecialchars($panel['panel_name']) ?></strong><br>
                                         <span class="type-badge type-<?= $panel['panel_type'] ?>"><?= $panel['panel_type'] ?></span>
                                     </td>
-                                    <td><span class="panel-badge"><?= htmlspecialchars($panel['max_students']) ?></span></td>
-                                    <td>
+                                    <td data-label="Max Students"><span class="panel-badge"><?= htmlspecialchars($panel['max_students']) ?></span></td>
+                                    <td data-label="Members">
                                         <div style="color: var(--text-muted); font-size: 14px;">
                                             <?= htmlspecialchars($panel['members'] ?: 'No members assigned') ?>
                                         </div>
                                     </td>
-                                    <td style="text-align: right; display: flex; gap: 8px; justify-content: flex-end;">
+                                    <td data-label="Actions" style="text-align: right; display: flex; gap: 8px; justify-content: flex-end;">
                                         <a href="dpc_edit_panel.php?id=<?= $panel['id'] ?>" class="btn" style="background: #e0e7ff; color: var(--primary); padding: 8px 12px;">
                                             <i class="fas fa-edit"></i> Edit
                                         </a>

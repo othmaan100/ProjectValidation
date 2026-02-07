@@ -67,7 +67,7 @@ foreach ($panels as $key => $panel) {
         }
 
         body { font-family: 'Outfit', sans-serif; background-color: var(--bg-body); color: var(--text-main); margin: 0; padding: 0; }
-        .container { max-width: 1200px; margin: 40px auto; padding: 0 20px; }
+        .container { max-width: 1200px; margin: 10px auto 40px auto; padding: 0 20px; }
 
         .header { background: white; padding: 30px; border-radius: 24px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; }
         .header h1 { font-size: 24px; font-weight: 700; color: var(--primary); margin: 0; }
@@ -91,6 +91,25 @@ foreach ($panels as $key => $panel) {
         .empty-state { text-align: center; padding: 40px; color: var(--text-muted); }
 
         .project-topic { font-style: italic; color: #475569; max-width: 400px; font-size: 13px; }
+
+        @media (max-width: 768px) {
+            .header { flex-direction: column; text-align: center; gap: 20px; }
+            .header div:last-child { flex-direction: column; width: 100%; }
+            .btn { width: 100%; justify-content: center; }
+            .panel-header { flex-direction: column; text-align: center; gap: 10px; }
+            .panel-meta { text-align: center; padding: 15px 20px; }
+        }
+
+        @media (max-width: 600px) {
+            .container { margin: 20px auto; padding: 0 15px; }
+            .header h1 { font-size: 20px; }
+            table thead { display: none; }
+            table, table tbody, table tr, table td { display: block; width: 100%; }
+            table tr { margin-bottom: 20px; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; }
+            table td { border-bottom: none; padding: 10px 0; text-align: left !important; position: relative; }
+            table td:before { content: attr(data-label); font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px; font-size: 11px; text-transform: uppercase; }
+            .project-topic { max-width: none; }
+        }
 
         @media print {
             .no-print, header, nav { display: none !important; }
@@ -148,10 +167,10 @@ foreach ($panels as $key => $panel) {
                                 <tbody>
                                     <?php $sn = 1; foreach ($panel['students'] as $stu): ?>
                                         <tr>
-                                            <td><?= $sn++ ?></td>
-                                            <td><strong><?= htmlspecialchars($stu['name']) ?></strong></td>
-                                            <td><?= htmlspecialchars($stu['reg_no']) ?></td>
-                                            <td>
+                                            <td data-label="S/N"><?= $sn++ ?></td>
+                                            <td data-label="Student Name"><strong><?= htmlspecialchars($stu['name']) ?></strong></td>
+                                            <td data-label="Registration Number"><?= htmlspecialchars($stu['reg_no']) ?></td>
+                                            <td data-label="Project Topic">
                                                 <div class="project-topic">
                                                     <?= htmlspecialchars($stu['topic'] ?: 'No approved topic yet') ?>
                                                 </div>

@@ -216,7 +216,8 @@ $availableSupervisors = $supStmt->fetchAll(PDO::FETCH_ASSOC);
         :root { --primary: #667eea; --secondary: #764ba2; --success: #1cc88a; --danger: #e74a3b; --warning: #feca57; --glass: rgba(255, 255, 255, 0.95); }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding-bottom: 50px; }
-        .page-container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        .page-container { max-width: 1400px; margin: 0 auto; padding: 10px 20px 20px 20px; }
+        .container { padding: 0 !important; }
         .header-card { background: var(--glass); padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; }
         .header-card h1 { color: var(--primary); font-size: 28px; }
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 30px; }
@@ -267,6 +268,32 @@ $availableSupervisors = $supStmt->fetchAll(PDO::FETCH_ASSOC);
             border-radius: 12px;
             border: 2px solid #667eea;
             box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+
+        @media (max-width: 992px) {
+            .header-card { flex-direction: column; text-align: center; }
+            .header-actions { width: 100%; }
+            .header-actions form { width: 100%; }
+            .header-actions .btn { width: 100%; justify-content: center; }
+            .stats-grid { grid-template-columns: 1fr 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            .tabs { flex-wrap: wrap; justify-content: center; }
+            .tab { flex: 1; min-width: 150px; text-align: center; padding: 10px; font-size: 13px; }
+            .stats-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 600px) {
+            .page-container { padding: 10px; }
+            .main-card { padding: 15px; border-radius: 15px; }
+            table thead { display: none; }
+            table, table tbody, table tr, table td { display: block; width: 100%; }
+            table tr { margin-bottom: 20px; border: 1px solid #eee; border-radius: 12px; padding: 10px; background: #fff; }
+            table td { border-bottom: none; padding: 10px; position: relative; }
+            table td:before { content: attr(data-label); font-weight: 700; color: #777; display: block; font-size: 11px; text-transform: uppercase; margin-bottom: 4px; }
+            .status-badge { width: 100%; justify-content: center; display: flex; }
+            .btn { width: 100%; justify-content: center; margin-bottom: 10px; }
         }
     </style>
 </head>
@@ -350,10 +377,10 @@ $availableSupervisors = $supStmt->fetchAll(PDO::FETCH_ASSOC);
                         <tbody>
                             <?php foreach ($allocations as $alloc): ?>
                                 <tr>
-                                    <td><span style="font-weight: 600; color: var(--primary);"><?= htmlspecialchars($alloc['student_name']) ?></span></td>
-                                    <td><code><?= htmlspecialchars($alloc['reg_no']) ?></code></td>
-                                    <td><?= htmlspecialchars($alloc['supervisor_name']) ?></td>
-                                    <td style="max-width:300px;">
+                                    <td data-label="Student"><span style="font-weight: 600; color: var(--primary);"><?= htmlspecialchars($alloc['student_name']) ?></span></td>
+                                    <td data-label="Reg No"><code><?= htmlspecialchars($alloc['reg_no']) ?></code></td>
+                                    <td data-label="Supervisor"><?= htmlspecialchars($alloc['supervisor_name']) ?></td>
+                                    <td data-label="Project Topic" style="max-width:300px;">
                                         <?php 
                                         if ($alloc['topics']) {
                                             $tps = explode('||', $alloc['topics']);
@@ -365,8 +392,8 @@ $availableSupervisors = $supStmt->fetchAll(PDO::FETCH_ASSOC);
                                         }
                                         ?>
                                     </td>
-                                    <td><?= date('M j, Y', strtotime($alloc['allocation_date'])) ?></td>
-                                    <td style="text-align: center;">
+                                    <td data-label="Allocation Date"><?= date('M j, Y', strtotime($alloc['allocation_date'])) ?></td>
+                                    <td data-label="Status" style="text-align: center;">
                                         <span class="status-badge status-active">Active</span>
                                     </td>
                                 </tr>
@@ -437,9 +464,9 @@ $availableSupervisors = $supStmt->fetchAll(PDO::FETCH_ASSOC);
                         <tbody>
                             <?php foreach ($unassignedStudents as $s): ?>
                                 <tr>
-                                    <td><span style="font-weight: 600; color: var(--primary);"><?= htmlspecialchars($s['name']) ?></span></td>
-                                    <td><code><?= htmlspecialchars($s['reg_no']) ?></code></td>
-                                    <td>
+                                    <td data-label="Student"><span style="font-weight: 600; color: var(--primary);"><?= htmlspecialchars($s['name']) ?></span></td>
+                                    <td data-label="Reg No"><code><?= htmlspecialchars($s['reg_no']) ?></code></td>
+                                    <td data-label="Proposed Project">
                                         <?php 
                                         if ($s['topics']) {
                                             $tps = explode('||', $s['topics']);
@@ -451,7 +478,7 @@ $availableSupervisors = $supStmt->fetchAll(PDO::FETCH_ASSOC);
                                         }
                                         ?>
                                     </td>
-                                    <td style="text-align: center;">
+                                    <td data-label="Status" style="text-align: center;">
                                         <span class="status-badge <?= $s['topics'] ? 'status-pending' : 'status-no-project' ?>">
                                             <?= $s['topics'] ? 'Unassigned' : 'Missing Project' ?>
                                         </span>

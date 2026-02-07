@@ -258,6 +258,12 @@ $approved_topics = $stmt->fetchColumn();
                 <a href="dpc_view_assessments.php" class="action-btn" style="background: #36b9cc;">View All Scores <i class="fas fa-arrow-right"></i></a>
             </div>
             <div class="action-card">
+                <i class="fas fa-file-pdf" style="color: #27ae60;"></i>
+                <h2>Project Submissions</h2>
+                <p>Review and approve final project report uploads from all students in your department. Oversight of supervisor approvals.</p>
+                <a href="dpc_manage_submissions.php" class="action-btn" style="background: #27ae60;">Review Submissions <i class="fas fa-file-upload"></i></a>
+            </div>
+            <div class="action-card">
                 <i class="fas fa-file-invoice-dollar"></i>
                 <h2>Final Scores Summary</h2>
                 <p>Access the aggregated scores for all students, including Proposal, Internal, External defenses, and Supervisor assessments. Export to CSV.</p>
