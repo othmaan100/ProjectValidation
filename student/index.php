@@ -12,7 +12,7 @@ include_once __DIR__ . '/../includes/db.php';
 $student_id = $_SESSION['user_id'];
 
 // Fetch student details
-$stmt = $conn->prepare("SELECT s.*, d.department_name 
+$stmt = $conn->prepare("SELECT s.*, d.department_name, d.project_guideline 
                         FROM students s 
                         JOIN departments d ON s.department = d.id 
                         WHERE s.id = ?");
@@ -232,6 +232,18 @@ if (isset($_GET['error']) && $_GET['error'] === 'schedule_closed') {
                     </div>
                 <?php else: ?>
                     <div class="content-card" style="text-align: center;"><i class="fas fa-hourglass-half" style="font-size: 40px; color: var(--warning); margin-bottom: 15px;"></i><p style="font-size: 14px; color: #636e72;">You have submitted all 3 proposals. Please await coordinator review.</p></div>
+                <?php endif; ?>
+
+                <?php if (!empty($student['project_guideline'])): ?>
+                    <div class="content-card" style="margin-top: 25px;">
+                        <h2><i class="fas fa-book" style="color: var(--primary);"></i> Project Guideline</h2>
+                        <p style="font-size: 13px; color: #636e72; margin-bottom: 15px;">
+                            Download the official project guidelines for the Department of <?= htmlspecialchars($student['department_name']) ?>.
+                        </p>
+                        <a href="<?= PROJECT_ROOT . $student['project_guideline'] ?>" target="_blank" class="btn-action" style="display: block; width: 100%; text-align: center; box-sizing: border-box; background: var(--secondary); color: white;">
+                            <i class="fas fa-file-download"></i> Download PDF
+                        </a>
+                    </div>
                 <?php endif; ?>
             </div>
         </div>
