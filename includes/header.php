@@ -64,60 +64,64 @@ if (!defined('PROJECT_ROOT')) {
             document.getElementById('messageModal').style.display = 'none';
         }
     </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
     <header>
-        <h1>Project Topics Validation System</h1>
+        <h1><i class="fas fa-shield-halved" style="color: #4e73df;"></i> PV-Systems</h1>
+        <?php if (isset($_SESSION['role'])): ?>
+            <div class="user-badge">
+                <i class="fas fa-user-circle"></i>
+                <span>Role: <span style="text-transform: uppercase;"><?php echo $_SESSION['role']; ?></span></span>
+            </div>
+        <?php endif; ?>
     </header>
     <nav>
-        <!-- Add the "Home" link here -->
-        <a href="index.php">Home</a>
+        <?php 
+            $current_page = basename($_SERVER['PHP_SELF']); 
+            function isActive($page, $current) { return $page === $current ? 'active' : ''; }
+        ?>
+        <a href="index.php" class="<?= isActive('index.php', $current_page) ?>">Home</a>
 
         <?php if (isset($_SESSION['role'])): ?>
             <?php if ($_SESSION['role'] === 'fpc'): ?>
-                <a href="index.php">Dashboard</a>
-                <a href="fpc_manage_departments.php">Manage Departments</a>
-                <a href="fpc_manage_dpc.php">Manage DPC</a>
-                <a href="fpc_manage_topics.php">Manage Topics</a>
-                <a href="fpc_view_past_projects.php">Past Projects</a>
-                <a href="fpc_reports.php">Reports</a>
+                <a href="fpc_manage_departments.php" class="<?= isActive('fpc_manage_departments.php', $current_page) ?>">Departments</a>
+                <a href="fpc_manage_dpc.php" class="<?= isActive('fpc_manage_dpc.php', $current_page) ?>">Coordinators (DPC)</a>
+                <a href="fpc_manage_topics.php" class="<?= isActive('fpc_manage_topics.php', $current_page) ?>">Topics</a>
+                <a href="fpc_view_past_projects.php" class="<?= isActive('fpc_view_past_projects.php', $current_page) ?>">Archive</a>
+                <a href="fpc_reports.php" class="<?= isActive('fpc_reports.php', $current_page) ?>">Analytics</a>
             <?php elseif ($_SESSION['role'] === 'dpc'): ?>
-                <a href="index.php">Dashboard</a>
-                <a href="dpc_manage_students.php">Manage Students</a>
-                <a href="dpc_manage_supervisors.php">Manage Supervisors</a>
-                <a href="dpc_assign_supervisors.php">Assign Supervisors</a>
-                <a href="dpc_topic_validation.php">Validate Topics</a>
-                <a href="dpc_submission_schedule.php">Submission Schedule</a>
-                <a href="dpc_manage_submissions.php">Manage Submissions</a>
-                <a href="dpc_manage_panels.php">Manage Panels</a>
-                <a href="dpc_view_assessments.php">View Assessments</a>
-                <a href="dpc_reports.php">Reports</a>
-                <a href="dpc_change_password.php">Change Password</a>
+                <a href="dpc_manage_students.php" class="<?= isActive('dpc_manage_students.php', $current_page) ?>">Students</a>
+                <a href="dpc_manage_supervisors.php" class="<?= isActive('dpc_manage_supervisors.php', $current_page) ?>">Supervisors</a>
+                <a href="dpc_assign_supervisors.php" class="<?= isActive('dpc_assign_supervisors.php', $current_page) ?>">Allocation</a>
+                <a href="dpc_topic_validation.php" class="<?= isActive('dpc_topic_validation.php', $current_page) ?>">Validation</a>
+                <a href="dpc_submission_schedule.php" class="<?= isActive('dpc_submission_schedule.php', $current_page) ?>">Schedules</a>
+                <a href="dpc_manage_submissions.php" class="<?= isActive('dpc_manage_submissions.php', $current_page) ?>">Submissions</a>
+                <a href="dpc_manage_panels.php" class="<?= isActive('dpc_manage_panels.php', $current_page) ?>">Panels</a>
+                <a href="dpc_view_assessments.php" class="<?= isActive('dpc_view_assessments.php', $current_page) ?>">Assessments</a>
+                <a href="dpc_reports.php" class="<?= isActive('dpc_reports.php', $current_page) ?>">Reports</a>
+                <a href="dpc_change_password.php" class="<?= isActive('dpc_change_password.php', $current_page) ?>">Security</a>
             <?php elseif ($_SESSION['role'] === 'sup'): ?>
-                <a href="index.php">Dashboard</a>
-                <a href="sup_view_students.php">My Students</a>
-                <a href="sup_topic_validation.php">Validate Topics</a>
-                <a href="sup_manage_submissions.php">Project Submissions</a>
-                <a href="sup_manage_panels.php">Defense Panels</a>
-                <a href="sup_change_password.php">Change Password</a>
+                <a href="sup_view_students.php" class="<?= isActive('sup_view_students.php', $current_page) ?>">Students</a>
+                <a href="sup_topic_validation.php" class="<?= isActive('sup_topic_validation.php', $current_page) ?>">Validation</a>
+                <a href="sup_manage_submissions.php" class="<?= isActive('sup_manage_submissions.php', $current_page) ?>">Submissions</a>
+                <a href="sup_manage_panels.php" class="<?= isActive('sup_manage_panels.php', $current_page) ?>">Panels</a>
+                <a href="sup_change_password.php" class="<?= isActive('sup_change_password.php', $current_page) ?>">Security</a>
             <?php elseif ($_SESSION['role'] === 'stu'): ?>
-                <a href="index.php">Dashboard</a>
-                <a href="stu_submit_topic.php">Submit Topic</a>
-                <a href="stu_view_status.php">View Status</a>
-                <a href="stu_upload_report.php">Upload Report</a>
-                <a href="stu_change_password.php">Change Password</a>
+                <a href="stu_submit_topic.php" class="<?= isActive('stu_submit_topic.php', $current_page) ?>">Submit Topic</a>
+                <a href="stu_view_status.php" class="<?= isActive('stu_view_status.php', $current_page) ?>">Topic Status</a>
+                <a href="stu_upload_report.php" class="<?= isActive('stu_upload_report.php', $current_page) ?>">Upload Report</a>
+                <a href="stu_change_password.php" class="<?= isActive('stu_change_password.php', $current_page) ?>">Security</a>
             <?php elseif ($_SESSION['role'] === 'admin'): ?>
-                <a href="index.php">Dashboard</a>
-                <a href="sa_manage_faculties.php">Manage Faculty</a>
-                <a href="sa_manage_fpc.php">Manage FPC</a>
-                <a href="sa_reports.php">Reports</a>
-                <a href="sa_settings.php">System Settings</a>
+                <a href="sa_manage_faculties.php" class="<?= isActive('sa_manage_faculties.php', $current_page) ?>">Faculties</a>
+                <a href="sa_manage_fpc.php" class="<?= isActive('sa_manage_fpc.php', $current_page) ?>">FPC Manager</a>
+                <a href="sa_reports.php" class="<?= isActive('sa_reports.php', $current_page) ?>">System Audit</a>
+                <a href="sa_settings.php" class="<?= isActive('sa_settings.php', $current_page) ?>">Settings</a>
             <?php elseif ($_SESSION['role'] === 'lib'): ?>
-                <a href="index.php">Dashboard</a>
-                <a href="lib_manage_projects.php">Project Repository</a>
-                <a href="lib_generate_reports.php">Statistics</a>
+                <a href="lib_manage_projects.php" class="<?= isActive('lib_manage_projects.php', $current_page) ?>">Repository</a>
+                <a href="lib_generate_reports.php" class="<?= isActive('lib_generate_reports.php', $current_page) ?>">Stats</a>
             <?php endif; ?>
-            <a href="<?php echo PROJECT_ROOT; ?>index.php?logout=1">Logout</a>
+            <a href="<?php echo PROJECT_ROOT; ?>index.php?logout=1" style="background: rgba(231, 74, 59, 0.1); color: #e74a3b;">Logout</a>
         <?php endif; ?>
     </nav>
 

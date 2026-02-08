@@ -17,34 +17,80 @@ body {
     flex: 1;
 }
 
-/* Header Styles */
+/* Navigation & Header Overhaul */
 header {
-    background-color: #333;
-    color: #fff;
-    padding: 10px 0;
-    text-align: center;
+    background: #ffffff;
+    padding: 15px 40px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #edf2f7;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
 }
 
 header h1 {
+    font-size: 20px;
+    font-weight: 800;
+    color: #2d3748;
     margin: 0;
+    letter-spacing: -0.5px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
-/* Navigation Styles */
 nav {
-    background-color: #444;
-    padding: 10px;
-    text-align: center;
+    background: #1a202c;
+    padding: 0 40px;
+    display: flex;
+    align-items: center;
+    overflow-x: auto;
+    white-space: nowrap;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+nav::-webkit-scrollbar {
+    display: none;
 }
 
 nav a {
-    color: #fff;
+    color: #a0aec0;
     text-decoration: none;
-    margin: 0 15px;
-    font-size: 18px;
+    margin: 0;
+    padding: 18px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    border-bottom: 3px solid transparent;
 }
 
 nav a:hover {
-    text-decoration: underline;
+    color: #fff;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+nav a.active {
+    color: #fff;
+    border-bottom-color: #4e73df;
+}
+
+.user-badge {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 15px;
+    background: #f7fafc;
+    border-radius: 50px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #4a5568;
+}
+
+.user-badge i {
+    color: #4e73df;
 }
 
 /* Form Styles */
@@ -137,13 +183,26 @@ footer {
 
 /* Responsive Styles */
 @media (max-width: 768px) {
-    .card {
-        flex: 1 1 100%;
+    header {
+        padding: 10px 20px;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    header h1 {
+        font-size: 18px;
+    }
+
+    nav {
+        padding: 0 10px;
     }
 
     nav a {
-        display: block;
-        margin: 10px 0;
+        padding: 15px 12px;
+        font-size: 13px;
+    }
+
+    .card {
+        flex: 1 1 100%;
     }
 }
-
