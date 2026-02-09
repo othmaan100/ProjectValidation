@@ -16,7 +16,15 @@ $message = '';
 $status = '';
 
 // Fetch the approved topic for this student
-$stmt = $conn->prepare("SELECT * FROM project_topics WHERE student_id = ? AND status = 'approved' LIMIT 1");
+// Fetch the approved topic and supervisor info for this student
+$stmt = $conn->prepare("
+    SELECT pt.*, su.name AS supervisor_name, su.phone AS supervisor_phone, su.email AS supervisor_email
+    FROM project_topics pt
+    LEFT JOIN supervision sp ON pt.student_id = sp.student_id AND sp.status = 'active'
+    LEFT JOIN supervisors su ON sp.supervisor_id = su.id
+    WHERE pt.student_id = ? AND pt.status = 'approved' 
+    LIMIT 1
+");
 $stmt->execute([$student_id]);
 $approved_topic = $stmt->fetch();
 
@@ -147,9 +155,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['report_file'])) {
                 <div class="alert alert-<?= $status ?>"><?= $message ?></div>
             <?php endif; ?>
 
-            <div class="project-info">
-                <h3>Approved Project Title</h3>
-                <p><?= htmlspecialchars($approved_topic['topic']) ?></p>
+            <div class="project-info" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 250px;">
+                    <h3>Approved Project Title</h3>
+                    <p style="font-size: 15px; line-height: 1.4;"><?= htmlspecialchars($approved_topic['topic']) ?></p>
+                </div>
+                <div style="flex: 1; min-width: 250px; background: rgba(255,255,255,0.5); padding: 15px; border-radius: 12px; border: 1px solid rgba(102, 126, 234, 0.1);">
+                    <h3 style="color: var(--primary);"><i class="fas fa-user-tie"></i> Supervisor</h3>
+                    <p><?= htmlspecialchars($approved_topic['supervisor_name'] ?: 'Awaiting Allocation') ?></p>
+                    <?php if (!empty($approved_topic['supervisor_phone'])): ?>
+                        <p style="margin-top: 5px; font-size: 14px; color: var(--secondary);">
+                            <i class="fas fa-phone-alt"></i> <?= htmlspecialchars($approved_topic['supervisor_phone']) ?>
+                        </p>
+                    <?php endif; ?>
+                    <?php if (!empty($approved_topic['supervisor_email'])): ?>
+                        <p style="margin-top: 3px; font-size: 13px; color: #636e72;">
+                            <i class="fas fa-envelope"></i> <?= htmlspecialchars($approved_topic['supervisor_email']) ?>
+                        </p>
+                    <?php endif; ?>
+                </div>
             </div>
 
             <?php if ($approved_topic['pdf_path']): ?>

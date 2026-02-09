@@ -15,6 +15,17 @@ $student_id = $_SESSION['user_id'];
 $stmt = $conn->prepare("SELECT * FROM project_topics WHERE student_id = ? ORDER BY id DESC");
 $stmt->execute([$student_id]);
 $topics = $stmt->fetchAll();
+
+// Fetch supervisor if assigned (if any topic is approved)
+$supervisor = null;
+$stmt = $conn->prepare("
+    SELECT su.name, su.phone, su.email
+    FROM supervision sp 
+    JOIN supervisors su ON sp.supervisor_id = su.id 
+    WHERE sp.student_id = ? AND sp.status = 'active'
+");
+$stmt->execute([$student_id]);
+$supervisor = $stmt->fetch();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -51,6 +62,22 @@ $topics = $stmt->fetchAll();
         <a href="stu_dashboard.php" class="back-btn"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
         
         <div class="main-card">
+            <?php if ($supervisor): ?>
+                <div style="background: #f0f7ff; border-radius: 15px; padding: 20px; border: 1px solid #d0e1fd; margin-bottom: 30px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px;">
+                    <div>
+                        <h4 style="margin: 0; font-size: 13px; color: #636e72; text-transform: uppercase;">Assigned Supervisor</h4>
+                        <p style="margin: 5px 0 0; font-size: 18px; font-weight: 700; color: var(--primary);"><i class="fas fa-user-tie"></i> <?= htmlspecialchars($supervisor['name']) ?></p>
+                    </div>
+                    <?php if (!empty($supervisor['phone'])): ?>
+                    <div style="background: white; padding: 10px 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.03);">
+                        <h4 style="margin: 0; font-size: 11px; color: #b2bec3; text-transform: uppercase;">Contact info</h4>
+                        <p style="margin: 2px 0 0; font-size: 15px; font-weight: 700; color: var(--success);"><i class="fas fa-phone-alt"></i> <?= htmlspecialchars($supervisor['phone']) ?></p>
+                        <p style="margin: 2px 0 0; font-size: 13px; font-weight: 500; color: #636e72;"><i class="fas fa-envelope"></i> <?= htmlspecialchars($supervisor['email']) ?></p>
+                    </div>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
+
             <h1><i class="fas fa-tasks"></i> Tracking Proposals</h1>
             
             <?php if (count($topics) > 0): ?>
