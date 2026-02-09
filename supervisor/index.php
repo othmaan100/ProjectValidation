@@ -264,7 +264,10 @@ $current_session = $active_session;
                 <i class="fas fa-user-shield"></i>
                 <h2>Account Settings</h2>
                 <p>Manage your account security by updating your login password and staff profile settings.</p>
-                <a href="sup_change_password.php" class="task-btn" style="background: var(--danger);">Change Password <i class="fas fa-key"></i></a>
+                <div style="display: flex; gap: 10px; margin-top: auto;">
+                    <a href="sup_profile.php" class="task-btn" style="background: var(--primary); flex: 1;">Profile <i class="fas fa-user-tie"></i></a>
+                    <a href="sup_change_password.php" class="task-btn" style="background: var(--danger); flex: 1;">Password <i class="fas fa-key"></i></a>
+                </div>
             </div>
         </div>
     </div>

@@ -51,13 +51,13 @@ if ($student['first_login']) {
 $assigned_supervisor = null;
 if ($approved_topic) {
     $stmt = $conn->prepare("
-        SELECT su.name 
+        SELECT su.name, su.phone, su.email
         FROM supervision sp 
         JOIN supervisors su ON sp.supervisor_id = su.id 
         WHERE sp.student_id = ? AND sp.status = 'active'
     ");
     $stmt->execute([$student_id]);
-    $assigned_supervisor = $stmt->fetchColumn();
+    $assigned_supervisor = $stmt->fetch();
 }
 
 // Fetch submission schedule
@@ -224,7 +224,17 @@ if (isset($_GET['error']) && $_GET['error'] === 'schedule_closed') {
                         <p style="font-size: 14px; font-weight: 600;"><?= htmlspecialchars($approved_topic['topic']) ?></p>
                         <div class="supervisor-card">
                             <p style="margin: 0; font-size: 13px; color: #636e72;">Assigned Supervisor:</p>
-                            <p style="margin: 5px 0 0; font-weight: 700;"><i class="fas fa-user-tie"></i> <?= htmlspecialchars($assigned_supervisor ?: 'Awaiting Allocation') ?></p>
+                            <p style="margin: 5px 0 0; font-weight: 700;"><i class="fas fa-user-tie"></i> <?= htmlspecialchars($assigned_supervisor['name'] ?? 'Awaiting Allocation') ?></p>
+                            <?php if (!empty($assigned_supervisor['phone'])): ?>
+                                <p style="margin: 3px 0 0; font-size: 14px; color: var(--primary); font-weight: 600;">
+                                    <i class="fas fa-phone-alt"></i> <?= htmlspecialchars($assigned_supervisor['phone']) ?>
+                                </p>
+                            <?php endif; ?>
+                            <?php if (!empty($assigned_supervisor['email'])): ?>
+                                <p style="margin: 3px 0 0; font-size: 14px; color: #636e72;">
+                                    <i class="fas fa-envelope"></i> <?= htmlspecialchars($assigned_supervisor['email']) ?>
+                                </p>
+                            <?php endif; ?>
                         </div>
                         <div style="margin-top: 25px;">
                             <a href="stu_upload_report.php" class="btn-action" style="display: block; background: var(--primary); color: white;"><i class="fas fa-upload"></i> Upload Final Report</a>
