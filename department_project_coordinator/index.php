@@ -270,6 +270,12 @@ $approved_topics = $stmt->fetchColumn();
                 <a href="dpc_final_scores.php" class="action-btn" style="background: #e67e22;">View Final Scores <i class="fas fa-file-csv"></i></a>
             </div>
             <div class="action-card">
+                <i class="fas fa-book-open" style="color: #6c5ce7;"></i>
+                <h2>Project Guideline</h2>
+                <p>Upload the official PDF project guideline for your department students to download.</p>
+                <a href="dpc_upload_guideline.php" class="action-btn" style="background: #6c5ce7;">Upload Guideline <i class="fas fa-upload"></i></a>
+            </div>
+            <div class="action-card">
                 <i class="fas fa-user-shield"></i>
                 <h2>Security Settings</h2>
                 <p>Maintain your account security by updating your password regularly.</p>

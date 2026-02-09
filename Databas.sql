@@ -21,7 +21,11 @@ ALTER TABLE `project_topics`
 ADD COLUMN IF NOT EXISTS `report_status` enum('pending','approved','rejected','not_submitted') DEFAULT 'not_submitted',
 ADD COLUMN IF NOT EXISTS `report_feedback` text DEFAULT NULL;
 
--- 3. Create Assessment & Panel Management Tables
+-- 3. Update Departments Table (for Project Guidelines)
+ALTER TABLE `departments`
+ADD COLUMN IF NOT EXISTS `project_guideline` varchar(255) DEFAULT NULL;
+
+-- 4. Create Assessment & Panel Management Tables
 -- Defense Panels
 CREATE TABLE IF NOT EXISTS `defense_panels` (
     `id` int(11) NOT NULL AUTO_INCREMENT,
