@@ -121,47 +121,90 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['auto_allocate'])) {
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['manual_allocate'])) {
     $studentId = $_POST['student_id'];
     $supervisorId = $_POST['supervisor_id'];
-    $projectId = $_POST['project_id'];
     $currentDate = date('Y-m-d H:i:s');
     
     try {
         $conn->beginTransaction();
         
-        // Verify student and supervisor belong to this department
-        $stmt = $conn->prepare("SELECT id FROM students WHERE id = ? AND department = ?");
-        $stmt->execute([$studentId, $dept_id]);
-        if (!$stmt->fetch()) throw new Exception("Student not found in your department.");
-
         $stmt = $conn->prepare("SELECT id, current_load, max_students FROM supervisors WHERE id = ? AND department = ?");
         $stmt->execute([$supervisorId, $dept_id]);
         $supervisor = $stmt->fetch();
-        if (!$supervisor) throw new Exception("Supervisor not found in your department.");
-        
-        if ($supervisor['current_load'] >= $supervisor['max_students']) throw new Exception("Supervisor has reached maximum capacity!");
+        if (!$supervisor) throw new Exception("Supervisor not found.");
+        if ($supervisor['current_load'] >= $supervisor['max_students']) throw new Exception("Supervisor at capacity!");
 
-        // Check for existing allocation
-        $checkStmt = $conn->prepare("SELECT allocation_id FROM supervision WHERE student_id = ?");
-        $checkStmt->execute([$studentId]);
-        if ($checkStmt->rowCount() > 0) throw new Exception("Student already has an allocation!");
-        
-        // Create allocation - Removed project_id
         $stmt = $conn->prepare("INSERT INTO supervision (supervisor_id, student_id, allocation_date, status) VALUES (?, ?, ?, 'active')");
         $stmt->execute([$supervisorId, $studentId, $currentDate]);
         
-        // Update records
         $stmt = $conn->prepare("UPDATE supervisors SET current_load = current_load + 1 WHERE id = ?");
         $stmt->execute([$supervisorId]);
         
-        /*
-        if ($projectId) {
-            $stmt = $conn->prepare("UPDATE project_topics SET status = 'approved' WHERE id = ?");
-            $stmt->execute([$projectId]);
-        }
-        */
+        $conn->commit();
+        $_SESSION['success'] = "Allocation successful!";
+    } catch (Exception $e) { $conn->rollBack(); $_SESSION['error'] = $e->getMessage(); }
+    header("Location: dpc_assign_supervisors.php");
+    exit();
+}
+
+// Handle reassigning supervisor
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['reassign'])) {
+    $allocationId = $_POST['allocation_id'];
+    $newSupervisorId = $_POST['new_supervisor_id'];
+    
+    try {
+        $conn->beginTransaction();
+        
+        // Get old supervisor
+        $stmt = $conn->prepare("SELECT supervisor_id FROM supervision WHERE allocation_id = ?");
+        $stmt->execute([$allocationId]);
+        $oldSupId = $stmt->fetchColumn();
+        
+        if ($oldSupId == $newSupervisorId) throw new Exception("Already assigned to this supervisor.");
+
+        // Check new supervisor capacity
+        $stmt = $conn->prepare("SELECT current_load, max_students FROM supervisors WHERE id = ?");
+        $stmt->execute([$newSupervisorId]);
+        $newSup = $stmt->fetch();
+        if ($newSup['current_load'] >= $newSup['max_students']) throw new Exception("New supervisor at capacity!");
+
+        // Update allocation
+        $stmt = $conn->prepare("UPDATE supervision SET supervisor_id = ? WHERE allocation_id = ?");
+        $stmt->execute([$newSupervisorId, $allocationId]);
+        
+        // Update loads
+        $stmt = $conn->prepare("UPDATE supervisors SET current_load = current_load - 1 WHERE id = ?");
+        $stmt->execute([$oldSupId]);
+        $stmt = $conn->prepare("UPDATE supervisors SET current_load = current_load + 1 WHERE id = ?");
+        $stmt->execute([$newSupervisorId]);
         
         $conn->commit();
-        $_SESSION['success'] = "Manual allocation successful!";
+        $_SESSION['success'] = "Reassigned successfully!";
     } catch (Exception $e) { $conn->rollBack(); $_SESSION['error'] = $e->getMessage(); }
+    header("Location: dpc_assign_supervisors.php");
+    exit();
+}
+
+// Handle deleting allocation
+if (isset($_GET['delete_allocation'])) {
+    $id = $_GET['delete_allocation'];
+    try {
+        $conn->beginTransaction();
+        
+        // Get supervisor id to decrement load
+        $stmt = $conn->prepare("SELECT supervisor_id FROM supervision WHERE allocation_id = ?");
+        $stmt->execute([$id]);
+        $supId = $stmt->fetchColumn();
+        
+        if ($supId) {
+            $stmt = $conn->prepare("DELETE FROM supervision WHERE allocation_id = ?");
+            $stmt->execute([$id]);
+            
+            $stmt = $conn->prepare("UPDATE supervisors SET current_load = GREATEST(0, current_load - 1) WHERE id = ?");
+            $stmt->execute([$supId]);
+        }
+        
+        $conn->commit();
+        $_SESSION['success'] = "Allocation removed!";
+    } catch (Exception $e) { $conn->rollBack(); $_SESSION['error'] = "Failed to remove mapping."; }
     header("Location: dpc_assign_supervisors.php");
     exit();
 }
@@ -182,7 +225,8 @@ $stats = $statsStmt->fetch(PDO::FETCH_ASSOC);
 
 // Get data for display
 $allocStmt = $conn->prepare("
-    SELECT s.name AS student_name, s.reg_no, s.department AS student_dept,
+    SELECT sp.allocation_id, sp.student_id, sp.supervisor_id,
+           s.name AS student_name, s.reg_no, s.department AS student_dept,
            su.name AS supervisor_name, su.department AS supervisor_dept,
            GROUP_CONCAT(p.topic SEPARATOR '||') AS topics, 
            sp.allocation_date, sp.status AS allocation_status
@@ -371,7 +415,7 @@ $availableSupervisors = $supStmt->fetchAll(PDO::FETCH_ASSOC);
                                 <th>Supervisor</th>
                                 <th>Project Topic</th>
                                 <th>Allocation Date</th>
-                                <th style="text-align: center;">Status</th>
+                                <th style="text-align: right;">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -393,8 +437,15 @@ $availableSupervisors = $supStmt->fetchAll(PDO::FETCH_ASSOC);
                                         ?>
                                     </td>
                                     <td data-label="Allocation Date"><?= date('M j, Y', strtotime($alloc['allocation_date'])) ?></td>
-                                    <td data-label="Status" style="text-align: center;">
-                                        <span class="status-badge status-active">Active</span>
+                                    <td data-label="Actions" style="text-align: right;">
+                                        <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                                            <button class="btn btn-primary" style="padding: 6px 12px; font-size: 12px;" onclick="openReassign(<?= $alloc['allocation_id'] ?>, '<?= addslashes($alloc['student_name']) ?>', <?= $alloc['supervisor_id'] ?>)">
+                                                <i class="fas fa-random"></i> Reassign
+                                            </button>
+                                            <a href="?delete_allocation=<?= $alloc['allocation_id'] ?>" class="btn btn-warning" style="background: rgba(231, 74, 59, 0.1); color: #e74a3b; padding: 6px 12px; font-size: 12px;" onclick="return confirm('Remove this supervisor allocation? Student will return to unassigned list.')">
+                                                <i class="fas fa-trash"></i>
+                                            </a>
+                                        </div>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -497,6 +548,39 @@ $availableSupervisors = $supStmt->fetchAll(PDO::FETCH_ASSOC);
         </div>
     </div>
 
+    <!-- Reassign Modal -->
+    <div id="reassignModal" style="display:none; position:fixed; z-index:1001; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.5); backdrop-filter:blur(4px); align-items:center; justify-content:center;">
+        <div style="background:white; padding:40px; border-radius:30px; width:90%; max-width:500px; box-shadow:0 15px 50px rgba(0,0,0,0.2);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:25px;">
+                <h2 style="font-size:24px; color:var(--primary);">Change Supervisor</h2>
+                <i class="fas fa-times" style="cursor:pointer; font-size:20px; color:#a0aec0;" onclick="closeReassign()"></i>
+            </div>
+            <p id="reassignText" style="margin-bottom:25px; color:#4a5568; line-height:1.6;"></p>
+            <form method="POST">
+                <input type="hidden" name="allocation_id" id="modalAllocId">
+                <div class="form-group">
+                    <label>Select New Supervisor</label>
+                    <select name="new_supervisor_id" id="newSupSelect" class="form-control select2" required>
+                        <?php 
+                        // Fetch all supervisors for the department to allow switching
+                        $allSupStmt = $conn->prepare("SELECT * FROM supervisors WHERE department = ? ORDER BY name");
+                        $allSupStmt->execute([$dept_id]);
+                        $allSupervisors = $allSupStmt->fetchAll(PDO::FETCH_ASSOC);
+                        foreach ($allSupervisors as $sup): ?>
+                            <option value="<?= $sup['id'] ?>">
+                                <?= htmlspecialchars($sup['name']) ?> (Slots: <?= $sup['max_students'] - $sup['current_load'] ?>)
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div style="margin-top:30px; display:flex; gap:12px;">
+                    <button type="button" class="btn btn-cancel" style="flex:1; justify-content:center; background:#f7fafc; color:#4a5568; border:1px solid #e2e8f0;" onclick="closeReassign()">Cancel</button>
+                    <button type="submit" name="reassign" class="btn btn-primary" style="flex:2; justify-content:center;">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script>
@@ -515,7 +599,20 @@ $availableSupervisors = $supStmt->fetchAll(PDO::FETCH_ASSOC);
             document.getElementById(id).classList.add('active');
         }
 
-        /* Project ID linkage is handled automatically via student_id now */
+        function openReassign(allocId, studentName, currentSupId) {
+            document.getElementById('modalAllocId').value = allocId;
+            document.getElementById('reassignText').innerHTML = `Currently reassigning supervisor for <strong>${studentName}</strong>. Please select the new supervisor from the list below.`;
+            $('#newSupSelect').val(currentSupId).trigger('change');
+            document.getElementById('reassignModal').style.display = 'flex';
+        }
+
+        function closeReassign() {
+            document.getElementById('reassignModal').style.display = 'none';
+        }
+
+        window.onclick = function(event) {
+            if (event.target == document.getElementById('reassignModal')) closeReassign();
+        }
     </script>
     <?php include_once __DIR__ . '/../includes/footer.php'; ?>
 </body>
