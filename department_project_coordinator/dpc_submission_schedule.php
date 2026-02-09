@@ -264,7 +264,7 @@ $active_val = $schedule ? ($schedule['is_active'] ? 'checked' : '') : 'checked';
 
         <div class="card" style="margin-top: 30px;">
             <div class="header">
-                <h1><i class="fas fa-user-clock" style="color: var(--success);"></i> Individual Student Overrides</h1>
+                <h1><i class="fas fa-user-clock" style="color: #1cc88a;"></i> Individual Student Overrides</h1>
                 <p>Grant specific students access even when the general window is closed.</p>
             </div>
 
@@ -289,12 +289,13 @@ $active_val = $schedule ? ($schedule['is_active'] ? 'checked' : '') : 'checked';
                         <input type="datetime-local" name="override_end" class="input-styled" required>
                     </div>
                 </div>
-                <button type="submit" class="btn-save" style="background: var(--success);">
+                <!-- VIBRANT BUTTON COLOR FOR VISIBILITY -->
+                <button type="submit" class="btn-save" style="background: #1cc88a;">
                     Grant Individual Access <i class="fas fa-plus"></i>
                 </button>
             </form>
 
-            <h3>Existing Overrides</h3>
+            <h3 style="margin-bottom: 15px;">Existing Overrides</h3>
             <?php if (empty($overrides)): ?>
                 <p style="text-align: center; color: #888; padding: 20px;">No individual student overrides found.</p>
             <?php else: ?>
@@ -304,7 +305,7 @@ $active_val = $schedule ? ($schedule['is_active'] ? 'checked' : '') : 'checked';
                             <th style="padding: 10px;">Student</th>
                             <th style="padding: 10px;">Window</th>
                             <th style="padding: 10px;">Status</th>
-                            <th style="padding: 10px;">Action</th>
+                            <th style="padding: 10px; text-align: center;">Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -319,16 +320,16 @@ $active_val = $schedule ? ($schedule['is_active'] ? 'checked' : '') : 'checked';
                                     <strong><?= htmlspecialchars($ov['name']) ?></strong><br>
                                     <small><?= htmlspecialchars($ov['reg_no']) ?></small>
                                 </td>
-                                <td data-label="Window" style="padding: 10px;">
-                                    <small><?= date('M d, H:i', $ov_start) ?> - <?= date('M d, H:i', $ov_end) ?></small>
+                                <td data-label="Window" style="padding: 10px; font-size: 13px;">
+                                    <?= date('M d, H:i', $ov_start) ?> - <?= date('M d, H:i', $ov_end) ?>
                                 </td>
                                 <td data-label="Status" style="padding: 10px;">
-                                    <span style="color: <?= $is_current ? 'var(--success)' : 'var(--danger)' ?>; font-weight: bold;">
+                                    <span style="color: <?= $is_current ? '#1cc88a' : '#e74a3b' ?>; font-weight: bold; font-size: 12px;">
                                         <?= $is_current ? 'Active' : 'Expired/Future' ?>
                                     </span>
                                 </td>
-                                <td data-label="Action" style="padding: 10px;">
-                                    <a href="?delete_override=<?= $ov['id'] ?>" style="color: var(--danger);" onclick="return confirm('Remove student override?')"><i class="fas fa-trash"></i></a>
+                                <td data-label="Action" style="padding: 10px; text-align: center;">
+                                    <a href="?delete_override=<?= $ov['id'] ?>" style="color: #e74a3b; font-size: 18px;" onclick="return confirm('Remove student override?')"><i class="fas fa-trash-alt"></i></a>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
