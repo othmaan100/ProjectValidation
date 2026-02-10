@@ -261,6 +261,12 @@ $current_session = $active_session;
                 <a href="sup_manage_submissions.php" class="task-btn" style="background: var(--success);">Manage Submissions <i class="fas fa-file-export"></i></a>
             </div>
             <div class="task-card">
+                <i class="fas fa-list-ol" style="color: #e67e22;"></i>
+                <h2>Chapter Approvals</h2>
+                <p>Monitor and approve individual chapters (Chapter 1-5) as your students complete them. Track real-time project progress.</p>
+                <a href="sup_chapter_approvals.php" class="task-btn" style="background: #e67e22;">Manage Chapters <i class="fas fa-check-circle"></i></a>
+            </div>
+            <div class="task-card">
                 <i class="fas fa-user-shield"></i>
                 <h2>Account Settings</h2>
                 <p>Manage your account security by updating your login password and staff profile settings.</p>

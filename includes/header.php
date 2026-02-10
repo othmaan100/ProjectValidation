@@ -99,12 +99,14 @@ if (!defined('PROJECT_ROOT')) {
                 <a href="dpc_manage_submissions.php" class="<?= isActive('dpc_manage_submissions.php', $current_page) ?>">Submissions</a>
                 <a href="dpc_manage_panels.php" class="<?= isActive('dpc_manage_panels.php', $current_page) ?>">Panels</a>
                 <a href="dpc_view_assessments.php" class="<?= isActive('dpc_view_assessments.php', $current_page) ?>">Assessments</a>
+                <a href="dpc_chapter_reports.php" class="<?= isActive('dpc_chapter_reports.php', $current_page) ?>">Chapter Progress</a>
                 <a href="dpc_reports.php" class="<?= isActive('dpc_reports.php', $current_page) ?>">Reports</a>
                 <a href="dpc_change_password.php" class="<?= isActive('dpc_change_password.php', $current_page) ?>">Security</a>
             <?php elseif ($_SESSION['role'] === 'sup'): ?>
                 <a href="sup_view_students.php" class="<?= isActive('sup_view_students.php', $current_page) ?>">Students</a>
                 <a href="sup_topic_validation.php" class="<?= isActive('sup_topic_validation.php', $current_page) ?>">Validation</a>
                 <a href="sup_manage_submissions.php" class="<?= isActive('sup_manage_submissions.php', $current_page) ?>">Submissions</a>
+                <a href="sup_chapter_approvals.php" class="<?= isActive('sup_chapter_approvals.php', $current_page) ?>">Chapters</a>
                 <a href="sup_manage_panels.php" class="<?= isActive('sup_manage_panels.php', $current_page) ?>">Panels</a>
                 <a href="sup_change_password.php" class="<?= isActive('sup_change_password.php', $current_page) ?>">Security</a>
             <?php elseif ($_SESSION['role'] === 'stu'): ?>

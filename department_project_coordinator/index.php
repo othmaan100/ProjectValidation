@@ -276,6 +276,18 @@ $approved_topics = $stmt->fetchColumn();
                 <a href="dpc_upload_guideline.php" class="action-btn" style="background: #6c5ce7;">Upload Guideline <i class="fas fa-upload"></i></a>
             </div>
             <div class="action-card">
+                <i class="fas fa-tasks" style="color: #f39c12;"></i>
+                <h2>Chapter Settings</h2>
+                <p>Define the number of chapters required for projects in your department. Default is usually 5.</p>
+                <a href="dpc_chapter_settings.php" class="action-btn" style="background: #f39c12;">Set Chapters <i class="fas fa-cog"></i></a>
+            </div>
+            <div class="action-card">
+                <i class="fas fa-chart-line" style="color: #d35400;"></i>
+                <h2>Chapter Progress</h2>
+                <p>Track the chapter approval status for all students. Monitor which students are falling behind and print completion reports.</p>
+                <a href="dpc_chapter_reports.php" class="action-btn" style="background: #d35400;">View Progress <i class="fas fa-print"></i></a>
+            </div>
+            <div class="action-card">
                 <i class="fas fa-user-shield"></i>
                 <h2>Security Settings</h2>
                 <p>Maintain your account security by updating your password regularly.</p>

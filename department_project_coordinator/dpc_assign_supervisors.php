@@ -339,6 +339,19 @@ $availableSupervisors = $supStmt->fetchAll(PDO::FETCH_ASSOC);
             .status-badge { width: 100%; justify-content: center; display: flex; }
             .btn { width: 100%; justify-content: center; margin-bottom: 10px; }
         }
+        @media print {
+            .no-print, header, nav, .tabs, .stats-grid, .header-actions, .stat-card, footer, .btn-primary, .btn-warning, .pagination { display: none !important; }
+            body { background: white !important; padding: 0 !important; }
+            .page-container { max-width: 100% !important; padding: 0 !important; margin: 0 !important; }
+            .main-card { background: white !important; box-shadow: none !important; padding: 0 !important; }
+            .header-card { background: white !important; box-shadow: none !important; border-bottom: 2px solid #333 !important; border-radius: 0 !important; }
+            table { border: 1px solid #333 !important; border-radius: 0 !important; width: 100% !important; margin-top: 20px !important; }
+            th, td { border: 1px solid #333 !important; padding: 8px !important; color: black !important; -webkit-print-color-adjust: exact; }
+            th { background: #f0f0f0 !important; }
+            .allocation-print-header { display: block !important; }
+            @page { margin: 1.5cm; }
+        }
+        .allocation-print-header { display: none; text-align: center; margin-bottom: 30px; }
     </style>
 </head>
 <body>
@@ -348,16 +361,23 @@ $availableSupervisors = $supStmt->fetchAll(PDO::FETCH_ASSOC);
     <div class="page-container">
         <div class="header-card">
             <div>
-                <h1><i class="fas fa-sitemap"></i> Supervisor Allocation</h1>
+                <h1><i class="fas fa-sitemap no-print"></i> Supervisor Allocation</h1>
                 <p style="color: #636e72; margin-top: 5px;">Department of <?= htmlspecialchars($dept_name) ?></p>
             </div>
             <div class="header-actions">
+                <button onclick="window.print()" class="btn btn-primary no-print" style="margin-right: 10px; background: #2d3436;"><i class="fas fa-print"></i> Print List</button>
                 <?php if ($stats['unassigned_count'] > 0 && $stats['available_sup'] > 0): ?>
-                    <form method="POST">
+                    <form method="POST" style="display: inline-block;">
                         <button type="submit" name="auto_allocate" class="btn btn-success"><i class="fas fa-magic"></i> Auto Allocate</button>
                     </form>
                 <?php endif; ?>
             </div>
+        </div>
+
+        <div class="allocation-print-header">
+            <h2>PROJECT ALLOCATION LIST</h2>
+            <h3>Department of <?= htmlspecialchars($dept_name) ?></h3>
+            <p>Session: <?= $current_session ?></p>
         </div>
 
         <?php if (isset($_SESSION['success'])): ?>
@@ -414,8 +434,8 @@ $availableSupervisors = $supStmt->fetchAll(PDO::FETCH_ASSOC);
                                 <th>Reg No</th>
                                 <th>Supervisor</th>
                                 <th>Project Topic</th>
-                                <th>Allocation Date</th>
-                                <th style="text-align: right;">Actions</th>
+                                <th class="no-print">Allocation Date</th>
+                                <th style="text-align: right;" class="no-print">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -436,8 +456,8 @@ $availableSupervisors = $supStmt->fetchAll(PDO::FETCH_ASSOC);
                                         }
                                         ?>
                                     </td>
-                                    <td data-label="Allocation Date"><?= date('M j, Y', strtotime($alloc['allocation_date'])) ?></td>
-                                    <td data-label="Actions" style="text-align: right;">
+                                    <td data-label="Allocation Date" class="no-print"><?= date('M j, Y', strtotime($alloc['allocation_date'])) ?></td>
+                                    <td data-label="Actions" style="text-align: right;" class="no-print">
                                         <div style="display: flex; gap: 8px; justify-content: flex-end;">
                                             <button class="btn btn-primary" style="padding: 6px 12px; font-size: 12px;" onclick="openReassign(<?= $alloc['allocation_id'] ?>, '<?= addslashes($alloc['student_name']) ?>', <?= $alloc['supervisor_id'] ?>)">
                                                 <i class="fas fa-random"></i> Reassign
