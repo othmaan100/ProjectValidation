@@ -78,6 +78,7 @@ while($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
 </head>
 <body style="background: #f7fafc;">
     <?php include_once __DIR__ . '/../includes/header.php'; ?>
+    </div> <!-- Close header's container -->
     
     <div class="container">
         <div style="margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center;">

@@ -8,74 +8,38 @@ if (!defined('PROJECT_ROOT')) {
     define('PROJECT_ROOT', $base_path);
 }
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Project Topics Validation System</title>
-    <link rel="stylesheet" href="../assets/css/styles.css">
-    <script src="../assets/js/scripts.js" defer></script>
-    <style>
-        /* Modal styles */
-        .modal {
-            display: none; /* Hidden by default */
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent background */
-        }
+<!-- Core CSS & Icons -->
+<link rel="stylesheet" href="<?= PROJECT_ROOT ?>assets/css/styles.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="<?= PROJECT_ROOT ?>assets/js/scripts.js" defer></script>
 
-        .modal-content {
-            background-color: #fff;
-            margin: 15% auto;
-            padding: 20px;
-            border: 1px solid #888;
-            border-radius: 5px;
-            width: 300px;
-            text-align: center;
+<script>
+    // Global function to open the message modal
+    function showMessageModal(message) {
+        const modal = document.getElementById('messageModal');
+        const text = document.getElementById('messageText');
+        if (modal && text) {
+            text.innerText = message;
+            modal.style.display = 'block';
         }
+    }
 
-        .modal-content button {
-            background-color: #333;
-            color: #fff;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
+    // Global function to close the message modal
+    function closeMessageModal() {
+        const modal = document.getElementById('messageModal');
+        if (modal) modal.style.display = 'none';
+    }
+</script>
 
-        .modal-content button:hover {
-            background-color: #555;
-        }
-    </style>
-    <script>
-        // Function to open the message modal
-        function showMessageModal(message) {
-            document.getElementById('messageText').innerText = message;
-            document.getElementById('messageModal').style.display = 'block';
-        }
-
-        // Function to close the message modal
-        function closeMessageModal() {
-            document.getElementById('messageModal').style.display = 'none';
-        }
-    </script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-</head>
-<body>
-    <header>
-        <h1><i class="fas fa-shield-halved" style="color: #4e73df;"></i> PV-Systems</h1>
-        <?php if (isset($_SESSION['role'])): ?>
-            <div class="user-badge">
-                <i class="fas fa-user-circle"></i>
-                <span>Role: <span style="text-transform: uppercase;"><?php echo $_SESSION['role']; ?></span></span>
-            </div>
-        <?php endif; ?>
-    </header>
+<header>
+    <h1><i class="fas fa-shield-halved" style="color: #4e73df;"></i> PV-Systems</h1>
+    <?php if (isset($_SESSION['role'])): ?>
+        <div class="user-badge">
+            <i class="fas fa-user-circle"></i>
+            <span>Role: <span style="text-transform: uppercase;"><?php echo $_SESSION['role']; ?></span></span>
+        </div>
+    <?php endif; ?>
+</header>
     <nav>
         <?php 
             $current_page = basename($_SERVER['PHP_SELF']); 

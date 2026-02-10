@@ -52,18 +52,31 @@ $report_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
         .print-btn { background: #1a202c; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; }
         
         @media print {
-            .no-print { display: none !important; }
-            body { background: white !important; }
-            .container { width: 100% !important; max-width: 100% !important; padding: 0 !important; }
-            .report-table { font-size: 12px; }
-            @page { margin: 1cm; }
+            .no-print, header, nav, footer, .print-btn { display: none !important; }
+            html, body { 
+                background: white !important; 
+                display: block !important;
+                height: auto !important;
+                min-height: 0 !important;
+            }
+            .container { 
+                width: 100% !important; 
+                max-width: 100% !important; 
+                padding: 0 !important; 
+                margin: 0 !important;
+                display: block !important;
+                box-shadow: none !important;
+            }
+            .report-table { font-size: 12px; border: 1px solid #000 !important; }
+            .report-table th, .report-table td { border: 1px solid #000 !important; color: #000 !important; }
+            .print-only { display: block !important; }
+            @page { margin: 1.5cm; }
         }
     </style>
 </head>
 <body style="background: #f8fafc;">
-    <div class="no-print">
-        <?php include_once __DIR__ . '/../includes/header.php'; ?>
-    </div>
+    <?php include_once __DIR__ . '/../includes/header.php'; ?>
+    </div> <!-- Close header's container -->
 
     <div class="container" style="padding: 40px 20px;">
         <div class="report-header">
@@ -128,11 +141,6 @@ $report_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
             </div>
         </div>
     </div>
-
-    <style>
-        @media print {
-            .print-only { display: block !important; }
-        }
-    </style>
+    </div>
 </body>
 </html>

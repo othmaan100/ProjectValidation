@@ -64,6 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_chapters'])) {
 </head>
 <body style="background: #f0f2f5;">
     <?php include_once __DIR__ . '/../includes/header.php'; ?>
+    </div> <!-- Close header's container -->
     
     <div class="container">
         <div class="settings-card">
