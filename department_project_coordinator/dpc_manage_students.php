@@ -172,9 +172,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
                 throw new Exception("Error uploading file.");
             }
 
+            $fileInfo = pathinfo($_FILES['csv_file']['name']);
+            if (strtolower($fileInfo['extension']) !== 'csv') {
+                throw new Exception("Invalid file type. Please upload a CSV file.");
+            }
+
             $file = $_FILES['csv_file']['tmp_name'];
             $handle = fopen($file, 'r');
-            fgetcsv($handle); // skip header (Expected: reg_no, name, phone, email)
+            
+            // Validate Header
+            $header = fgetcsv($handle);
+            if ($header === false) {
+                fclose($handle);
+                throw new Exception("File reads as empty or is invalid.");
+            }
+            
+            $expectedHeader = ['reg_no', 'name', 'phone', 'email'];
+            
+            // Normalize header for comparison (trim and lowercase)
+            $normalizedHeader = array_map(function($h) { return strtolower(trim($h)); }, $header);
+            
+            if ($normalizedHeader !== $expectedHeader) {
+                fclose($handle);
+                throw new Exception("Invalid CSV format. Expected order: " . implode(', ', $expectedHeader));
+            }
 
             $successCount = 0;
             $errorCount = 0;

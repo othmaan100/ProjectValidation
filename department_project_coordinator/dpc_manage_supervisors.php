@@ -37,7 +37,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
             $staff_no = trim($_POST['staff_no']);
             $name = trim($_POST['name']);
             $email = trim($_POST['email'] ?? '');
-            $phone = trim($_POST['phone'] ?? '');
             $max_students = intval($_POST['max_students'] ?: 10);
 
             if (empty($staff_no) || empty($name)) {
@@ -60,9 +59,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
                 $stmt->execute([$staff_no, $password, $name, $email, $dept_id]);
                 $user_id = $conn->lastInsertId();
 
-                // Insert into supervisors - Removed password column
-                $stmt = $conn->prepare("INSERT INTO supervisors (id, staff_no, name, email, phone, department, max_students, current_load) VALUES (?, ?, ?, ?, ?, ?, ?, 0)");
-                $stmt->execute([$user_id, $staff_no, $name, $email, $phone, $dept_id, $max_students]);
+                $stmt = $conn->prepare("INSERT INTO supervisors (id, staff_no, name, email, department, max_students, current_load) VALUES (?, ?, ?, ?, ?, ?, 0)");
+                $stmt->execute([$user_id, $staff_no, $name, $email, $dept_id, $max_students]);
                 
                 $conn->commit();
                 $response['success'] = true;
@@ -76,7 +74,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
             $staff_no = trim($_POST['staff_no']);
             $name = trim($_POST['name']);
             $email = trim($_POST['email'] ?? '');
-            $phone = trim($_POST['phone'] ?? '');
             $max_students = intval($_POST['max_students']);
 
             if (empty($staff_no) || empty($name)) {
@@ -85,8 +82,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
 
             $conn->beginTransaction();
             try {
-                $stmt = $conn->prepare("UPDATE supervisors SET staff_no = ?, name = ?, email = ?, phone = ?, max_students = ? WHERE id = ? AND department = ?");
-                $stmt->execute([$staff_no, $name, $email, $phone, $max_students, $id, $dept_id]);
+            $stmt = $conn->prepare("UPDATE supervisors SET staff_no = ?, name = ?, email = ?, max_students = ? WHERE id = ? AND department = ?");
+            $stmt->execute([$staff_no, $name, $email, $max_students, $id, $dept_id]);
                 
                 if ($stmt->rowCount() === 0) throw new Exception("Supervisor not found or doesn't belong to your department.");
 
@@ -148,9 +145,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
                 throw new Exception("Error uploading file.");
             }
 
+            $fileInfo = pathinfo($_FILES['csv_file']['name']);
+            if (strtolower($fileInfo['extension']) !== 'csv') {
+                throw new Exception("Invalid file type. Please upload a CSV file.");
+            }
+
             $file = $_FILES['csv_file']['tmp_name'];
             $handle = fopen($file, 'r');
-            fgetcsv($handle); // skip header (Expected: staff_no, name, email, max_students)
+            
+            // Validate Header
+            $header = fgetcsv($handle);
+            if ($header === false) {
+                fclose($handle);
+                throw new Exception("File reads as empty or is invalid.");
+            }
+            
+            $expectedHeader = ['staff_no', 'name', 'email', 'max_students'];
+            
+            // Normalize header for comparison (trim and lowercase)
+            $normalizedHeader = array_map(function($h) { return strtolower(trim($h)); }, $header);
+            
+            if ($normalizedHeader !== $expectedHeader) {
+                fclose($handle);
+                throw new Exception("Invalid CSV format. Expected: " . implode(', ', $expectedHeader));
+            }
 
             $successCount = 0;
             $errorCount = 0;
@@ -298,7 +316,7 @@ $supervisors = $stmt->fetchAll(PDO::FETCH_ASSOC);
                             <td><code><?= htmlspecialchars($s['staff_no']) ?></code></td>
                             <td>
                                  <div><small><i class="fas fa-envelope"></i> <?= htmlspecialchars($s['email'] ?: 'N/A') ?></small></div>
-                                 <div><small><i class="fas fa-phone"></i> <?= htmlspecialchars($s['phone'] ?: 'No Phone') ?></small></div>
+
                                  <div><small><i class="fas fa-users"></i> Load: <?= $s['current_load'] ?> / <?= $s['max_students'] ?></small></div>
                             </td>
                             <td>
@@ -349,10 +367,7 @@ $supervisors = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         <label>Email Address</label>
                         <input type="email" name="email" id="f-email" class="form-control" placeholder="staff@example.com">
                     </div>
-                    <div class="form-group">
-                        <label>Phone Number</label>
-                        <input type="text" name="phone" id="f-phone" class="form-control" placeholder="e.g. 08012345678">
-                    </div>
+
                     <div class="form-group">
                         <label>Max Student Load</label>
                         <input type="number" name="max_students" id="f-max" class="form-control" value="10" min="1">
@@ -416,7 +431,7 @@ $supervisors = $stmt->fetchAll(PDO::FETCH_ASSOC);
             document.getElementById('f-staff').value=d.staff_no;
             document.getElementById('f-name').value=d.name;
             document.getElementById('f-email').value=d.email;
-            document.getElementById('f-phone').value=d.phone;
+
             document.getElementById('f-max').value=d.max_students;
             openModal('supModal');
         }
