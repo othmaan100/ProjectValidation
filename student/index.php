@@ -51,7 +51,7 @@ if ($student['first_login']) {
 $assigned_supervisor = null;
 if ($approved_topic) {
     $stmt = $conn->prepare("
-        SELECT su.name, su.phone, su.email
+        SELECT su.id, su.name, su.phone, su.email
         FROM supervision sp 
         JOIN supervisors su ON sp.supervisor_id = su.id 
         WHERE sp.student_id = ? AND sp.status = 'active'
@@ -242,6 +242,18 @@ if (isset($_GET['error']) && $_GET['error'] === 'schedule_closed') {
                     </div>
                 <?php else: ?>
                     <div class="content-card" style="text-align: center;"><i class="fas fa-hourglass-half" style="font-size: 40px; color: var(--warning); margin-bottom: 15px;"></i><p style="font-size: 14px; color: #636e72;">You have submitted all 3 proposals. Please await coordinator review.</p></div>
+                <?php endif; ?>
+
+                <?php if ($assigned_supervisor): ?>
+                    <div class="content-card" style="margin-top: 25px;">
+                        <h2><i class="fas fa-comment-dots" style="color: var(--primary);"></i> Supervisor Chat</h2>
+                        <p style="font-size: 13px; color: #636e72; margin-bottom: 15px;">
+                            Have a question or need feedback on your project? Chat directly with your supervisor.
+                        </p>
+                        <a href="../app_messages.php?contact=<?= $assigned_supervisor['id'] ?>" class="btn-action" style="display: block; width: 100%; text-align: center; box-sizing: border-box; background: var(--primary); color: white;">
+                            <i class="fas fa-comments"></i> Start Conversation
+                        </a>
+                    </div>
                 <?php endif; ?>
 
                 <?php if (!empty($student['project_guideline'])): ?>

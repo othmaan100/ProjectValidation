@@ -288,6 +288,12 @@ $approved_topics = $stmt->fetchColumn();
                 <a href="dpc_chapter_reports.php" class="action-btn" style="background: #d35400;">View Progress <i class="fas fa-print"></i></a>
             </div>
             <div class="action-card">
+                <i class="fas fa-envelope-open-text" style="color: #4e73df;"></i>
+                <h2>In-App Messaging</h2>
+                <p>Communicate directly with departmental supervisors. Send instructions, feedback, and project-wide announcements.</p>
+                <a href="../app_messages.php" class="action-btn" style="background: #4e73df;">Open Conversations <i class="fas fa-comments"></i></a>
+            </div>
+            <div class="action-card">
                 <i class="fas fa-user-shield"></i>
                 <h2>Security Settings</h2>
                 <p>Maintain your account security by updating your password regularly.</p>

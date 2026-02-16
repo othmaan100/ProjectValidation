@@ -43,9 +43,17 @@ if (!defined('PROJECT_ROOT')) {
     <nav>
         <?php 
             $current_page = basename($_SERVER['PHP_SELF']); 
-            function isActive($page, $current) { return $page === $current ? 'active' : ''; }
+            function isActive($page, $current) { return strpos($current, $page) !== false ? 'active' : ''; }
+            
+            // Get unread message count
+            $unread_count = 0;
+            if (isset($_SESSION['user_id'])) {
+                $stmt = $conn->prepare("SELECT COUNT(*) FROM messages WHERE receiver_id = ? AND is_read = 0");
+                $stmt->execute([$_SESSION['user_id']]);
+                $unread_count = $stmt->fetchColumn();
+            }
         ?>
-        <a href="index.php" class="<?= isActive('index.php', $current_page) ?>">Home</a>
+        <a href="<?= PROJECT_ROOT ?>index.php" class="<?= isActive('index.php', $current_page) ?>">Home</a>
 
         <?php if (isset($_SESSION['role'])): ?>
             <?php if ($_SESSION['role'] === 'fpc'): ?>
@@ -64,6 +72,9 @@ if (!defined('PROJECT_ROOT')) {
                 <a href="dpc_manage_panels.php" class="<?= isActive('dpc_manage_panels.php', $current_page) ?>">Panels</a>
                 <a href="dpc_view_assessments.php" class="<?= isActive('dpc_view_assessments.php', $current_page) ?>">Assessments</a>
                 <a href="dpc_chapter_reports.php" class="<?= isActive('dpc_chapter_reports.php', $current_page) ?>">Chapter Progress</a>
+                <a href="<?= PROJECT_ROOT ?>app_messages.php" class="<?= isActive('app_messages.php', $current_page) ?>">
+                    Messages <?php if($unread_count > 0): ?><span style="background: #e74a3b; color: white; padding: 2px 6px; border-radius: 50%; font-size: 10px;"><?= $unread_count ?></span><?php endif; ?>
+                </a>
                 <a href="dpc_reports.php" class="<?= isActive('dpc_reports.php', $current_page) ?>">Reports</a>
                 <a href="dpc_change_password.php" class="<?= isActive('dpc_change_password.php', $current_page) ?>">Security</a>
             <?php elseif ($_SESSION['role'] === 'sup'): ?>
@@ -71,12 +82,18 @@ if (!defined('PROJECT_ROOT')) {
                 <a href="sup_topic_validation.php" class="<?= isActive('sup_topic_validation.php', $current_page) ?>">Validation</a>
                 <a href="sup_manage_submissions.php" class="<?= isActive('sup_manage_submissions.php', $current_page) ?>">Submissions</a>
                 <a href="sup_chapter_approvals.php" class="<?= isActive('sup_chapter_approvals.php', $current_page) ?>">Chapters</a>
+                <a href="<?= PROJECT_ROOT ?>app_messages.php" class="<?= isActive('app_messages.php', $current_page) ?>">
+                    Messages <?php if($unread_count > 0): ?><span style="background: #e74a3b; color: white; padding: 2px 6px; border-radius: 50%; font-size: 10px;"><?= $unread_count ?></span><?php endif; ?>
+                </a>
                 <a href="sup_manage_panels.php" class="<?= isActive('sup_manage_panels.php', $current_page) ?>">Panels</a>
                 <a href="sup_change_password.php" class="<?= isActive('sup_change_password.php', $current_page) ?>">Security</a>
             <?php elseif ($_SESSION['role'] === 'stu'): ?>
                 <a href="stu_submit_topic.php" class="<?= isActive('stu_submit_topic.php', $current_page) ?>">Submit Topic</a>
-                <a href="stu_view_status.php" class="<?= isActive('stu_view_status.php', $current_page) ?>">Topic Status</a>
+                <a href="stu_view_status.php" class="<?= isActive('stu_view_status.php', $current_page) ?>">Status</a>
                 <a href="stu_upload_report.php" class="<?= isActive('stu_upload_report.php', $current_page) ?>">Upload Report</a>
+                <a href="<?= PROJECT_ROOT ?>app_messages.php" class="<?= isActive('app_messages.php', $current_page) ?>">
+                    Messages <?php if($unread_count > 0): ?><span style="background: #e74a3b; color: white; padding: 2px 6px; border-radius: 50%; font-size: 10px;"><?= $unread_count ?></span><?php endif; ?>
+                </a>
                 <a href="stu_change_password.php" class="<?= isActive('stu_change_password.php', $current_page) ?>">Security</a>
             <?php elseif ($_SESSION['role'] === 'admin'): ?>
                 <a href="sa_manage_faculties.php" class="<?= isActive('sa_manage_faculties.php', $current_page) ?>">Faculties</a>

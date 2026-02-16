@@ -267,6 +267,12 @@ $current_session = $active_session;
                 <a href="sup_chapter_approvals.php" class="task-btn" style="background: #e67e22;">Manage Chapters <i class="fas fa-check-circle"></i></a>
             </div>
             <div class="task-card">
+                <i class="fas fa-envelope-open-text" style="color: var(--primary);"></i>
+                <h2>In-App Messaging</h2>
+                <p>Discuss project details with your students or communicate directly with the Departmental Coordinator (DPC).</p>
+                <a href="../app_messages.php" class="task-btn" style="background: var(--primary);">Open Messages <i class="fas fa-comments"></i></a>
+            </div>
+            <div class="task-card">
                 <i class="fas fa-user-shield"></i>
                 <h2>Account Settings</h2>
                 <p>Manage your account security by updating your login password and staff profile settings.</p>
