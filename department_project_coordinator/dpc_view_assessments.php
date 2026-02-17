@@ -28,14 +28,14 @@ $query = "
         s.reg_no,
         dp.panel_name,
         dp.panel_type,
-        GROUP_CONCAT(CONCAT(sup.name, ': ', ds.score) SEPARATOR ' | ') as individual_scores,
+        GROUP_CONCAT(CONCAT(u.name, ': ', ds.score) SEPARATOR ' | ') as individual_scores,
         AVG(ds.score) as average_score,
         COUNT(ds.score) as score_count
     FROM students s
     JOIN student_panel_assignments spa ON s.id = spa.student_id
     JOIN defense_panels dp ON spa.panel_id = dp.id
     LEFT JOIN defense_scores ds ON s.id = ds.student_id AND ds.panel_id = dp.id
-    LEFT JOIN supervisors sup ON ds.supervisor_id = sup.id
+    LEFT JOIN users u ON ds.supervisor_id = u.id
     WHERE s.department = ? AND spa.academic_session = ?
     GROUP BY s.id, dp.id, dp.panel_type
     ORDER BY FIELD(dp.panel_type, 'proposal', 'internal', 'external'), dp.panel_name, s.name

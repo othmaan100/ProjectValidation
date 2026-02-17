@@ -32,6 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $_SESSION['user_id'] = $student['id'];
                 $_SESSION['reg_no'] = $student['reg_no'];
                 $_SESSION['role'] = 'stu';
+                $_SESSION['department'] = $student['department'];
 
                 // Redirect to change password if first login
                 if ($student['first_login'] == 1) {

@@ -25,9 +25,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_panel'])) {
     $panel_name = trim($_POST['panel_name']);
     $panel_type = $_POST['panel_type'];
     $max_students = (int)$_POST['max_students'];
-    $supervisor_ids = $_POST['supervisor_ids'] ?? [];
+    $member_ids = $_POST['member_ids'] ?? [];
 
-    if (!empty($panel_name) && !empty($panel_type) && !empty($supervisor_ids) && $max_students > 0) {
+    if (!empty($panel_name) && !empty($panel_type) && !empty($member_ids) && $max_students > 0) {
         try {
             $conn->beginTransaction();
             
@@ -35,9 +35,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_panel'])) {
             $stmt->execute([$panel_name, $panel_type, $dept_id, $max_students]);
             $panel_id = $conn->lastInsertId();
 
+            // Store in panel_members. Note: we use supervisor_id column to store users.id (could be sup or ext)
             $stmt = $conn->prepare("INSERT INTO panel_members (panel_id, supervisor_id) VALUES (?, ?)");
-            foreach ($supervisor_ids as $sup_id) {
-                $stmt->execute([$panel_id, $sup_id]);
+            foreach ($member_ids as $mid) {
+                // Verify that if type is 'external', the member is an 'ext' role user
+                if ($panel_type === 'external') {
+                    $cstmt = $conn->prepare("SELECT role FROM users WHERE id = ?");
+                    $cstmt->execute([$mid]);
+                    if ($cstmt->fetchColumn() !== 'ext') throw new Exception("Only external examiners can be added to an External Defense Panel.");
+                } else {
+                    $cstmt = $conn->prepare("SELECT role FROM users WHERE id = ?");
+                    $cstmt->execute([$mid]);
+                    if ($cstmt->fetchColumn() !== 'sup') throw new Exception("Only supervisors can be added to this panel type.");
+                }
+                $stmt->execute([$panel_id, $mid]);
             }
 
             $conn->commit();
@@ -49,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_panel'])) {
             $message_type = "error";
         }
     } else {
-        $message = "Please provide a panel name, type, valid max students, and select at least one supervisor.";
+        $message = "Please provide a panel name, type, valid max students, and select at least one member.";
         $message_type = "error";
     }
 }
@@ -78,12 +89,17 @@ $sup_stmt = $conn->prepare("SELECT id, name FROM supervisors WHERE department = 
 $sup_stmt->execute([$dept_id]);
 $supervisors = $sup_stmt->fetchAll(PDO::FETCH_ASSOC);
 
+// Fetch all external examiners in this department
+$ext_stmt = $conn->prepare("SELECT id, name FROM external_examiners WHERE department_id = ? ORDER BY name");
+$ext_stmt->execute([$dept_id]);
+$external_examiners = $ext_stmt->fetchAll(PDO::FETCH_ASSOC);
+
 // Fetch all panels for this department
 $panel_stmt = $conn->prepare("
-    SELECT dp.*, GROUP_CONCAT(s.name SEPARATOR ', ') as members
+    SELECT dp.*, GROUP_CONCAT(u.name SEPARATOR ', ') as members
     FROM defense_panels dp
     LEFT JOIN panel_members pm ON dp.id = pm.panel_id
-    LEFT JOIN supervisors s ON pm.supervisor_id = s.id
+    LEFT JOIN users u ON pm.supervisor_id = u.id
     WHERE dp.department_id = ?
     GROUP BY dp.id
     ORDER BY FIELD(dp.panel_type, 'proposal', 'internal', 'external'), dp.panel_name
@@ -209,7 +225,7 @@ $panels = $panel_stmt->fetchAll(PDO::FETCH_ASSOC);
                     </div>
                     <div class="form-group">
                         <label for="panel_type">Panel Type</label>
-                        <select name="panel_type" id="panel_type" style="width: 100%; padding: 14px; border: 2px solid #e2e8f0; border-radius: 12px; font-family: inherit; font-size: 16px;" required>
+                        <select name="panel_type" id="panel_type" style="width: 100%; padding: 14px; border: 2px solid #e2e8f0; border-radius: 12px; font-family: inherit; font-size: 16px;" required onchange="toggleMemberType()">
                             <option value="proposal">Project Proposal Panel</option>
                             <option value="internal">Internal Defense Panel</option>
                             <option value="external">External Defense Panel</option>
@@ -219,14 +235,32 @@ $panels = $panel_stmt->fetchAll(PDO::FETCH_ASSOC);
                         <label for="max_students">Max Students</label>
                         <input type="number" id="max_students" name="max_students" min="1" value="10" required>
                     </div>
-                    <div class="form-group">
+
+                    <!-- Supervisor Selection -->
+                    <div class="form-group" id="supervisor_select_area">
                         <label>Select Panel Members (Supervisors)</label>
-                        <select name="supervisor_ids[]" class="select2" multiple required>
+                        <select name="member_ids[]" id="sup_select" class="select2" multiple>
                             <?php foreach ($supervisors as $sup): ?>
                                 <option value="<?= $sup['id'] ?>"><?= htmlspecialchars($sup['name']) ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
+
+                    <!-- External Examiner Selection -->
+                    <div class="form-group" id="external_select_area" style="display: none;">
+                        <label>Select External Examiners</label>
+                        <select name="member_ids[]" id="ext_select" class="select2" multiple disabled>
+                            <?php if (empty($external_examiners)): ?>
+                                <option value="" disabled>No external examiners found. Create them first.</option>
+                            <?php else: ?>
+                                <?php foreach ($external_examiners as $ex): ?>
+                                    <option value="<?= $ex['id'] ?>"><?= htmlspecialchars($ex['name']) ?></option>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </select>
+                        <small style="color: var(--primary);"><a href="dpc_manage_external_examiners.php" style="text-decoration: none;">+ Manage External Examiners</a></small>
+                    </div>
+
                     <button type="submit" name="create_panel" class="btn btn-primary">
                         <i class="fas fa-save"></i> Create Panel
                     </button>
@@ -286,10 +320,34 @@ $panels = $panel_stmt->fetchAll(PDO::FETCH_ASSOC);
     <script>
         $(document).ready(function() {
             $('.select2').select2({
-                placeholder: "Select supervisors...",
+                placeholder: "Select members...",
                 width: '100%'
             });
         });
+
+        function toggleMemberType() {
+            const type = document.getElementById('panel_type').value;
+            const supArea = document.getElementById('supervisor_select_area');
+            const extArea = document.getElementById('external_select_area');
+            const supSelect = document.getElementById('sup_select');
+            const extSelect = document.getElementById('ext_select');
+
+            if (type === 'external') {
+                supArea.style.display = 'none';
+                extArea.style.display = 'block';
+                supSelect.disabled = true;
+                extSelect.disabled = false;
+                supSelect.required = false;
+                extSelect.required = true;
+            } else {
+                supArea.style.display = 'block';
+                extArea.style.display = 'none';
+                supSelect.disabled = false;
+                extSelect.disabled = true;
+                supSelect.required = true;
+                extSelect.required = false;
+            }
+        }
     </script>
 </body>
 </html>

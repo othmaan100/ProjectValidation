@@ -43,6 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
                         'sup' => "supervisor/index.php",
                         'admin' => "super_admin/index.php",
                         'lib' => "library/index.php",
+                        'ext' => "external_examiner/index.php",
                         'guest' => "library/guest_catalog.php"
                     ];
                     

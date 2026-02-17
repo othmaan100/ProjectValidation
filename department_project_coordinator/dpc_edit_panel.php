@@ -43,14 +43,14 @@ $message_type = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_panel'])) {
     $panel_name = trim($_POST['panel_name']);
     $max_students = (int)$_POST['max_students'];
-    $supervisor_ids = $_POST['supervisor_ids'] ?? [];
+    $member_ids = $_POST['member_ids'] ?? [];
 
     if (!empty($panel_name) && $max_students > 0) {
         try {
             $conn->beginTransaction();
             
             // Update panel details
-            $stmt = $conn->prepare("UPDATE defense_panels SET panel_name = ?, max_students = ? WHERE id = ?");
+            $stmt = $conn->prepare("UPDATE defense_panels SET panel_name = ? , max_students = ? WHERE id = ?");
             $stmt->execute([$panel_name, $max_students, $panel_id]);
 
             // Update panelists (remove old, insert new)
@@ -58,8 +58,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_panel'])) {
             $stmt->execute([$panel_id]);
 
             $stmt = $conn->prepare("INSERT INTO panel_members (panel_id, supervisor_id) VALUES (?, ?)");
-            foreach ($supervisor_ids as $sup_id) {
-                $stmt->execute([$panel_id, $sup_id]);
+            foreach ($member_ids as $mid) {
+                // Verify role based on panel type
+                if ($panel['panel_type'] === 'external') {
+                    $cstmt = $conn->prepare("SELECT role FROM users WHERE id = ?");
+                    $cstmt->execute([$mid]);
+                    if ($cstmt->fetchColumn() !== 'ext') throw new Exception("Only external examiners can be added to an External Defense Panel.");
+                } else {
+                    $cstmt = $conn->prepare("SELECT role FROM users WHERE id = ?");
+                    $cstmt->execute([$mid]);
+                    if ($cstmt->fetchColumn() !== 'sup') throw new Exception("Only supervisors can be added to this panel type.");
+                }
+                $stmt->execute([$panel_id, $mid]);
             }
 
             $conn->commit();
@@ -97,12 +107,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['assign_students'])) {
                 throw new Exception("Adding these students would exceed the panel capacity ({$cap_info['max_students']}).");
             }
 
-            $stmt = $conn->prepare("INSERT INTO student_panel_assignments (student_id, panel_id, academic_session) VALUES (?, ?, ?)");
+            $stmt = $conn->prepare("INSERT INTO student_panel_assignments (student_id, panel_id, panel_type, academic_session) VALUES (?, ?, ?, ?)");
             foreach ($student_ids as $stu_id) {
-                // Remove existing assignment first
-                $del = $conn->prepare("DELETE FROM student_panel_assignments WHERE student_id = ? AND academic_session = ?");
-                $del->execute([$stu_id, $active_session]);
-                $stmt->execute([$stu_id, $panel_id, $active_session]);
+                // Remove existing assignment for THIS stage first
+                $del = $conn->prepare("DELETE FROM student_panel_assignments WHERE student_id = ? AND panel_type = ? AND academic_session = ?");
+                $del->execute([$stu_id, $panel['panel_type'], $active_session]);
+                $stmt->execute([$stu_id, $panel_id, $panel['panel_type'], $active_session]);
             }
             $conn->commit();
             $message = count($student_ids) . " students added to panel successfully!";
@@ -129,10 +139,16 @@ if (isset($_GET['remove_student'])) {
     }
 }
 
-// Fetch all supervisors in this department
-$sup_stmt = $conn->prepare("SELECT id, name FROM supervisors WHERE department = ? ORDER BY name");
-$sup_stmt->execute([$dept_id]);
-$all_supervisors = $sup_stmt->fetchAll(PDO::FETCH_ASSOC);
+// Fetch relevant members (supervisors or external examiners)
+if ($panel['panel_type'] === 'external') {
+    $mem_stmt = $conn->prepare("SELECT id, name FROM external_examiners WHERE department_id = ? ORDER BY name");
+    $mem_stmt->execute([$dept_id]);
+    $available_members = $mem_stmt->fetchAll(PDO::FETCH_ASSOC);
+} else {
+    $mem_stmt = $conn->prepare("SELECT id, name FROM supervisors WHERE department = ? ORDER BY name");
+    $mem_stmt->execute([$dept_id]);
+    $available_members = $mem_stmt->fetchAll(PDO::FETCH_ASSOC);
+}
 
 // Fetch current panelists
 $member_stmt = $conn->prepare("SELECT supervisor_id FROM panel_members WHERE panel_id = ?");
@@ -155,10 +171,10 @@ $unassigned_stmt = $conn->prepare("
     SELECT s.id, s.name, s.reg_no 
     FROM students s 
     WHERE s.department = ? 
-    AND s.id NOT IN (SELECT student_id FROM student_panel_assignments WHERE academic_session = ?)
+    AND s.id NOT IN (SELECT student_id FROM student_panel_assignments WHERE academic_session = ? AND panel_type = ?)
     ORDER BY s.name
 ");
-$unassigned_stmt->execute([$dept_id, $active_session]);
+$unassigned_stmt->execute([$dept_id, $active_session, $panel['panel_type']]);
 $unassigned_students = $unassigned_stmt->fetchAll(PDO::FETCH_ASSOC);
 
 ?>
@@ -255,11 +271,11 @@ $unassigned_students = $unassigned_stmt->fetchAll(PDO::FETCH_ASSOC);
                         <input type="number" id="max_students" name="max_students" min="1" value="<?= htmlspecialchars($panel['max_students']) ?>" required>
                     </div>
                     <div class="form-group">
-                        <label>Panel Members (Supervisors)</label>
-                        <select name="supervisor_ids[]" class="select2" multiple required>
-                            <?php foreach ($all_supervisors as $sup): ?>
-                                <option value="<?= $sup['id'] ?>" <?= in_array($sup['id'], $current_members) ? 'selected' : '' ?>>
-                                    <?= htmlspecialchars($sup['name']) ?>
+                        <label>Panel Members (<?= $panel['panel_type'] === 'external' ? 'External Examiners' : 'Supervisors' ?>)</label>
+                        <select name="member_ids[]" class="select2" multiple required>
+                            <?php foreach ($available_members as $mem): ?>
+                                <option value="<?= $mem['id'] ?>" <?= in_array($mem['id'], $current_members) ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($mem['name']) ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>

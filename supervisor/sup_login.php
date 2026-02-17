@@ -33,7 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $_SESSION['staff_no'] = $supervisor['staff_no'];
                 $_SESSION['name'] = $supervisor['name'];
                 $_SESSION['role'] = 'sup';
-                $_SESSION['dept'] = $supervisor['department'];
+                $_SESSION['department'] = $supervisor['department'];
                 
                 header("Location: sup_dashboard.php");
                 exit();

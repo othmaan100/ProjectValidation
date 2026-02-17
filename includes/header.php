@@ -65,6 +65,7 @@ if (!defined('PROJECT_ROOT')) {
             <?php elseif ($_SESSION['role'] === 'dpc'): ?>
                 <a href="<?= PROJECT_ROOT ?>department_project_coordinator/dpc_manage_students.php" class="<?= isActive('dpc_manage_students.php', $current_page) ?>">Students</a>
                 <a href="<?= PROJECT_ROOT ?>department_project_coordinator/dpc_manage_supervisors.php" class="<?= isActive('dpc_manage_supervisors.php', $current_page) ?>">Supervisors</a>
+                <a href="<?= PROJECT_ROOT ?>department_project_coordinator/dpc_manage_external_examiners.php" class="<?= isActive('dpc_manage_external_examiners.php', $current_page) ?>">External Examiners</a>
                 <a href="<?= PROJECT_ROOT ?>department_project_coordinator/dpc_assign_supervisors.php" class="<?= isActive('dpc_assign_supervisors.php', $current_page) ?>">Allocation</a>
                 <a href="<?= PROJECT_ROOT ?>department_project_coordinator/dpc_topic_validation.php" class="<?= isActive('dpc_topic_validation.php', $current_page) ?>">Validation</a>
                 <a href="<?= PROJECT_ROOT ?>department_project_coordinator/dpc_submission_schedule.php" class="<?= isActive('dpc_submission_schedule.php', $current_page) ?>">Schedules</a>
@@ -95,6 +96,11 @@ if (!defined('PROJECT_ROOT')) {
                     Messages <?php if($unread_count > 0): ?><span style="background: #e74a3b; color: white; padding: 2px 6px; border-radius: 50%; font-size: 10px;"><?= $unread_count ?></span><?php endif; ?>
                 </a>
                 <a href="<?= PROJECT_ROOT ?>student/stu_change_password.php" class="<?= isActive('stu_change_password.php', $current_page) ?>">Security</a>
+            <?php elseif ($_SESSION['role'] === 'ext'): ?>
+                <a href="<?= PROJECT_ROOT ?>external_examiner/index.php" class="<?= isActive('index.php', $current_page) ?>">Dashboard</a>
+                <a href="<?= PROJECT_ROOT ?>app_messages.php" class="<?= isActive('app_messages.php', $current_page) ?>">
+                    Messages <?php if($unread_count > 0): ?><span style="background: #e74a3b; color: white; padding: 2px 6px; border-radius: 50%; font-size: 10px;"><?= $unread_count ?></span><?php endif; ?>
+                </a>
             <?php elseif ($_SESSION['role'] === 'admin'): ?>
                 <a href="<?= PROJECT_ROOT ?>super_admin/sa_manage_faculties.php" class="<?= isActive('sa_manage_faculties.php', $current_page) ?>">Faculties</a>
                 <a href="<?= PROJECT_ROOT ?>super_admin/sa_manage_fpc.php" class="<?= isActive('sa_manage_fpc.php', $current_page) ?>">FPC Manager</a>
