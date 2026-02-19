@@ -16,8 +16,8 @@ try {
 
     try {
         // Fallback MySQL Configuration
-        $fallback_dbname = 'fcetpoti_projectval';
-        $fallback_username = 'fcetpoti_projectval';
+        $fallback_dbname = 'fuded535_computing_project_validation';
+        $fallback_username = 'fuded535_othmaan';
         $fallback_password = 'Othmaan100!!!';
 
         // Attempt fallback connection
