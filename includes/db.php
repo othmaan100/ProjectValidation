@@ -27,7 +27,7 @@ try {
     } catch (PDOException $e_fallback) {
         // Log fallback connection failure
         error_log("Fallback MySQL Connection failed: " . $e_fallback->getMessage());
-        die("Database connection failed. Please contact administrator.");
+        die("Database connection failed... Please contact administrator.");
     }
 }
 // Global System Settings
