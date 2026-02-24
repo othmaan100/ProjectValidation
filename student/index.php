@@ -267,6 +267,19 @@ if (isset($_GET['error']) && $_GET['error'] === 'schedule_closed') {
                         </a>
                     </div>
                 <?php endif; ?>
+
+                <div class="content-card" style="margin-top: 25px;">
+                    <h2><i class="fas fa-users-rectangle" style="color: var(--primary);"></i> Defense Panels</h2>
+                    <p style="font-size: 13px; color: #636e72; margin-bottom: 15px;">
+                        View your assigned defense panels (Proposal, Internal, and External) and their examiners.
+                    </p>
+                   <a href="stu_view_panels.php" 
+                        class="btn-action" 
+                        style="display: block; width: 100%; text-align: center; box-sizing: border-box; background: #007BFF; color: #fff; padding: 10px; border-radius: 5px;">
+                        <i class="fas fa-eye"></i> View My Panels
+                        </a>
+
+                </div>
             </div>
         </div>
     </div>

@@ -251,8 +251,8 @@ $current_session = $active_session;
             <div class="task-card">
                 <i class="fas fa-users-rectangle"></i>
                 <h2>Project Panels</h2>
-                <p>View the defense panels you are assigned to and assess the projects of students in those panels.</p>
-                <a href="sup_manage_panels.php" class="task-btn" style="background: var(--warning); color: #2d3436;">Go to Panels <i class="fas fa-arrow-right"></i></a>
+                <p>View the defense panels you are assigned to, see fellow panel members, and assess assigned students.</p>
+                <a href="sup_view_panels.php" class="task-btn" style="background: var(--warning); color: #2d3436;">View My Panels <i class="fas fa-arrow-right"></i></a>
             </div>
             <div class="task-card">
                 <i class="fas fa-file-invoice"></i>
