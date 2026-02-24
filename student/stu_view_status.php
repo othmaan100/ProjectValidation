@@ -52,6 +52,13 @@ $supervisor = $stmt->fetch();
 
         .back-btn { display: inline-flex; align-items: center; gap: 8px; color: var(--primary); text-decoration: none; font-weight: 600; margin-bottom: 20px; }
         .back-btn:hover { text-decoration: underline; }
+        .btn-update { 
+            display: inline-flex; align-items: center; gap: 5px; 
+            background: var(--primary); color: white; text-decoration: none; 
+            padding: 5px 12px; border-radius: 6px; font-size: 12px; font-weight: 600;
+            transition: 0.2s;
+        }
+        .btn-update:hover { background: var(--secondary); transform: translateY(-1px); }
     </style>
 </head>
 <body>
@@ -80,12 +87,25 @@ $supervisor = $stmt->fetch();
 
             <h1><i class="fas fa-tasks"></i> Tracking Proposals</h1>
             
+            <?php if (isset($_GET['success']) && $_GET['success'] === 'updated'): ?>
+                <div style="background: #e8f5e9; color: #2e7d32; padding: 15px; border-radius: 12px; margin-bottom: 25px; font-size: 14px; font-weight: 600; text-align: center; border: 1px solid #c8e6c9;">
+                    <i class="fas fa-check-circle"></i> Topic updated successfully and is now pending review.
+                </div>
+            <?php endif; ?>
+
+            <?php if (isset($_GET['error']) && $_GET['error'] === 'not_rejected'): ?>
+                <div style="background: #ffebee; color: #c62828; padding: 15px; border-radius: 12px; margin-bottom: 25px; font-size: 14px; font-weight: 600; text-align: center; border: 1px solid #ffcdd2;">
+                    <i class="fas fa-exclamation-circle"></i> Only rejected topics can be updated.
+                </div>
+            <?php endif; ?>
+            
             <?php if (count($topics) > 0): ?>
                 <table>
                     <thead>
                         <tr>
                             <th>Project Topic</th>
                             <th>Status</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -96,6 +116,15 @@ $supervisor = $stmt->fetch();
                                     <span class="status-badge status-<?= $t['status'] ?>">
                                         <?= $t['status'] ?>
                                     </span>
+                                </td>
+                                <td>
+                                    <?php if ($t['status'] === 'rejected'): ?>
+                                        <a href="stu_update_topic.php?id=<?= $t['id'] ?>" class="btn-update">
+                                            <i class="fas fa-edit"></i> Update
+                                        </a>
+                                    <?php else: ?>
+                                        <span style="color: #b2bec3; font-size: 12px;">No actions</span>
+                                    <?php endif; ?>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
