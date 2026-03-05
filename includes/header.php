@@ -62,6 +62,7 @@ if (!defined('PROJECT_ROOT')) {
                 <a href="<?= PROJECT_ROOT ?>faculty_project_coordinator/fpc_manage_topics.php" class="<?= isActive('fpc_manage_topics.php', $current_page) ?>">Topics</a>
                 <a href="<?= PROJECT_ROOT ?>faculty_project_coordinator/fpc_view_past_projects.php" class="<?= isActive('fpc_view_past_projects.php', $current_page) ?>">Archive</a>
                 <a href="<?= PROJECT_ROOT ?>faculty_project_coordinator/fpc_reports.php" class="<?= isActive('fpc_reports.php', $current_page) ?>">Analytics</a>
+                <a href="<?= PROJECT_ROOT ?>faculty_project_coordinator/fpc_profile.php" class="<?= isActive('fpc_profile.php', $current_page) ?>">Security</a>
             <?php elseif ($_SESSION['role'] === 'dpc'): ?>
                 <a href="<?= PROJECT_ROOT ?>department_project_coordinator/dpc_manage_students.php" class="<?= isActive('dpc_manage_students.php', $current_page) ?>">Students</a>
                 <a href="<?= PROJECT_ROOT ?>department_project_coordinator/dpc_manage_supervisors.php" class="<?= isActive('dpc_manage_supervisors.php', $current_page) ?>">Supervisors</a>

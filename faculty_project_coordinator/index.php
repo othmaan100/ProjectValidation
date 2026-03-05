@@ -484,10 +484,10 @@ $userName = $_SESSION['name'] ?? $_SESSION['username'];
                 <a href="fpc_view_past_projects.php" class="button"><i class="fas fa-search"></i> View Gallery</a>
             </div>
             <div class="action-card fade-in-up">
-                <div class="card-icon"><i class="fas fa-tasks"></i></div>
-                <h2>Manage Topics</h2>
-                <p>View and manage all project topics across departments. Monitor validation status and oversee the approval process.</p>
-                <a href="fpc_manage_topics.php" class="button"><i class="fas fa-arrow-right"></i> Manage Topics</a>
+                <div class="card-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);"><i class="fas fa-user-shield"></i></div>
+                <h2>Profile & Security</h2>
+                <p>Update your personal information and change your login password securely.</p>
+                <a href="fpc_profile.php" class="button"><i class="fas fa-lock"></i> Update Profile</a>
             </div>
         </div>
         
@@ -498,6 +498,7 @@ $userName = $_SESSION['name'] ?? $_SESSION['username'];
                 <a href="fpc_manage_dpc.php" class="quick-link"><i class="fas fa-plus-circle"></i> <span>Add New DPC</span></a>
                 <a href="fpc_manage_topics.php" class="quick-link"><i class="fas fa-search"></i> <span>Search Topics</span></a>
                 <a href="fpc_view_past_projects.php" class="quick-link"><i class="fas fa-search"></i> <span>Search Past Projects</span></a>
+                <a href="fpc_profile.php" class="quick-link"><i class="fas fa-user-cog"></i> <span>My Profile</span></a>
                 <a href="../logout.php" class="quick-link"><i class="fas fa-sign-out-alt"></i> <span>Logout</span></a>
             </div>
         </div>
