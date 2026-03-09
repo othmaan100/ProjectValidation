@@ -307,34 +307,57 @@ if ($selected_contact_id) {
 
         .msg-bubble {
             max-width: 75%;
-            padding: 12px 18px;
-            border-radius: 18px;
-            font-size: 14px;
+            padding: 8px 12px 22px 12px;
+            border-radius: 12px;
+            font-size: 14.5px;
             line-height: 1.5;
             position: relative;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+            word-wrap: break-word;
         }
 
         .msg-bubble.sent {
             align-self: flex-end;
-            background: var(--primary);
-            color: white;
-            border-bottom-right-radius: 4px;
+            background: #dcf8c6; /* WhatsApp sent color */
+            color: #303030;
+            border-top-right-radius: 2px;
         }
 
         .msg-bubble.received {
             align-self: flex-start;
             background: white;
-            color: var(--text-main);
-            border-bottom-left-radius: 4px;
+            color: #303030;
+            border-top-left-radius: 2px;
         }
 
         .msg-meta {
             font-size: 10px;
-            margin-top: 4px;
-            display: block;
-            opacity: 0.8;
-            text-align: right;
+            position: absolute;
+            bottom: 4px;
+            right: 8px;
+            opacity: 0.7;
+            display: flex;
+            align-items: center;
+            gap: 3px;
+        }
+
+        .date-separator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 20px 0;
+            position: relative;
+        }
+
+        .date-separator span {
+            background: #e1f3fb;
+            color: #54656f;
+            padding: 5px 12px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            box-shadow: 0 1px 0.5px rgba(0,0,0,0.13);
         }
 
         .chat-footer {
@@ -497,10 +520,29 @@ if ($selected_contact_id) {
                                 <p>No messages yet. Say hello!</p>
                             </div>
                         <?php else: ?>
-                            <?php foreach ($messages as $m): ?>
+                            <?php 
+                            $last_date = null;
+                            $today = date('Y-m-d');
+                            $yesterday = date('Y-m-d', strtotime('-1 day'));
+                            
+                            foreach ($messages as $m): 
+                                $msg_date = date('Y-m-d', strtotime($m['sent_at']));
+                                if ($msg_date !== $last_date):
+                                    $last_date = $msg_date;
+                                    if ($msg_date === $today) $label = "Today";
+                                    elseif ($msg_date === $yesterday) $label = "Yesterday";
+                                    else $label = date('F j, Y', strtotime($m['sent_at']));
+                            ?>
+                                <div class="date-separator"><span><?= $label ?></span></div>
+                            <?php endif; ?>
                                 <div class="msg-bubble <?= ($m['sender_id'] == $user_id) ? 'sent' : 'received' ?>">
                                     <?= nl2br(htmlspecialchars($m['message_text'])) ?>
-                                    <span class="msg-meta"><?= date('h:i A', strtotime($m['sent_at'])) ?></span>
+                                    <div class="msg-meta">
+                                        <?= date('h:i a', strtotime($m['sent_at'])) ?>
+                                        <?php if($m['sender_id'] == $user_id): ?>
+                                            <i class="fas fa-check-double" style="<?= $m['is_read'] ? 'color: #34b7f1;' : 'color: #999;' ?>"></i>
+                                        <?php endif; ?>
+                                    </div>
                                 </div>
                             <?php endforeach; ?>
                         <?php endif; ?>
