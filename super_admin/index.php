@@ -205,6 +205,13 @@ try {
                 <div class="btn-act">Configure Library <i class="fas fa-arrow-right"></i></div>
             </a>
 
+            <a href="sa_manage_users.php" class="action-card">
+                <i class="fas fa-users-cog main-icon"></i>
+                <h2>Global User Management</h2>
+                <p>Manage all categories of users including DPCs, Supervisors, External Examiners, active Students, and more.</p>
+                <div class="btn-act">Manage Users <i class="fas fa-arrow-right"></i></div>
+            </a>
+
             <a href="sa_reports.php" class="action-card">
                 <i class="fas fa-chart-pie main-icon"></i>
                 <h2>Global Project Reports</h2>
