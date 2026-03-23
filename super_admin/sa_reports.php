@@ -40,6 +40,22 @@ $faculty_stats = $conn->query("
     ORDER BY f.faculty ASC
 ")->fetchAll(PDO::FETCH_ASSOC);
 
+// Department Breakdown
+$dept_stats = $conn->query("
+    SELECT 
+        d.id, d.department_name, f.faculty as faculty_name,
+        (SELECT COUNT(*) FROM students s WHERE s.department = d.id) as students_count,
+        (SELECT COUNT(*) FROM project_topics pt 
+         JOIN students s2 ON pt.student_id = s2.id 
+         WHERE s2.department = d.id AND pt.status = 'approved') as approved_count,
+        (SELECT COUNT(*) FROM project_topics pt 
+         JOIN students s2 ON pt.student_id = s2.id 
+         WHERE s2.department = d.id AND pt.status = 'pending') as pending_count
+    FROM departments d
+    JOIN faculty f ON d.faculty_id = f.id
+    ORDER BY f.faculty ASC, d.department_name ASC
+")->fetchAll(PDO::FETCH_ASSOC);
+
 // Recent Approved Projects
 $recent_approved = $conn->query("
     SELECT pt.topic, pt.student_name, pt.session, f.faculty as faculty_name 
@@ -60,6 +76,7 @@ $recent_approved = $conn->query("
     <title>Global Reports - Super Admin</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
     <style>
         :root { --primary: #4338ca; --secondary: #db2777; --success: #059669; --warning: #d97706; }
         body { font-family: 'Outfit', sans-serif; background: #f1f5f9; padding: 20px; }
@@ -82,6 +99,15 @@ $recent_approved = $conn->query("
         .progress-bar { height: 8px; background: #f1f5f9; border-radius: 10px; overflow: hidden; margin-top: 10px; }
         .progress-fill { height: 100%; background: var(--success); }
         .btn-print { padding: 12px 24px; background: #1e293b; color: white; border-radius: 12px; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; }
+
+        /* DataTables overrides to match theme */
+        .dataTables_wrapper { padding: 20px 35px; }
+        .dataTables_wrapper .dataTables_filter input { border: 1px solid #e2e8f0; border-radius: 8px; padding: 6px 12px; outline: none; }
+        .dataTables_wrapper .dataTables_length select { border: 1px solid #e2e8f0; border-radius: 8px; padding: 4px 8px; outline: none; }
+        table.dataTable.no-footer { border-bottom: none; }
+        table.dataTable thead th, table.dataTable thead td { border-bottom: 2px solid #e2e8f0; }
+        .dataTables_wrapper .dataTables_paginate .paginate_button { border-radius: 8px; font-weight: 600; }
+        .dataTables_wrapper .dataTables_paginate .paginate_button.current, .dataTables_wrapper .dataTables_paginate .paginate_button.current:hover { background: var(--primary); color: white !important; border-color: var(--primary); }
     </style>
 </head>
 <body>
@@ -104,7 +130,7 @@ $recent_approved = $conn->query("
 
         <div class="card">
             <div class="card-header"><h2>Faculty Performance Breakdown</h2></div>
-            <table>
+            <table class="datatable">
                 <thead>
                     <tr>
                         <th>Faculty</th>
@@ -136,8 +162,43 @@ $recent_approved = $conn->query("
         </div>
 
         <div class="card">
+            <div class="card-header"><h2>Department Performance Breakdown</h2></div>
+            <table class="datatable">
+                <thead>
+                    <tr>
+                        <th>Department</th>
+                        <th>Faculty</th>
+                        <th>Students</th>
+                        <th>Approved</th>
+                        <th>Pending</th>
+                        <th>Completion status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($dept_stats as $dept): 
+                        $pct = $dept['students_count'] > 0 ? ($dept['approved_count'] / $dept['students_count']) * 100 : 0;
+                    ?>
+                        <tr>
+                            <td><strong><?= htmlspecialchars($dept['department_name']) ?></strong></td>
+                            <td style="color: #64748b; font-size: 13px;"><?= htmlspecialchars($dept['faculty_name']) ?></td>
+                            <td><?= $dept['students_count'] ?></td>
+                            <td><span style="color: var(--success); font-weight: 700;"><?= $dept['approved_count'] ?></span></td>
+                            <td><span style="color: var(--warning); font-weight: 700;"><?= $dept['pending_count'] ?></span></td>
+                            <td width="250">
+                                <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 5px;">
+                                    <span><?= round($pct, 1) ?>%</span>
+                                </div>
+                                <div class="progress-bar"><div class="progress-fill" style="width: <?= $pct ?>%"></div></div>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="card">
             <div class="card-header"><h2>Latest Approved Projects</h2></div>
-            <table>
+            <table class="datatable">
                 <thead>
                     <tr>
                         <th>Topic</th>
@@ -161,6 +222,21 @@ $recent_approved = $conn->query("
     </div>
 
     <?php include_once __DIR__ . '/../includes/footer.php'; ?>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script>
+    $(document).ready(function() {
+        $('.datatable').DataTable({
+            pageLength: 10,
+            responsive: true,
+            language: {
+                search: "",
+                searchPlaceholder: "Search records..."
+            }
+        });
+    });
+    </script>
 </body>
 </html>
 

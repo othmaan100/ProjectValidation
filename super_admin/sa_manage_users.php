@@ -103,6 +103,12 @@ $roles_map = [
 $selected_role = $_GET['role'] ?? 'all';
 $search = $_GET['search'] ?? '';
 
+// Pagination variables
+$limit = 50; // number of users per page
+$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+if ($page < 1) $page = 1;
+$offset = ($page - 1) * $limit;
+
 $query = "SELECT u.id, u.username, u.name, u.email, u.role, u.is_active, u.created_at, u.department, u.faculty_id,
           d.department_name, f.faculty as faculty_name
           FROM users u
@@ -110,31 +116,49 @@ $query = "SELECT u.id, u.username, u.name, u.email, u.role, u.is_active, u.creat
           LEFT JOIN faculty f ON (u.faculty_id = f.id OR d.faculty_id = f.id)
           WHERE 1=1";
           
+$count_query = "SELECT COUNT(*) as total FROM users u WHERE 1=1";
+
 $params = [];
 
 if ($selected_role !== 'all' && array_key_exists($selected_role, $roles_map)) {
     if ($selected_role === 'unassigned') {
         $query .= " AND (u.role IS NULL OR u.role = '')";
+        $count_query .= " AND (u.role IS NULL OR u.role = '')";
     } else {
         $query .= " AND u.role = :role";
+        $count_query .= " AND u.role = :role";
         $params[':role'] = $selected_role;
     }
 } else {
     // Only fetch manageable roles if 'all'
     $query .= " AND (u.role IN ('stu', 'sup', 'dpc', 'fpc', 'lib', 'ext', 'admin') OR u.role IS NULL OR u.role = '')";
+    $count_query .= " AND (u.role IN ('stu', 'sup', 'dpc', 'fpc', 'lib', 'ext', 'admin') OR u.role IS NULL OR u.role = '')";
 }
 
 if ($search) {
     $query .= " AND (u.name LIKE :s OR u.username LIKE :s OR u.email LIKE :s)";
+    $count_query .= " AND (u.name LIKE :s OR u.username LIKE :s OR u.email LIKE :s)";
     $params[':s'] = "%$search%";
 }
 
-$query .= " ORDER BY u.role ASC, u.name ASC LIMIT 500"; // Limit to prevent overwhelming the UI
+// Get total records
+$stmt_count = $conn->prepare($count_query);
+foreach ($params as $k => $v) {
+    if ($k == ':limit' || $k == ':offset') continue;
+    $stmt_count->bindValue($k, $v);
+}
+$stmt_count->execute();
+$total_records = $stmt_count->fetch(PDO::FETCH_ASSOC)['total'];
+$total_pages = ceil($total_records / $limit);
+
+$query .= " ORDER BY u.role ASC, u.name ASC LIMIT :limit OFFSET :offset";
 
 $stmt = $conn->prepare($query);
 foreach ($params as $k => $v) {
     $stmt->bindValue($k, $v);
 }
+$stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+$stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
 $stmt->execute();
 $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
@@ -181,6 +205,14 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
         .status-active { background: #dcfce7; color: #166534; }
         .status-inactive { background: #fee2e2; color: #991b1b; }
         
+        .pagination { display: flex; justify-content: space-between; align-items: center; margin-top: 25px; padding-top: 20px; border-top: 1px solid #e2e8f0; }
+        .pagination-info { color: #64748b; font-size: 14px; }
+        .pagination-controls { display: flex; gap: 8px; }
+        .page-btn { padding: 8px 12px; border-radius: 8px; border: 1px solid #e2e8f0; background: white; color: #475569; text-decoration: none; font-weight: 600; font-size: 14px; transition: 0.2s; }
+        .page-btn:hover:not(.disabled) { border-color: var(--primary); color: var(--primary); }
+        .page-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+        .page-btn.disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
+
         .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(5px); z-index: 1000; align-items: flex-start; justify-content: center; padding-top: 60px; overflow-y: auto; }
         .modal-content { background: white; width: 600px; max-width: 90%; padding: 40px; border-radius: 24px; position: relative; margin-bottom: 40px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
         .modal-content h2 { margin-top: 0; color: var(--primary); }
@@ -278,6 +310,52 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     <?php endif; ?>
                 </tbody>
             </table>
+
+            <?php if ($total_pages > 1): ?>
+            <div class="pagination">
+                <div class="pagination-info">
+                    Showing <?= min($offset + 1, $total_records) ?> to <?= min($offset + $limit, $total_records) ?> of <?= $total_records ?> entries
+                </div>
+                <div class="pagination-controls">
+                    <a href="?role=<?= urlencode($selected_role) ?>&search=<?= urlencode($search) ?>&page=1" class="page-btn <?= $page <= 1 ? 'disabled' : '' ?>" title="First Page"><i class="fas fa-angle-double-left"></i></a>
+                    <a href="?role=<?= urlencode($selected_role) ?>&search=<?= urlencode($search) ?>&page=<?= $page - 1 ?>" class="page-btn <?= $page <= 1 ? 'disabled' : '' ?>" title="Previous Page"><i class="fas fa-angle-left"></i></a>
+                    
+                    <?php 
+                    $start_page = max(1, $page - 2);
+                    $end_page = min($total_pages, $page + 2);
+                    
+                    if ($start_page > 1) {
+                        if ($start_page > 2) {
+                            echo '<span style="padding: 8px; color: #64748b;">...</span>';
+                        }
+                    }
+                    
+                    for ($i = $start_page; $i <= $end_page; $i++): 
+                    ?>
+                        <a href="?role=<?= urlencode($selected_role) ?>&search=<?= urlencode($search) ?>&page=<?= $i ?>" class="page-btn <?= $i === $page ? 'active' : '' ?>"><?= $i ?></a>
+                    <?php endfor; ?>
+                    
+                    <?php
+                    if ($end_page < $total_pages) {
+                        if ($end_page < $total_pages - 1) {
+                            echo '<span style="padding: 8px; color: #64748b;">...</span>';
+                        }
+                    }
+                    ?>
+                    
+                    <a href="?role=<?= urlencode($selected_role) ?>&search=<?= urlencode($search) ?>&page=<?= $page + 1 ?>" class="page-btn <?= $page >= $total_pages ? 'disabled' : '' ?>" title="Next Page"><i class="fas fa-angle-right"></i></a>
+                    <a href="?role=<?= urlencode($selected_role) ?>&search=<?= urlencode($search) ?>&page=<?= $total_pages ?>" class="page-btn <?= $page >= $total_pages ? 'disabled' : '' ?>" title="Last Page"><i class="fas fa-angle-double-right"></i></a>
+                </div>
+            </div>
+            <?php endif; ?>
+            
+            <?php if ($total_pages <= 1 && $total_records > 0): ?>
+            <div class="pagination">
+                <div class="pagination-info">
+                    Showing all <?= $total_records ?> entries
+                </div>
+            </div>
+            <?php endif; ?>
         </div>
     </div>
 
