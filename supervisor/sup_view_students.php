@@ -12,7 +12,7 @@ $supervisor_id = $_SESSION['user_id'];
 
 // Fetch Allocated Students - Refined for decoupled schema
 $stmt = $conn->prepare("
-    SELECT s.id, s.name, s.reg_no, s.email, d.department_name, pt.topic as approved_topic
+    SELECT s.id, s.name, s.reg_no, s.email, s.phone, d.department_name, pt.topic as approved_topic
     FROM students s
     JOIN supervision sp ON s.id = sp.student_id
     LEFT JOIN departments d ON s.department = d.id
@@ -95,6 +95,10 @@ $students = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                     <span class="student-reg"><?= htmlspecialchars($s['reg_no']) ?></span>
                                     <br>
                                     <small style="color: #9ea0a5;"><i class="fas fa-envelope"></i> <?= htmlspecialchars($s['email']) ?></small>
+                                    <?php if (!empty($s['phone'])): ?>
+                                        <br>
+                                        <small style="color: #9ea0a5;"><i class="fas fa-phone"></i> <?= htmlspecialchars($s['phone']) ?></small>
+                                    <?php endif; ?>
                                 </td>
                                 <td><?= htmlspecialchars($s['department_name']) ?></td>
                                 <td style="max-width: 400px;">
