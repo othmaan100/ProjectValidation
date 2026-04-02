@@ -38,7 +38,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
         LEFT JOIN supervision sv ON s.id = sv.student_id AND sv.status = 'active'
         LEFT JOIN supervisors sup ON sv.supervisor_id = sup.id
         WHERE s.department = ?
-        ORDER BY s.reg_no ASC
+        ORDER BY sup.name ASC, s.name ASC
     ");
     $stmt->execute([$dept_id]);
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -92,10 +92,21 @@ $stmt = $conn->prepare("
     LEFT JOIN supervision sv ON s.id = sv.student_id AND sv.status = 'active'
     LEFT JOIN supervisors sup ON sv.supervisor_id = sup.id
     WHERE s.department = ?
-    ORDER BY s.reg_no ASC
+    ORDER BY sup.name ASC, s.name ASC
 ");
 $stmt->execute([$dept_id]);
 $students_report = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+$students_approved = [];
+$students_unapproved = [];
+
+foreach ($students_report as $row) {
+    if ($row['approved_topic']) {
+        $students_approved[] = $row;
+    } else {
+        $students_unapproved[] = $row;
+    }
+}
 
 // Supervisor Load (Department specific)
 $stmt = $conn->prepare("
@@ -335,7 +346,7 @@ $supervisor_loads = $stmt->fetchAll(PDO::FETCH_ASSOC);
         </div>
 
         <div class="card">
-            <div class="card-header">Student & Topic Status List</div>
+            <div class="card-header">Students with Approved Topics</div>
             <div style="overflow-x: auto;">
                 <table>
                     <thead>
@@ -347,16 +358,14 @@ $supervisor_loads = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         </tr>
                     </thead>
                     <tbody>
-                        <?php foreach ($students_report as $row): ?>
+                        <?php if (empty($students_approved)): ?>
+                        <tr><td colspan="4" style="text-align: center;">No students with approved topics found.</td></tr>
+                        <?php else: foreach ($students_approved as $row): ?>
                         <tr>
                             <td data-label="Reg No"><?php echo htmlspecialchars($row['reg_no']); ?></td>
                             <td data-label="Student Name"><?php echo htmlspecialchars($row['student_name']); ?></td>
                             <td data-label="Approved Topic">
-                                <?php if ($row['approved_topic']): ?>
-                                    <?php echo htmlspecialchars($row['approved_topic']); ?>
-                                <?php else: ?>
-                                    <span class="badge badge-none">No approved topic</span>
-                                <?php endif; ?>
+                                <?php echo htmlspecialchars($row['approved_topic']); ?>
                             </td>
                             <td data-label="Supervisor">
                                 <?php if ($row['supervisor_name']): ?>
@@ -366,7 +375,43 @@ $supervisor_loads = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                 <?php endif; ?>
                             </td>
                         </tr>
-                        <?php endforeach; ?>
+                        <?php endforeach; endif; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">Students without Approved Topics</div>
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Reg No</th>
+                            <th>Student Name</th>
+                            <th>Status</th>
+                            <th>Supervisor</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (empty($students_unapproved)): ?>
+                        <tr><td colspan="4" style="text-align: center;">All students have approved topics!</td></tr>
+                        <?php else: foreach ($students_unapproved as $row): ?>
+                        <tr>
+                            <td data-label="Reg No"><?php echo htmlspecialchars($row['reg_no']); ?></td>
+                            <td data-label="Student Name"><?php echo htmlspecialchars($row['student_name']); ?></td>
+                            <td data-label="Status">
+                                <span class="badge badge-none">No approved topic</span>
+                            </td>
+                            <td data-label="Supervisor">
+                                <?php if ($row['supervisor_name']): ?>
+                                    <?php echo htmlspecialchars($row['supervisor_name']); ?>
+                                <?php else: ?>
+                                    <span style="color: #999; font-style: italic;">Not assigned</span>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                        <?php endforeach; endif; ?>
                     </tbody>
                 </table>
             </div>
