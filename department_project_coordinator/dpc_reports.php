@@ -351,6 +351,7 @@ $supervisor_loads = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <table>
                     <thead>
                         <tr>
+                            <th>S/N</th>
                             <th>Reg No</th>
                             <th>Student Name</th>
                             <th>Approved Topic</th>
@@ -359,9 +360,10 @@ $supervisor_loads = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     </thead>
                     <tbody>
                         <?php if (empty($students_approved)): ?>
-                        <tr><td colspan="4" style="text-align: center;">No students with approved topics found.</td></tr>
-                        <?php else: foreach ($students_approved as $row): ?>
+                        <tr><td colspan="5" style="text-align: center;">No students with approved topics found.</td></tr>
+                        <?php else: $sn = 1; foreach ($students_approved as $row): ?>
                         <tr>
+                            <td data-label="S/N"><?php echo $sn++; ?></td>
                             <td data-label="Reg No"><?php echo htmlspecialchars($row['reg_no']); ?></td>
                             <td data-label="Student Name"><?php echo htmlspecialchars($row['student_name']); ?></td>
                             <td data-label="Approved Topic">
@@ -387,6 +389,7 @@ $supervisor_loads = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <table>
                     <thead>
                         <tr>
+                            <th>S/N</th>
                             <th>Reg No</th>
                             <th>Student Name</th>
                             <th>Status</th>
@@ -395,9 +398,10 @@ $supervisor_loads = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     </thead>
                     <tbody>
                         <?php if (empty($students_unapproved)): ?>
-                        <tr><td colspan="4" style="text-align: center;">All students have approved topics!</td></tr>
-                        <?php else: foreach ($students_unapproved as $row): ?>
+                        <tr><td colspan="5" style="text-align: center;">All students have approved topics!</td></tr>
+                        <?php else: $sn2 = 1; foreach ($students_unapproved as $row): ?>
                         <tr>
+                            <td data-label="S/N"><?php echo $sn2++; ?></td>
                             <td data-label="Reg No"><?php echo htmlspecialchars($row['reg_no']); ?></td>
                             <td data-label="Student Name"><?php echo htmlspecialchars($row['student_name']); ?></td>
                             <td data-label="Status">
