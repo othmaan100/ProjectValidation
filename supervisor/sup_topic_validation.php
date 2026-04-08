@@ -338,8 +338,8 @@ foreach ($data as $row) {
                                             <input type="hidden" name="action" value="validate_topic">
                                             <button type="submit" class="btn btn-validate" title="Check for Similarity/AI Validity"><i class="fas fa-robot"></i> Validate</button>
                                         </form>
-                                        <button class="btn btn-edit" onclick="openEditModal(<?= $t['id'] ?>, '<?= addslashes(htmlspecialchars($t['title'])) ?>', <?= $sid ?>)" title="Edit Topic"><i class="fas fa-edit"></i></button>
-                                        <button type="button" class="btn btn-approve" onclick="handleApprove(event, <?= $t['id'] ?>, <?= $sid ?>, '<?= addslashes(htmlspecialchars($t['title'])) ?>')"><i class="fas fa-check"></i> Approve</button>
+                                        <button class="btn btn-edit" onclick='openEditModal(<?= $t['id'] ?>, <?= htmlspecialchars(json_encode($t['title']), ENT_QUOTES, 'UTF-8') ?>, <?= $sid ?>)' title="Edit Topic"><i class="fas fa-edit"></i></button>
+                                        <button type="button" class="btn btn-approve" onclick='handleApprove(event, <?= $t['id'] ?>, <?= $sid ?>, <?= htmlspecialchars(json_encode($t['title']), ENT_QUOTES, 'UTF-8') ?>)'><i class="fas fa-check"></i> Approve</button>
 
                                         <!-- Hidden dynamic approval form -->
                                         <form id="approve-form-<?= $t['id'] ?>" method="POST" style="display:none;">
@@ -348,7 +348,7 @@ foreach ($data as $row) {
                                             <input type="hidden" name="action" value="approve">
                                         </form>
                                     <?php else: ?>
-                                        <button class="btn btn-edit" onclick="openEditModal(<?= $t['id'] ?>, '<?= addslashes(htmlspecialchars($t['title'])) ?>', <?= $sid ?>)" title="Edit Topic"><i class="fas fa-edit"></i></button>
+                                        <button class="btn btn-edit" onclick='openEditModal(<?= $t['id'] ?>, <?= htmlspecialchars(json_encode($t['title']), ENT_QUOTES, 'UTF-8') ?>, <?= $sid ?>)' title="Edit Topic"><i class="fas fa-edit"></i></button>
                                         <span style="color: var(--success); font-weight: bold; margin-left: 10px;"><i class="fas fa-check-double"></i> Selected Topic</span>
                                     <?php endif; ?>
                                 </div>
