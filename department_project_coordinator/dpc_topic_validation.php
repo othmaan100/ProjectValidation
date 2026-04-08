@@ -65,10 +65,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     } 
     elseif (isset($_POST['reject_topic'])) {
         $topic_id = filter_input(INPUT_POST, 'topic_id', FILTER_SANITIZE_NUMBER_INT);
-        $reason = filter_input(INPUT_POST, 'rejection_reason', FILTER_SANITIZE_STRING) ?: 'Similarity found or topic rejected.';
+        $reason = isset($_POST['rejection_reason']) ? trim($_POST['rejection_reason']) : 'Similarity found or topic rejected.';
         $stmt = $conn->prepare("UPDATE project_topics SET status = 'rejected' WHERE id = ?");
         $stmt->execute([$topic_id]);
         send_feedback_to_student($topic_id, 'rejected', $reason);
+    }
+    elseif (isset($_POST['update_topic'])) {
+        $topic_id = filter_input(INPUT_POST, 'topic_id', FILTER_SANITIZE_NUMBER_INT);
+        $new_topic = isset($_POST['new_topic']) ? trim($_POST['new_topic']) : '';
+        
+        if (!empty($new_topic)) {
+            $stmt = $conn->prepare("UPDATE project_topics SET topic = ?, status = 'pending' WHERE id = ?");
+            $stmt->execute([$new_topic, $topic_id]);
+        }
     }
     elseif (isset($_POST['action']) && $_POST['action'] === 'check_similarity_ajax') {
         header('Content-Type: application/json');
@@ -318,11 +327,12 @@ if (!empty($students)) {
                                         </div>
                                         <div style="display: flex; gap: 5px; justify-content: flex-end; align-items: start;">
                                             <?php if ($t['status'] == 'pending'): ?>
+                                                <button type="button" onclick='openEditModal(<?= $t['id'] ?>, <?= htmlspecialchars(json_encode($t['topic']), ENT_QUOTES, 'UTF-8') ?>)' class="btn-sm" style="background: var(--primary);" title="Edit Topic"><i class="fas fa-edit"></i></button>
                                                 <form method="POST" style="display: inline;">
                                                     <input type="hidden" name="topic_id" value="<?= $t['id'] ?>">
                                                     <button type="submit" name="validate_topic" class="btn-sm btn-check" title="Check Similarity"><i class="fas fa-shield-alt"></i></button>
                                                 </form>
-                                                <button type="button" onclick="handleApprove(<?= $t['id'] ?>, <?= $s['id'] ?>, '<?= addslashes(htmlspecialchars($t['topic'])) ?>')" class="btn-sm btn-approve" title="Approve"><i class="fas fa-check"></i></button>
+                                                <button type="button" onclick='handleApprove(<?= $t['id'] ?>, <?= $s['id'] ?>, <?= htmlspecialchars(json_encode($t['topic']), ENT_QUOTES, 'UTF-8') ?>)' class="btn-sm btn-approve" title="Approve"><i class="fas fa-check"></i></button>
                                                 
                                                 <!-- Hidden dynamic approval form -->
                                                 <form id="approve-form-<?= $t['id'] ?>" method="POST" style="display: none;">
@@ -338,7 +348,8 @@ if (!empty($students)) {
                                             <?php elseif($t['status'] == 'approved'): ?>
                                                 <i class="fas fa-check-double" style="color: var(--success); font-size: 20px;" title="Selected Project"></i>
                                             <?php else: ?>
-                                                <small style="color: #bdc3c7; font-weight: 700;">ARCHIVED</small>
+                                                <button type="button" onclick='openEditModal(<?= $t['id'] ?>, <?= htmlspecialchars(json_encode($t['topic']), ENT_QUOTES, 'UTF-8') ?>)' class="btn-sm" style="background: var(--primary);" title="Edit Topic"><i class="fas fa-edit"></i></button>
+                                                <small style="color: #bdc3c7; font-weight: 700; margin-left: 5px;">ARCHIVED</small>
                                             <?php endif; ?>
                                         </div>
                                     </div>
@@ -377,6 +388,28 @@ if (!empty($students)) {
                 <button type="button" class="btn btn-cancel" onclick="closeSimilarityModal()">Cancel & Review</button>
                 <button type="button" class="btn btn-approve" id="approve-anyway-btn" style="background: var(--danger);">Approve Anyway</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Edit Topic Modal -->
+    <div id="editTopicModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-edit"></i> Edit Topic</h2>
+                <span class="close-modal" onclick="closeEditModal()">&times;</span>
+            </div>
+            <form method="POST">
+                <input type="hidden" name="update_topic" value="1">
+                <input type="hidden" name="topic_id" id="edit_topic_id" value="">
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; color: #2d3436; font-weight: 600;">Topic Text</label>
+                    <textarea name="new_topic" id="edit_topic_text" rows="4" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ccc; font-family: inherit;"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-cancel" onclick="closeEditModal()">Cancel</button>
+                    <button type="submit" class="btn btn-approve" style="background: var(--primary);">Save Changes</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -432,8 +465,19 @@ if (!empty($students)) {
             document.getElementById('similarityModal').style.display = 'none';
         }
 
+        function openEditModal(topicId, currentTopicText) {
+            document.getElementById('edit_topic_id').value = topicId;
+            document.getElementById('edit_topic_text').value = currentTopicText;
+            document.getElementById('editTopicModal').style.display = 'flex';
+        }
+
+        function closeEditModal() {
+            document.getElementById('editTopicModal').style.display = 'none';
+        }
+
         window.onclick = function(event) {
             if (event.target == document.getElementById('similarityModal')) closeSimilarityModal();
+            if (event.target == document.getElementById('editTopicModal')) closeEditModal();
         }
     </script>
 </body>
