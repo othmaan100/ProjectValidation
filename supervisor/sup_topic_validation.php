@@ -362,7 +362,7 @@ foreach ($data as $row) {
 
     <?php include_once __DIR__ . '/../includes/footer.php'; ?>
 
-    <!-- Edit Topic Modal -->
+    <!-- Edit Topic Modal --> 
     <div id="editModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">

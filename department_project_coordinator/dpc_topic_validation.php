@@ -334,6 +334,7 @@ if (!empty($students)) {
                                                 </form>
                                                 <button type="button" onclick='handleApprove(<?= $t['id'] ?>, <?= $s['id'] ?>, <?= htmlspecialchars(json_encode($t['topic']), ENT_QUOTES, 'UTF-8') ?>)' class="btn-sm btn-approve" title="Approve"><i class="fas fa-check"></i></button>
                                                 
+                                                
                                                 <!-- Hidden dynamic approval form -->
                                                 <form id="approve-form-<?= $t['id'] ?>" method="POST" style="display: none;">
                                                     <input type="hidden" name="topic_id" value="<?= $t['id'] ?>">
