@@ -18,10 +18,11 @@ $status = '';
 // Fetch the approved topic for this student
 // Fetch the approved topic and supervisor info for this student
 $stmt = $conn->prepare("
-    SELECT pt.*, su.name AS supervisor_name, su.phone AS supervisor_phone, su.email AS supervisor_email
+    SELECT pt.*, su.name AS supervisor_name, su.phone AS supervisor_phone, su.email AS supervisor_email, s.department
     FROM project_topics pt
     LEFT JOIN supervision sp ON pt.student_id = sp.student_id AND sp.status = 'active'
     LEFT JOIN supervisors su ON sp.supervisor_id = su.id
+    JOIN students s ON pt.student_id = s.id
     WHERE pt.student_id = ? AND pt.status = 'approved' 
     LIMIT 1
 ");
@@ -33,9 +34,49 @@ if (!$approved_topic) {
     exit();
 }
 
+// Check report submission schedule
+$dept_id = $approved_topic['department'];
+$can_submit = false;
+$deadline_info = "No report submission schedule set.";
+
+// 1. Check for individual student override first
+$stmt = $conn->prepare("SELECT * FROM student_report_overrides WHERE student_id = ? AND is_active = 1");
+$stmt->execute([$student_id]);
+$override = $stmt->fetch();
+
+$now = time();
+
+if ($override) {
+    $start_time = strtotime($override['submission_start']);
+    $end_time = strtotime($override['submission_end']);
+    
+    if ($now >= $start_time && $now <= $end_time) {
+        $can_submit = true;
+    }
+    $deadline_info = "Individual Extension: " . date('M d, Y H:i', $start_time) . " to " . date('M d, Y H:i', $end_time);
+} else {
+    // 2. Fallback to departmental schedule
+    $stmt = $conn->prepare("SELECT * FROM report_schedules WHERE department_id = ? AND is_active = 1");
+    $stmt->execute([$dept_id]);
+    $schedule = $stmt->fetch();
+
+    if ($schedule) {
+        $start_time = strtotime($schedule['submission_start']);
+        $end_time = strtotime($schedule['submission_end']);
+        
+        if ($now >= $start_time && $now <= $end_time) {
+            $can_submit = true;
+        }
+        $deadline_info = "Dept Window: " . date('M d, Y H:i', $start_time) . " to " . date('M d, Y H:i', $end_time);
+    }
+}
+
 // Handle report upload
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['report_file'])) {
-    if (!isset($_POST['csrf_token']) || !verify_csrf_token($_POST['csrf_token'])) {
+    if (!$can_submit) {
+        $message = "Report submission window is currently closed.";
+        $status = "error";
+    } elseif (!isset($_POST['csrf_token']) || !verify_csrf_token($_POST['csrf_token'])) {
         $message = "Session expired or invalid request.";
         $status = "error";
     } else {
@@ -155,6 +196,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['report_file'])) {
                 <div class="alert alert-<?= $status ?>"><?= $message ?></div>
             <?php endif; ?>
 
+            <div class="limit-info" style="background: <?= $can_submit ? '#e3f2fd' : '#ffebee' ?>; color: <?= $can_submit ? '#1976d2' : '#c62828' ?>; padding: 12px; border-radius: 12px; font-size: 13px; margin-bottom: 25px; display: flex; align-items: center; gap: 10px;">
+                <i class="fas <?= $can_submit ? 'fa-info-circle' : 'fa-clock' ?>"></i>
+                <div>
+                    <div><strong>Submission Schedule Status</strong></div>
+                    <div style="font-size: 11px; margin-top: 4px; font-weight: 600; opacity: 0.8;"><?= $deadline_info ?></div>
+                </div>
+            </div>
+
+            <?php if (!$can_submit): ?>
+                <div class="alert alert-error" style="margin-bottom: 25px;">
+                    <i class="fas fa-exclamation-triangle"></i> Report submissions are currently closed.
+                </div>
+            <?php endif; ?>
+
             <div class="project-info" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; flex-wrap: wrap;">
                 <div style="flex: 1; min-width: 250px;">
                     <h3>Approved Project Title</h3>
@@ -223,17 +278,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['report_file'])) {
             <?php endif; ?>
 
             <?php if (!isset($can_reupload) || $can_reupload): ?>
-                <form method="POST" enctype="multipart/form-data" id="uploadForm">
+                <form method="POST" enctype="multipart/form-data" id="uploadForm" style="<?= !$can_submit ? 'opacity: 0.5;' : '' ?>">
                     <?php echo csrf_field(); ?>
-                    <div class="upload-area" onclick="document.getElementById('report_file').click()">
+                    <div class="upload-area" <?= $can_submit ? 'onclick="document.getElementById(\'report_file\').click()"' : '' ?> style="<?= !$can_submit ? 'cursor: not-allowed;' : '' ?>">
                         <i class="fas fa-file-pdf"></i>
                         <h3 id="fileName">Select PDF Report</h3>
-                        <p>Click here to browse your files (Max 10MB)</p>
-                        <input type="file" name="report_file" id="report_file" class="file-input" accept=".pdf" onchange="handleFileSelect(this)">
+                        <p><?= $can_submit ? 'Click here to browse your files (Max 10MB)' : 'Submissions Closed' ?></p>
+                        <input type="file" name="report_file" id="report_file" class="file-input" accept=".pdf" onchange="handleFileSelect(this)" <?= !$can_submit ? 'disabled' : '' ?>>
                     </div>
 
                     <button type="submit" class="btn-submit" id="submitBtn" disabled>
-                        Upload Report <i class="fas fa-paper-plane"></i>
+                        <?= $can_submit ? 'Upload Report' : 'Submissions Closed' ?> <i class="fas <?= $can_submit ? 'fa-paper-plane' : 'fa-lock' ?>"></i>
                     </button>
                 </form>
             <?php endif; ?>

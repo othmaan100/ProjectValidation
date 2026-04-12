@@ -71,7 +71,8 @@ if (!defined('PROJECT_ROOT')) {
                 <a href="<?= PROJECT_ROOT ?>department_project_coordinator/dpc_topic_validation.php" class="<?= isActive('dpc_topic_validation.php', $current_page) ?>">Validation</a>
                 <a href="<?= PROJECT_ROOT ?>department_project_coordinator/dpc_panel_pending_topics.php" class="<?= isActive('dpc_panel_pending_topics.php', $current_page) ?>">Panel Pending Topics</a>
                 <a href="<?= PROJECT_ROOT ?>department_project_coordinator/dpc_panel_approved_topics.php" class="<?= isActive('dpc_panel_approved_topics.php', $current_page) ?>">Panel Approved Topics</a>
-                <a href="<?= PROJECT_ROOT ?>department_project_coordinator/dpc_submission_schedule.php" class="<?= isActive('dpc_submission_schedule.php', $current_page) ?>">Schedules</a>
+                <a href="<?= PROJECT_ROOT ?>department_project_coordinator/dpc_submission_schedule.php" class="<?= isActive('dpc_submission_schedule.php', $current_page) ?>">Topic Schedule</a>
+                <a href="<?= PROJECT_ROOT ?>department_project_coordinator/dpc_report_schedule.php" class="<?= isActive('dpc_report_schedule.php', $current_page) ?>">Report Schedule</a>
                 <a href="<?= PROJECT_ROOT ?>department_project_coordinator/dpc_manage_submissions.php" class="<?= isActive('dpc_manage_submissions.php', $current_page) ?>">Submissions</a>
                 <a href="<?= PROJECT_ROOT ?>department_project_coordinator/dpc_manage_panels.php" class="<?= isActive('dpc_manage_panels.php', $current_page) ?>">Panels</a>
                 <a href="<?= PROJECT_ROOT ?>department_project_coordinator/dpc_view_assessments.php" class="<?= isActive('dpc_view_assessments.php', $current_page) ?>">Assessments</a>

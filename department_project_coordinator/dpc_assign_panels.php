@@ -78,13 +78,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['auto_allocate'])) {
         $stmt->execute([$active_session, $dept_id, $stage]);
         $panels_list = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        // 2. Fetch all unassigned students for THIS stage
+        // 2. Fetch all unassigned students for THIS stage and randomize their order
         $stu_stmt = $conn->prepare("
             SELECT s.id 
             FROM students s 
             WHERE s.department = ? 
             AND s.id NOT IN (SELECT student_id FROM student_panel_assignments WHERE academic_session = ? AND panel_type = ?)
-            ORDER BY s.id
+            ORDER BY RAND()
         ");
         $stu_stmt->execute([$dept_id, $active_session, $stage]);
         $unassigned_students = $stu_stmt->fetchAll(PDO::FETCH_COLUMN);
