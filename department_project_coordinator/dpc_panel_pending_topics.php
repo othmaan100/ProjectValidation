@@ -70,7 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 }
 
 // Fetch total records for pagination
-$countQuery = "SELECT COUNT(DISTINCT pt.id) FROM project_topics pt JOIN students s ON s.id = pt.student_id WHERE s.department = :dept AND pt.status = 'pending'";
+$countQuery = "SELECT COUNT(DISTINCT s.id) FROM project_topics pt JOIN students s ON s.id = pt.student_id WHERE s.department = :dept AND pt.status = 'pending'";
 if ($search) $countQuery .= " AND (s.name LIKE :search OR s.reg_no LIKE :search OR pt.topic LIKE :search)";
 $countStmt = $conn->prepare($countQuery);
 $countStmt->bindValue(':dept', $dept_id);
@@ -80,19 +80,30 @@ $totalRecords = $countStmt->fetchColumn();
 $totalPages = ceil($totalRecords / $limit);
 
 // Fetch pending topics
-$topicQuery = "SELECT pt.id, pt.topic, pt.status, s.id as student_id, s.reg_no, s.name as student_name 
-                 FROM project_topics pt 
-                 JOIN students s ON s.id = pt.student_id 
-                 WHERE s.department = :dept AND pt.status = 'pending'";
-if ($search) $topicQuery .= " AND (s.name LIKE :search OR s.reg_no LIKE :search OR pt.topic LIKE :search)";
-$topicQuery .= " ORDER BY s.name ASC LIMIT :limit OFFSET :offset";
-$stmt = $conn->prepare($topicQuery);
-$stmt->bindValue(':dept', $dept_id);
-if ($search) $stmt->bindValue(':search', "%$search%");
-$stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
-$stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
-$stmt->execute();
-$topics = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$topics = [];
+$studentQuery = "SELECT DISTINCT s.id, s.name FROM project_topics pt JOIN students s ON s.id = pt.student_id WHERE s.department = :dept AND pt.status = 'pending'";
+if ($search) $studentQuery .= " AND (s.name LIKE :search OR s.reg_no LIKE :search OR pt.topic LIKE :search)";
+$studentQuery .= " ORDER BY s.name ASC, s.id ASC LIMIT :limit OFFSET :offset";
+$studentStmt = $conn->prepare($studentQuery);
+$studentStmt->bindValue(':dept', $dept_id);
+if ($search) $studentStmt->bindValue(':search', "%$search%");
+$studentStmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+$studentStmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+$studentStmt->execute();
+$studentRows = $studentStmt->fetchAll(PDO::FETCH_ASSOC);
+
+if (!empty($studentRows)) {
+    $studentIds = array_column($studentRows, 'id');
+    $placeholders = implode(',', array_fill(0, count($studentIds), '?'));
+    $topicQuery = "SELECT pt.id, pt.topic, pt.status, s.id as student_id, s.reg_no, s.name as student_name 
+                     FROM project_topics pt 
+                     JOIN students s ON s.id = pt.student_id 
+                     WHERE s.id IN ($placeholders) AND pt.status = 'pending'
+                     ORDER BY s.name ASC, pt.id ASC";
+    $stmt = $conn->prepare($topicQuery);
+    $stmt->execute($studentIds);
+    $topics = $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
 
 ?>
 <!DOCTYPE html>
@@ -179,28 +190,43 @@ $topics = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     <?php if (empty($topics)): ?>
                         <tr><td colspan="3" style="text-align:center; padding: 60px; color: #636e72;">No pending topics found.</td></tr>
                     <?php else: ?>
-                        <?php foreach ($topics as $t): ?>
+                        <?php 
+                        $groupedTopics = [];
+                        foreach($topics as $t) {
+                            $groupedTopics[$t['student_id']]['info'] = $t;
+                            $groupedTopics[$t['student_id']]['topics'][] = $t;
+                        }
+                        ?>
+                        <?php foreach ($groupedTopics as $student_id => $group): $info = $group['info']; ?>
                         <tr>
-                            <td>
-                                <span class="student-name"><?= htmlspecialchars($t['student_name']) ?></span>
-                                <span class="student-reg"><code><?= htmlspecialchars($t['reg_no']) ?></code></span>
+                            <td style="vertical-align: top; padding-top: 25px;">
+                                <span class="student-name"><?= htmlspecialchars($info['student_name']) ?></span>
+                                <span class="student-reg"><code><?= htmlspecialchars($info['reg_no']) ?></code></span>
                             </td>
-                            <td>
-                                <span class="topic-text">"<?= htmlspecialchars($t['topic']) ?>"</span>
-                            </td>
-                            <td style="text-align: center;">
-                                <div style="display: flex; gap: 8px; justify-content: center;">
-                                    <button type="button" onclick='openEditModal(<?= $t['id'] ?>, <?= htmlspecialchars(json_encode($t['topic']), ENT_QUOTES, 'UTF-8') ?>)' class="btn-sm btn-edit" title="Update Topic">
-                                        <i class="fas fa-edit"></i> Update
-                                    </button>
-                                    <form method="POST" style="display: inline;" onsubmit="return confirm('Are you sure you want to approve this topic? Other topics for this student will be rejected.');">
-                                        <input type="hidden" name="topic_id" value="<?= $t['id'] ?>">
-                                        <input type="hidden" name="student_id" value="<?= $t['student_id'] ?>">
-                                        <button type="submit" name="approve_topic" class="btn-sm btn-approve" title="Approve Topic">
-                                            <i class="fas fa-check"></i> Approve
-                                        </button>
-                                    </form>
-                                </div>
+                            <td colspan="2" style="padding: 0; background: transparent;">
+                                <table style="width: 100%; border: none; box-shadow: none; border-radius: 0; background: transparent;">
+                                    <?php foreach($group['topics'] as $index => $t): ?>
+                                    <tr>
+                                        <td style="border: none; padding: 15px 20px; <?= $index < count($group['topics'])-1 ? 'border-bottom: 1px solid #eee;' : '' ?>">
+                                            <span class="topic-text">"<?= htmlspecialchars($t['topic']) ?>"</span>
+                                        </td>
+                                        <td style="border: none; width: 200px; text-align: center; padding: 15px 20px; <?= $index < count($group['topics'])-1 ? 'border-bottom: 1px solid #eee;' : '' ?>">
+                                            <div style="display: flex; gap: 8px; justify-content: center;">
+                                                <button type="button" onclick='openEditModal(<?= $t['id'] ?>, <?= htmlspecialchars(json_encode($t['topic']), ENT_QUOTES, 'UTF-8') ?>)' class="btn-sm btn-edit" title="Update Topic">
+                                                    <i class="fas fa-edit"></i> Update
+                                                </button>
+                                                <form method="POST" style="display: inline;" onsubmit="return confirm('Are you sure you want to approve this topic? Other topics for this student will be rejected.');">
+                                                    <input type="hidden" name="topic_id" value="<?= $t['id'] ?>">
+                                                    <input type="hidden" name="student_id" value="<?= $t['student_id'] ?>">
+                                                    <button type="submit" name="approve_topic" class="btn-sm btn-approve" title="Approve Topic">
+                                                        <i class="fas fa-check"></i> Approve
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <?php endforeach; ?>
+                                </table>
                             </td>
                         </tr>
                         <?php endforeach; ?>
