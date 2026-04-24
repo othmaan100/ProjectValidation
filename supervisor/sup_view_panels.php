@@ -13,7 +13,7 @@ $active_session = $current_session;
 
 // Fetch all panels where current supervisor is a member
 $panel_stmt = $conn->prepare("
-    SELECT dp.id, dp.panel_name, dp.panel_type
+    SELECT dp.id, dp.panel_name, dp.panel_type, dp.venue, dp.panel_date, dp.panel_time
     FROM defense_panels dp
     JOIN panel_members pm ON dp.id = pm.panel_id
     WHERE pm.supervisor_id = ?
@@ -141,6 +141,19 @@ foreach ($panels as $panel) {
                 <div class="panel-card">
                     <div class="panel-header">
                         <h2><?= htmlspecialchars($data['info']['panel_name']) ?></h2>
+                        <div style="font-size: 13px; color: #858796; margin-top: 8px;">
+                            <i class="far fa-clock"></i>
+                            <?php if ($data['info']['panel_date']): ?>
+                                <?= date('M d, Y', strtotime($data['info']['panel_date'])) ?>
+                                <?php if ($data['info']['panel_time']): ?>
+                                    at <?= date('h:i A', strtotime($data['info']['panel_time'])) ?>
+                                <?php endif; ?>
+                            <?php else: ?>
+                                TBD
+                            <?php endif; ?>
+                            <span style="margin: 0 10px;">|</span>
+                            <i class="fas fa-map-marker-alt"></i> <?= htmlspecialchars($data['info']['venue'] ?: 'TBD') ?>
+                        </div>
                         <span class="type-badge type-<?= $data['info']['panel_type'] ?>">
                             <?= htmlspecialchars($data['info']['panel_type']) ?> Stage
                         </span>

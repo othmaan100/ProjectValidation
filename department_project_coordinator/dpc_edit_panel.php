@@ -43,6 +43,9 @@ $message_type = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_panel'])) {
     $panel_name = trim($_POST['panel_name']);
     $max_students = (int)$_POST['max_students'];
+    $venue = trim($_POST['venue'] ?? '');
+    $panel_date = !empty($_POST['panel_date']) ? $_POST['panel_date'] : null;
+    $panel_time = !empty($_POST['panel_time']) ? $_POST['panel_time'] : null;
     $member_ids = $_POST['member_ids'] ?? [];
 
     if (!empty($panel_name) && $max_students > 0) {
@@ -50,8 +53,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_panel'])) {
             $conn->beginTransaction();
             
             // Update panel details
-            $stmt = $conn->prepare("UPDATE defense_panels SET panel_name = ? , max_students = ? WHERE id = ?");
-            $stmt->execute([$panel_name, $max_students, $panel_id]);
+            $stmt = $conn->prepare("UPDATE defense_panels SET panel_name = ? , max_students = ?, venue = ?, panel_date = ?, panel_time = ? WHERE id = ?");
+            $stmt->execute([$panel_name, $max_students, $venue, $panel_date, $panel_time, $panel_id]);
 
             // Update panelists (remove old, insert new)
             $stmt = $conn->prepare("DELETE FROM panel_members WHERE panel_id = ?");
@@ -269,6 +272,21 @@ $unassigned_students = $unassigned_stmt->fetchAll(PDO::FETCH_ASSOC);
                     <div class="form-group">
                         <label for="max_students">Max Students</label>
                         <input type="number" id="max_students" name="max_students" min="1" value="<?= htmlspecialchars($panel['max_students']) ?>" required>
+                    </div>
+                    
+                    <div class="grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="venue">Venue</label>
+                            <input type="text" id="venue" name="venue" value="<?= htmlspecialchars($panel['venue'] ?? '') ?>" placeholder="e.g. Room 101, Computer Lab">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="panel_date">Date</label>
+                            <input type="date" id="panel_date" name="panel_date" value="<?= htmlspecialchars($panel['panel_date'] ?? '') ?>" style="width: 100%; padding: 14px; border: 2px solid #e2e8f0; border-radius: 12px; font-family: inherit; font-size: 16px; outline: none; box-sizing: border-box;">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="panel_time">Time</label>
+                            <input type="time" id="panel_time" name="panel_time" value="<?= htmlspecialchars($panel['panel_time'] ?? '') ?>" style="width: 100%; padding: 14px; border: 2px solid #e2e8f0; border-radius: 12px; font-family: inherit; font-size: 16px; outline: none; box-sizing: border-box;">
+                        </div>
                     </div>
                     <div class="form-group">
                         <label>Panel Members (<?= $panel['panel_type'] === 'external' ? 'External Examiners' : 'Supervisors' ?>)</label>

@@ -25,14 +25,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_panel'])) {
     $panel_name = trim($_POST['panel_name']);
     $panel_type = $_POST['panel_type'];
     $max_students = (int)$_POST['max_students'];
+    $venue = trim($_POST['venue'] ?? '');
+    $panel_date = !empty($_POST['panel_date']) ? $_POST['panel_date'] : null;
+    $panel_time = !empty($_POST['panel_time']) ? $_POST['panel_time'] : null;
     $member_ids = $_POST['member_ids'] ?? [];
 
     if (!empty($panel_name) && !empty($panel_type) && !empty($member_ids) && $max_students > 0) {
         try {
             $conn->beginTransaction();
             
-            $stmt = $conn->prepare("INSERT INTO defense_panels (panel_name, panel_type, department_id, max_students) VALUES (?, ?, ?, ?)");
-            $stmt->execute([$panel_name, $panel_type, $dept_id, $max_students]);
+            $stmt = $conn->prepare("INSERT INTO defense_panels (panel_name, panel_type, department_id, max_students, venue, panel_date, panel_time) VALUES (?, ?, ?, ?, ?, ?, ?)");
+            $stmt->execute([$panel_name, $panel_type, $dept_id, $max_students, $venue, $panel_date, $panel_time]);
             $panel_id = $conn->lastInsertId();
 
             // Store in panel_members. Note: we use supervisor_id column to store users.id (could be sup or ext)
@@ -130,7 +133,7 @@ $panels = $panel_stmt->fetchAll(PDO::FETCH_ASSOC);
         }
 
         body { font-family: 'Outfit', sans-serif; background-color: var(--bg-body); color: var(--text-main); margin: 0; padding: 0; }
-        .container { max-width: 1200px; margin: 10px auto 40px auto; padding: 0 20px; }
+        .container { max-width: 1400px; margin: 10px auto 40px auto; padding: 0 20px; }
 
         .header { background: white; padding: 30px; border-radius: 24px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; }
         .header h1 { font-size: 24px; font-weight: 700; color: var(--primary); }
@@ -139,7 +142,7 @@ $panels = $panel_stmt->fetchAll(PDO::FETCH_ASSOC);
         .alert-success { background: #ecfdf5; color: #065f46; border: 1px solid #10b981; }
         .alert-error { background: #fef2f2; color: #991b1b; border: 1px solid #ef4444; }
 
-        .grid { display: grid; grid-template-columns: 1fr 2fr; gap: 30px; }
+        .grid { display: grid; grid-template-columns: 350px 1fr; gap: 30px; }
 
         .card { background: white; padding: 30px; border-radius: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
         .card h2 { font-size: 20px; font-weight: 700; margin-bottom: 25px; display: flex; align-items: center; gap: 10px; }
@@ -235,6 +238,21 @@ $panels = $panel_stmt->fetchAll(PDO::FETCH_ASSOC);
                         <label for="max_students">Max Students</label>
                         <input type="number" id="max_students" name="max_students" min="1" value="10" required>
                     </div>
+                    
+                    <div class="grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="venue">Venue</label>
+                            <input type="text" id="venue" name="venue" placeholder="e.g. Room 101, Computer Lab">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="panel_date">Date</label>
+                            <input type="date" id="panel_date" name="panel_date" style="width: 100%; padding: 14px; border: 2px solid #e2e8f0; border-radius: 12px; font-family: inherit; font-size: 16px; outline: none;">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="panel_time">Time</label>
+                            <input type="time" id="panel_time" name="panel_time" style="width: 100%; padding: 14px; border: 2px solid #e2e8f0; border-radius: 12px; font-family: inherit; font-size: 16px; outline: none;">
+                        </div>
+                    </div>
 
                     <!-- Supervisor Selection -->
                     <div class="form-group" id="supervisor_select_area">
@@ -275,6 +293,7 @@ $panels = $panel_stmt->fetchAll(PDO::FETCH_ASSOC);
                         <thead>
                             <tr>
                                 <th>Panel Name/Type</th>
+                                <th>Schedule & Venue</th>
                                 <th>Max Students</th>
                                 <th>Members</th>
                                 <th style="text-align: right;">Actions</th>
@@ -286,6 +305,23 @@ $panels = $panel_stmt->fetchAll(PDO::FETCH_ASSOC);
                                     <td data-label="Panel Name/Type">
                                         <strong><?= htmlspecialchars($panel['panel_name']) ?></strong><br>
                                         <span class="type-badge type-<?= $panel['panel_type'] ?>"><?= $panel['panel_type'] ?></span>
+                                    </td>
+                                    <td data-label="Schedule & Venue">
+                                        <?php if ($panel['panel_date']): ?>
+                                            <div style="font-size: 13px; margin-bottom: 5px;">
+                                                <i class="far fa-calendar-alt"></i> <?= date('M d, Y', strtotime($panel['panel_date'])) ?>
+                                                <?php if ($panel['panel_time']): ?>
+                                                    at <?= date('h:i A', strtotime($panel['panel_time'])) ?>
+                                                <?php endif; ?>
+                                            </div>
+                                        <?php else: ?>
+                                            <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 5px;">
+                                                <i class="far fa-calendar-times"></i> Time & Date Not Set
+                                            </div>
+                                        <?php endif; ?>
+                                        <div style="font-size: 13px;">
+                                            <i class="fas fa-map-marker-alt"></i> <?= htmlspecialchars($panel['venue'] ?: 'Venue Not Set') ?>
+                                        </div>
                                     </td>
                                     <td data-label="Max Students"><span class="panel-badge"><?= htmlspecialchars($panel['max_students']) ?></span></td>
                                     <td data-label="Members">

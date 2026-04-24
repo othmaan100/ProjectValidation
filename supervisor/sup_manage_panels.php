@@ -40,7 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_assessment']))
 
 // Fetch panels where current supervisor is a member
 $panel_stmt = $conn->prepare("
-    SELECT dp.id, dp.panel_name, dp.panel_type
+    SELECT dp.id, dp.panel_name, dp.panel_type, dp.venue, dp.panel_date, dp.panel_time
     FROM defense_panels dp
     JOIN panel_members pm ON dp.id = pm.panel_id
     WHERE pm.supervisor_id = ?
@@ -70,6 +70,9 @@ foreach ($panels as $panel) {
         'panel_name' => $panel['panel_name'],
         'panel_type' => $panel['panel_type'],
         'panel_id' => $panel['id'],
+        'venue' => $panel['venue'],
+        'panel_date' => $panel['panel_date'],
+        'panel_time' => $panel['panel_time'],
         'students' => $students
     ];
 }
@@ -178,7 +181,21 @@ foreach ($panels as $panel) {
                             <h2><i class="fas fa-users"></i> <?= htmlspecialchars($data['panel_name']) ?></h2>
                             <span class="type-badge type-<?= $data['panel_type'] ?>"><?= $data['panel_type'] ?></span>
                         </div>
-                        <span style="font-size: 14px; opacity: 0.9;">Academic Session: <?= $active_session ?></span>
+                        <div style="text-align: right;">
+                            <div style="font-size: 13px; font-weight: 600; margin-bottom: 2px;">
+                                <?php if ($data['panel_date']): ?>
+                                    <i class="far fa-clock"></i> <?= date('M d, Y', strtotime($data['panel_date'])) ?>
+                                    <?php if ($data['panel_time']): ?>
+                                        at <?= date('h:i A', strtotime($data['panel_time'])) ?>
+                                    <?php endif; ?>
+                                <?php else: ?>
+                                    <i class="far fa-clock"></i> TBD
+                                <?php endif; ?>
+                                <span style="margin: 0 5px;">|</span>
+                                <i class="fas fa-map-marker-alt"></i> <?= htmlspecialchars($data['venue'] ?: 'TBD') ?>
+                            </div>
+                            <span style="font-size: 12px; opacity: 0.9;">Academic Session: <?= $active_session ?></span>
+                        </div>
                     </div>
                     <?php if (empty($data['students'])): ?>
                         <div style="padding: 40px; text-align: center; color: #888;">No students assigned to this panel yet.</div>

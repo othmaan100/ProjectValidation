@@ -23,7 +23,7 @@ if (!$student) {
 
 // Fetch all panels assigned to this student
 $stmt = $conn->prepare("
-    SELECT spa.panel_id, spa.panel_type, dp.panel_name, spa.academic_session
+    SELECT spa.panel_id, spa.panel_type, dp.panel_name, spa.academic_session, dp.venue, dp.panel_date, dp.panel_time
     FROM student_panel_assignments spa
     JOIN defense_panels dp ON spa.panel_id = dp.id
     WHERE spa.student_id = ?
@@ -141,7 +141,21 @@ foreach ($assignments as $asgn) {
                     <div class="panel-header">
                         <div class="panel-header-info">
                             <h2><?= htmlspecialchars($data['info']['panel_name']) ?></h2>
-                            <p><i class="fas fa-calendar-alt"></i> Session: <?= htmlspecialchars($data['info']['academic_session']) ?></p>
+                            <p>
+                                <i class="fas fa-calendar-alt"></i> Session: <?= htmlspecialchars($data['info']['academic_session']) ?>
+                                <span style="margin: 0 10px;">|</span>
+                                <i class="far fa-clock"></i> 
+                                <?php if ($data['info']['panel_date']): ?>
+                                    <?= date('M d, Y', strtotime($data['info']['panel_date'])) ?>
+                                    <?php if ($data['info']['panel_time']): ?>
+                                        at <?= date('h:i A', strtotime($data['info']['panel_time'])) ?>
+                                    <?php endif; ?>
+                                <?php else: ?>
+                                    TBD
+                                <?php endif; ?>
+                                <span style="margin: 0 10px;">|</span>
+                                <i class="fas fa-map-marker-alt"></i> <?= htmlspecialchars($data['info']['venue'] ?: 'TBD') ?>
+                            </p>
                         </div>
                         <div class="type-badge">
                             <?= htmlspecialchars($data['info']['panel_type']) ?>

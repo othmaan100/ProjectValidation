@@ -151,7 +151,20 @@ foreach ($panels as $key => $panel) {
                             <span style="font-size: 14px;" class="no-print">Capacity: <?= $panel['student_count'] ?> / <?= $panel['max_students'] ?> Students</span>
                         </div>
                         <div class="panel-meta">
-                            <p><strong>Panel Members (Supervisors):</strong> <?= htmlspecialchars($panel['members'] ?: 'No members assigned') ?></p>
+                            <p style="margin-bottom: 8px;"><strong>Panel Members (Supervisors):</strong> <?= htmlspecialchars($panel['members'] ?: 'No members assigned') ?></p>
+                            <p style="margin-top: 0; display: flex; gap: 15px;">
+                                <span><strong><i class="far fa-clock"></i> Schedule:</strong> 
+                                <?php if ($panel['panel_date']): ?>
+                                    <?= date('M d, Y', strtotime($panel['panel_date'])) ?>
+                                    <?php if ($panel['panel_time']): ?>
+                                        at <?= date('h:i A', strtotime($panel['panel_time'])) ?>
+                                    <?php endif; ?>
+                                <?php else: ?>
+                                    TBD
+                                <?php endif; ?>
+                                </span>
+                                <span><strong><i class="fas fa-map-marker-alt"></i> Venue:</strong> <?= htmlspecialchars($panel['venue'] ?: 'TBD') ?></span>
+                            </p>
                         </div>
                         
                         <?php if (count($panel['students']) > 0): ?>
