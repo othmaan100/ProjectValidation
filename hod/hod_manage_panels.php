@@ -1,0 +1,395 @@
+<?php
+include_once __DIR__ . '/../includes/auth.php';
+include_once __DIR__ . '/../includes/db.php';
+
+// Authentication check
+if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'hod') {
+    header("Location: " . PROJECT_ROOT);
+    exit();
+}
+
+$hod_id = $_SESSION['user_id'];
+
+// Fetch the HOD's department info
+$stmt = $conn->prepare("SELECT u.department as dept_id, d.department_name FROM users u JOIN departments d ON u.department = d.id WHERE u.id = ?");
+$stmt->execute([$hod_id]);
+$hod_info = $stmt->fetch(PDO::FETCH_ASSOC);
+$dept_id = $hod_info['dept_id'];
+$dept_name = $hod_info['department_name'];
+
+$message = '';
+$message_type = '';
+
+// Handle Panel Creation
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_panel'])) {
+    $panel_name = trim($_POST['panel_name']);
+    $panel_type = $_POST['panel_type'];
+    $max_students = (int)$_POST['max_students'];
+    $venue = trim($_POST['venue'] ?? '');
+    $panel_date = !empty($_POST['panel_date']) ? $_POST['panel_date'] : null;
+    $panel_time = !empty($_POST['panel_time']) ? $_POST['panel_time'] : null;
+    $member_ids = $_POST['member_ids'] ?? [];
+
+    if (!empty($panel_name) && !empty($panel_type) && !empty($member_ids) && $max_students > 0) {
+        try {
+            $conn->beginTransaction();
+            
+            $stmt = $conn->prepare("INSERT INTO defense_panels (panel_name, panel_type, department_id, max_students, venue, panel_date, panel_time) VALUES (?, ?, ?, ?, ?, ?, ?)");
+            $stmt->execute([$panel_name, $panel_type, $dept_id, $max_students, $venue, $panel_date, $panel_time]);
+            $panel_id = $conn->lastInsertId();
+
+            // Store in panel_members. Note: we use supervisor_id column to store users.id (could be sup or ext)
+            $stmt = $conn->prepare("INSERT INTO panel_members (panel_id, supervisor_id) VALUES (?, ?)");
+            foreach ($member_ids as $mid) {
+                // Verify that if type is 'external', the member is an 'ext' role user
+                if ($panel_type === 'external') {
+                    $cstmt = $conn->prepare("SELECT role FROM users WHERE id = ?");
+                    $cstmt->execute([$mid]);
+                    if ($cstmt->fetchColumn() !== 'ext') throw new Exception("Only external examiners can be added to an External Defense Panel.");
+                } else {
+                    $cstmt = $conn->prepare("SELECT role FROM users WHERE id = ?");
+                    $cstmt->execute([$mid]);
+                    if ($cstmt->fetchColumn() !== 'sup') throw new Exception("Only supervisors can be added to this panel type.");
+                }
+                $stmt->execute([$panel_id, $mid]);
+            }
+
+            $conn->commit();
+            $message = "Panel '$panel_name' ($panel_type) created successfully!";
+            $message_type = "success";
+        } catch (Exception $e) {
+            $conn->rollBack();
+            $message = "Error: " . $e->getMessage();
+            $message_type = "error";
+        }
+    } else {
+        $message = "Please provide a panel name, type, valid max students, and select at least one member.";
+        $message_type = "error";
+    }
+}
+
+// Handle Panel Deletion
+if (isset($_GET['delete_panel'])) {
+    $panel_id = $_GET['delete_panel'];
+    try {
+        // Verify panel belongs to this department
+        $stmt = $conn->prepare("SELECT id FROM defense_panels WHERE id = ? AND department_id = ?");
+        $stmt->execute([$panel_id, $dept_id]);
+        if ($stmt->fetch()) {
+            $stmt = $conn->prepare("DELETE FROM defense_panels WHERE id = ?");
+            $stmt->execute([$panel_id]);
+            $message = "Panel deleted successfully!";
+            $message_type = "success";
+        }
+    } catch (Exception $e) {
+        $message = "Error: " . $e->getMessage();
+        $message_type = "error";
+    }
+}
+
+// Fetch all supervisors in this department
+$sup_stmt = $conn->prepare("SELECT id, name FROM supervisors WHERE department = ? ORDER BY name");
+$sup_stmt->execute([$dept_id]);
+$supervisors = $sup_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Fetch all external examiners in this department
+$ext_stmt = $conn->prepare("SELECT id, name FROM external_examiners WHERE department_id = ? ORDER BY name");
+$ext_stmt->execute([$dept_id]);
+$external_examiners = $ext_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Fetch all panels for this department
+$panel_stmt = $conn->prepare("
+    SELECT dp.*, GROUP_CONCAT(u.name SEPARATOR ', ') as members
+    FROM defense_panels dp
+    LEFT JOIN panel_members pm ON dp.id = pm.panel_id
+    LEFT JOIN users u ON pm.supervisor_id = u.id
+    WHERE dp.department_id = ?
+    GROUP BY dp.id
+    ORDER BY FIELD(dp.panel_type, 'proposal', 'internal', 'external'), dp.panel_name
+");
+$panel_stmt->execute([$dept_id]);
+$panels = $panel_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Panels - <?= htmlspecialchars($dept_name) ?></title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <style>
+        * { box-sizing: border-box; }
+        
+        :root {
+            --primary: #4338ca;
+            --primary-light: #6366f1;
+            --success: #059669;
+            --danger: #dc2626;
+            --bg-body: #f1f5f9;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+        }
+
+        body { font-family: 'Outfit', sans-serif; background-color: var(--bg-body); color: var(--text-main); margin: 0; padding: 0; }
+        .container { max-width: 1400px; margin: 10px auto 40px auto; padding: 0 20px; }
+
+        .header { background: white; padding: 30px; border-radius: 24px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { font-size: 24px; font-weight: 700; color: var(--primary); }
+
+        .alert { padding: 15px 25px; border-radius: 12px; margin-bottom: 25px; display: flex; align-items: center; gap: 15px; font-weight: 600; }
+        .alert-success { background: #ecfdf5; color: #065f46; border: 1px solid #10b981; }
+        .alert-error { background: #fef2f2; color: #991b1b; border: 1px solid #ef4444; }
+
+        .grid { display: grid; grid-template-columns: 350px 1fr; gap: 30px; }
+
+        .card { background: white; padding: 30px; border-radius: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+        .card h2 { font-size: 20px; font-weight: 700; margin-bottom: 25px; display: flex; align-items: center; gap: 10px; }
+
+        .form-group { margin-bottom: 20px; }
+        label { font-size: 14px; font-weight: 700; color: var(--text-muted); margin-bottom: 8px; display: block; text-transform: uppercase; letter-spacing: 0.5px; }
+        input[type="text"], input[type="number"], input[type="date"], input[type="time"] { width: 100%; padding: 14px; border: 2px solid #e2e8f0; border-radius: 12px; font-family: inherit; font-size: 16px; outline: none; transition: 0.2s; box-sizing: border-box; }
+        input:focus { border-color: var(--primary-light); }
+        
+        .two-col-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+
+        .btn { padding: 14px 24px; border: none; border-radius: 12px; font-family: inherit; font-size: 15px; font-weight: 700; cursor: pointer; transition: 0.3s; display: inline-flex; align-items: center; gap: 8px; text-decoration: none; }
+        .btn-primary { background: var(--primary); color: white; width: 100%; justify-content: center; }
+        .btn-primary:hover { background: #3730a3; transform: translateY(-2px); }
+        .btn-danger { background: #fee2e2; color: var(--danger); }
+        .btn-danger:hover { background: var(--danger); color: white; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th { text-align: left; padding: 15px; font-size: 12px; color: var(--text-muted); text-transform: uppercase; border-bottom: 2px solid #f1f5f9; }
+        td { padding: 15px; border-bottom: 1px solid #f1f5f9; font-size: 15px; }
+
+        .panel-badge { background: #f1f5f9; padding: 4px 10px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--primary); }
+        .type-badge { padding: 4px 10px; border-radius: 8px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+        .type-proposal { background: #e0f2fe; color: #0369a1; }
+        .type-internal { background: #fef3c7; color: #92400e; }
+        .type-external { background: #dcfce7; color: #166534; }
+        
+        /* Select2 Customization */
+        .select2-container--default .select2-selection--multiple { border: 2px solid #e2e8f0; border-radius: 12px; padding: 8px; }
+        .select2-container--default .select2-selection--multiple .select2-selection__choice { background-color: var(--primary); border: none; color: white; border-radius: 6px; padding: 2px 10px; }
+        .select2-container--default .select2-selection--multiple .select2-selection__choice__remove { color: white; margin-right: 8px; border: none; }
+        .select2-container--default .select2-selection--multiple .select2-selection__choice__remove:hover { background: none; color: #f8fafc; }
+
+        @media (max-width: 900px) { 
+            .grid { grid-template-columns: 1fr; } 
+            .header { flex-direction: column; text-align: center; gap: 20px; }
+            .header div:last-child { flex-direction: column; width: 100%; }
+            .btn { width: 100%; justify-content: center; }
+        }
+        
+        @media (max-width: 600px) {
+            .two-col-grid { grid-template-columns: 1fr; }
+            .container { margin: 20px auto; padding: 0 15px; }
+            .card { padding: 20px; }
+            .header h1 { font-size: 20px; }
+            table thead { display: none; }
+            table, table tbody, table tr, table td { display: block; width: 100%; }
+            table tr { margin-bottom: 20px; border: 1px solid #e2e8f0; border-radius: 15px; padding: 10px; background: #fff; }
+            table td { border: none; padding: 8px 10px; text-align: left; position: relative; }
+            table td:before { content: attr(data-label); font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px; font-size: 11px; text-transform: uppercase; }
+            .btn-danger { width: auto; }
+            td[style*="text-align: right"] { text-align: left !important; justify-content: flex-start !important; }
+        }
+    </style>
+</head>
+<body>
+    <?php include_once __DIR__ . '/../includes/header.php'; ?>
+
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>Manage Defense Panels</h1>
+                <p style="color: var(--text-muted);">Create and manage panels for project defenses.</p>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <a href="hod_panel_details.php" class="btn btn-primary" style="background: var(--success);"><i class="fas fa-eye"></i> View Detailed Information</a>
+                <a href="hod_assign_panels.php" class="btn btn-primary" style="width: auto;"><i class="fas fa-user-plus"></i> Assign Students to Panels</a>
+            </div>
+        </div>
+
+        <?php if ($message): ?>
+            <div class="alert alert-<?= $message_type ?>">
+                <i class="fas fa-<?= $message_type === 'success' ? 'check-circle' : 'exclamation-circle' ?>"></i>
+                <?= $message ?>
+            </div>
+        <?php endif; ?>
+
+        <div class="grid">
+            <!-- Create Panel Card -->
+            <div class="card">
+                <h2><i class="fas fa-plus-circle"></i> New Panel</h2>
+                <form method="POST">
+                    <div class="form-group">
+                        <label for="panel_name">Panel Name</label>
+                        <input type="text" id="panel_name" name="panel_name" placeholder="e.g. Panel A, Software Dev Panel" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="panel_type">Panel Type</label>
+                        <select name="panel_type" id="panel_type" style="width: 100%; padding: 14px; border: 2px solid #e2e8f0; border-radius: 12px; font-family: inherit; font-size: 16px;" required onchange="toggleMemberType()">
+                            <option value="proposal">Project Proposal Panel</option>
+                            <option value="internal">Internal Defense Panel</option>
+                            <option value="external">External Defense Panel</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="max_students">Max Students</label>
+                        <input type="number" id="max_students" name="max_students" min="1" value="10" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="venue">Venue</label>
+                        <input type="text" id="venue" name="venue" placeholder="e.g. Room 101, Computer Lab">
+                    </div>
+
+                    <div class="two-col-grid">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="panel_date">Date</label>
+                            <input type="date" id="panel_date" name="panel_date">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="panel_time">Time</label>
+                            <input type="time" id="panel_time" name="panel_time">
+                        </div>
+                    </div>
+
+                    <!-- Supervisor Selection -->
+                    <div class="form-group" id="supervisor_select_area">
+                        <label>Select Panel Members (Supervisors)</label>
+                        <select name="member_ids[]" id="sup_select" class="select2" multiple>
+                            <?php foreach ($supervisors as $sup): ?>
+                                <option value="<?= $sup['id'] ?>"><?= htmlspecialchars($sup['name']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <!-- External Examiner Selection -->
+                    <div class="form-group" id="external_select_area" style="display: none;">
+                        <label>Select External Examiners</label>
+                        <select name="member_ids[]" id="ext_select" class="select2" multiple disabled>
+                            <?php if (empty($external_examiners)): ?>
+                                <option value="" disabled>No external examiners found. Create them first.</option>
+                            <?php else: ?>
+                                <?php foreach ($external_examiners as $ex): ?>
+                                    <option value="<?= $ex['id'] ?>"><?= htmlspecialchars($ex['name']) ?></option>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </select>
+                        <small style="color: var(--primary);"><a href="hod_manage_external_examiners.php" style="text-decoration: none;">+ Manage External Examiners</a></small>
+                    </div>
+
+                    <button type="submit" name="create_panel" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Create Panel
+                    </button>
+                </form>
+            </div>
+
+            <!-- Panels List Card -->
+            <div class="card">
+                <h2><i class="fas fa-users-rectangle"></i> Existing Panels</h2>
+                <?php if (count($panels) > 0): ?>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Panel Name/Type</th>
+                                <th>Schedule & Venue</th>
+                                <th>Max Students</th>
+                                <th>Members</th>
+                                <th style="text-align: right;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($panels as $panel): ?>
+                                <tr>
+                                    <td data-label="Panel Name/Type">
+                                        <strong><?= htmlspecialchars($panel['panel_name']) ?></strong><br>
+                                        <span class="type-badge type-<?= $panel['panel_type'] ?>"><?= $panel['panel_type'] ?></span>
+                                    </td>
+                                    <td data-label="Schedule & Venue">
+                                        <?php if ($panel['panel_date']): ?>
+                                            <div style="font-size: 13px; margin-bottom: 5px;">
+                                                <i class="far fa-calendar-alt"></i> <?= date('M d, Y', strtotime($panel['panel_date'])) ?>
+                                                <?php if ($panel['panel_time']): ?>
+                                                    at <?= date('h:i A', strtotime($panel['panel_time'])) ?>
+                                                <?php endif; ?>
+                                            </div>
+                                        <?php else: ?>
+                                            <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 5px;">
+                                                <i class="far fa-calendar-times"></i> Time & Date Not Set
+                                            </div>
+                                        <?php endif; ?>
+                                        <div style="font-size: 13px;">
+                                            <i class="fas fa-map-marker-alt"></i> <?= htmlspecialchars($panel['venue'] ?: 'Venue Not Set') ?>
+                                        </div>
+                                    </td>
+                                    <td data-label="Max Students"><span class="panel-badge"><?= htmlspecialchars($panel['max_students']) ?></span></td>
+                                    <td data-label="Members">
+                                        <div style="color: var(--text-muted); font-size: 14px;">
+                                            <?= htmlspecialchars($panel['members'] ?: 'No members assigned') ?>
+                                        </div>
+                                    </td>
+                                    <td data-label="Actions" style="text-align: right; display: flex; gap: 8px; justify-content: flex-end;">
+                                        <a href="hod_edit_panel.php?id=<?= $panel['id'] ?>" class="btn" style="background: #e0e7ff; color: var(--primary); padding: 8px 12px;">
+                                            <i class="fas fa-edit"></i> Edit
+                                        </a>
+                                        <a href="?delete_panel=<?= $panel['id'] ?>" class="btn btn-danger" style="padding: 8px 12px;" onclick="return confirm('Are you sure you want to delete this panel?')">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                <?php else: ?>
+                    <div style="text-align: center; padding: 40px; color: var(--text-muted);">
+                        <i class="fas fa-users-slash" style="font-size: 40px; margin-bottom: 15px; opacity: 0.2;"></i>
+                        <p>No panels created yet.</p>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            $('.select2').select2({
+                placeholder: "Select members...",
+                width: '100%'
+            });
+        });
+
+        function toggleMemberType() {
+            const type = document.getElementById('panel_type').value;
+            const supArea = document.getElementById('supervisor_select_area');
+            const extArea = document.getElementById('external_select_area');
+            const supSelect = document.getElementById('sup_select');
+            const extSelect = document.getElementById('ext_select');
+
+            if (type === 'external') {
+                supArea.style.display = 'none';
+                extArea.style.display = 'block';
+                supSelect.disabled = true;
+                extSelect.disabled = false;
+                supSelect.required = false;
+                extSelect.required = true;
+            } else {
+                supArea.style.display = 'block';
+                extArea.style.display = 'none';
+                supSelect.disabled = false;
+                extSelect.disabled = true;
+                supSelect.required = true;
+                extSelect.required = false;
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,485 @@
+<?php
+include_once __DIR__ .'/../includes/auth.php';
+include_once __DIR__ .'/../includes/db.php';
+include_once __DIR__ .'/../includes/config.php';
+
+// Redirect if user is not HOD
+if ($_SESSION['role'] !== 'hod') {
+    header("Location: " . PROJECT_ROOT);
+    exit();
+}
+
+// Fetch HOD's department info
+$stmt = $conn->prepare("SELECT department, name FROM users WHERE id = ?");
+$stmt->execute([$_SESSION['user_id']]);
+$user_info = $stmt->fetch(PDO::FETCH_ASSOC);
+$dept_id = $user_info['department'];
+
+// Pagination & Search
+$page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
+$limit = 10;
+$offset = ($page - 1) * $limit;
+$search = isset($_GET['search']) ? trim($_GET['search']) : '';
+
+// --- LOGIC HANDLING ---
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    if (isset($_POST['validate_topic'])) {
+        $topic_id = filter_input(INPUT_POST, 'topic_id', FILTER_SANITIZE_NUMBER_INT);
+        $stmt = $conn->prepare("SELECT topic FROM project_topics WHERE id = ?");
+        $stmt->execute([$topic_id]);
+        $topic_text = $stmt->fetchColumn();
+        $_SESSION['validation_result'][$topic_id] = validate_hybrid($conn, $topic_text, $topic_id);
+    } 
+    elseif (isset($_POST['validate_all_pending'])) {
+        $stmt = $conn->prepare("SELECT id, topic FROM project_topics WHERE status = 'pending' AND student_id IN (SELECT id FROM students WHERE department = ?)");
+        $stmt->execute([$dept_id]);
+        $pending = $stmt->fetchAll();
+        foreach ($pending as $row) {
+            $_SESSION['validation_result'][$row['id']] = validate_hybrid($conn, $row['topic'], $row['id']);
+        }
+    }
+    elseif (isset($_POST['approve_topic'])) {
+        $topic_id = filter_input(INPUT_POST, 'topic_id', FILTER_SANITIZE_NUMBER_INT);
+        $student_id = filter_input(INPUT_POST, 'student_id', FILTER_SANITIZE_NUMBER_INT);
+        
+        $conn->beginTransaction();
+        try {
+            // Approve the selected topic
+            $stmt = $conn->prepare("UPDATE project_topics SET status = 'approved' WHERE id = ?");
+            $stmt->execute([$topic_id]);
+            
+            // Reject all other topics for this student that are NOT already rejected
+            $stmt = $conn->prepare("UPDATE project_topics SET status = 'rejected' WHERE student_id = ? AND id != ? AND status != 'approved'");
+            $stmt->execute([$student_id, $topic_id]);
+            
+            send_feedback_to_student($topic_id, 'approved');
+            // Also notify that others were rejected
+            $stmt = $conn->prepare("SELECT reg_no FROM students WHERE id = ?");
+            $stmt->execute([$student_id]);
+            $reg = $stmt->fetchColumn();
+            $msg = "Since one of your topics was approved, your other submissions have been automatically rejected.";
+            $conn->prepare("INSERT INTO feedback (student_reg_no, message) VALUES (?, ?)")->execute([$reg, $msg]);
+
+            $conn->commit();
+        } catch (Exception $e) { $conn->rollBack(); $_SESSION['error'] = "Approval failed: " . $e->getMessage(); }
+    } 
+    elseif (isset($_POST['reject_topic'])) {
+        $topic_id = filter_input(INPUT_POST, 'topic_id', FILTER_SANITIZE_NUMBER_INT);
+        $reason = isset($_POST['rejection_reason']) ? trim($_POST['rejection_reason']) : 'Similarity found or topic rejected.';
+        $stmt = $conn->prepare("UPDATE project_topics SET status = 'rejected' WHERE id = ?");
+        $stmt->execute([$topic_id]);
+        send_feedback_to_student($topic_id, 'rejected', $reason);
+    }
+    elseif (isset($_POST['update_topic'])) {
+        $topic_id = filter_input(INPUT_POST, 'topic_id', FILTER_SANITIZE_NUMBER_INT);
+        $new_topic = isset($_POST['new_topic']) ? trim($_POST['new_topic']) : '';
+        
+        if (!empty($new_topic)) {
+            $stmt = $conn->prepare("UPDATE project_topics SET topic = ?, status = 'pending' WHERE id = ?");
+            $stmt->execute([$new_topic, $topic_id]);
+        }
+    }
+    elseif (isset($_POST['action']) && $_POST['action'] === 'check_similarity_ajax') {
+        header('Content-Type: application/json');
+        $topic_id = intval($_POST['topic_id']);
+        $stmt = $conn->prepare("SELECT topic FROM project_topics WHERE id = ?");
+        $stmt->execute([$topic_id]);
+        $topic_text = $stmt->fetchColumn();
+        
+        $result = validate_hybrid_detailed($conn, $topic_text, $topic_id);
+        echo json_encode($result);
+        exit();
+    }
+    header("Location: " . $_SERVER['PHP_SELF'] . ($search ? "?search=" . urlencode($search) : ""));
+    exit();
+}
+
+// Detailed validation for AJAX
+function validate_hybrid_detailed($conn, $topic, $currentId) {
+    if (!$topic) return ['status' => 'error', 'message' => 'No topic text.'];
+    $cleanInput = clean_text_local($topic);
+    $faculty_id = $_SESSION['faculty_id'] ?? 0;
+    $matches = [];
+    
+    // Check Past Projects
+    $stmt = $conn->prepare("SELECT topic, reg_no FROM past_projects WHERE faculty_id = ?");
+    $stmt->execute([$faculty_id]);
+    while ($row = $stmt->fetch()) {
+        similar_text($cleanInput, clean_text_local($row['topic']), $perc);
+        if ($perc > 75) $matches[] = ["topic" => $row['topic'], "source" => "Past Project (Reg No: ".$row['reg_no'].")", "score" => round($perc, 1)];
+    }
+    
+    // Check Other Student Submissions
+    $stmt = $conn->prepare("SELECT pt.topic, s.reg_no FROM project_topics pt JOIN students s ON pt.student_id = s.id WHERE pt.id != ? AND s.faculty_id = ?");
+    $stmt->execute([$currentId, $faculty_id]);
+    while ($row = $stmt->fetch()) {
+        similar_text($cleanInput, clean_text_local($row['topic']), $perc);
+        if ($perc > 75) $matches[] = ["topic" => $row['topic'], "source" => "Other Student (Reg No: ".$row['reg_no'].")", "score" => round($perc, 1)];
+    }
+    
+    if (!empty($matches)) {
+        return ['status' => 'match', 'matches' => $matches];
+    }
+    
+    return ['status' => 'clear'];
+}
+
+// Helper Functions
+function validate_hybrid($conn, $topic, $currentId) {
+    $cleanInput = clean_text_local($topic);
+    $faculty_id = $_SESSION['faculty_id'] ?? 0;
+
+    // Check against past projects in the same faculty
+    $stmt = $conn->prepare("SELECT topic, reg_no FROM past_projects WHERE faculty_id = ?");
+    $stmt->execute([$faculty_id]);
+    while ($row = $stmt->fetch()) {
+        similar_text($cleanInput, clean_text_local($row['topic']), $perc);
+        if ($perc > 75) return "⚠️ Similarity Match ($perc%): " . $row['topic'] . " [Reg No: " . $row['reg_no'] . "] (Past Project)";
+    }
+
+    // Check against other student topics in the same faculty
+    $stmt = $conn->prepare("SELECT pt.topic, s.reg_no FROM project_topics pt JOIN students s ON pt.student_id = s.id WHERE pt.id != ? AND s.faculty_id = ?");
+    $stmt->execute([$currentId, $faculty_id]);
+    while ($row = $stmt->fetch()) {
+        similar_text($cleanInput, clean_text_local($row['topic']), $perc);
+        if ($perc > 75) return "⚠️ Similarity Match ($perc%): " . $row['topic'] . " [Reg No: " . $row['reg_no'] . "] (Other Student)";
+    }
+    return validate_with_ai($topic);
+}
+function clean_text_local($text) {
+    if (!$text) return "";
+    $common = ['the', 'a', 'an', 'of', 'for', 'in', 'on', 'at', 'to', 'using', 'based', 'study'];
+    $text = strtolower(trim($text));
+    return preg_replace('/\b(' . implode('|', $common) . ')\b/i', '', $text);
+}
+function validate_with_ai($topic) {
+    if (!defined('OPENAI_API_KEY')) return "✅ No local matches found.";
+    $url = "https://api.openai.com/v1/chat/completions";
+    $data = [ "model" => "gpt-3.5-turbo", "messages" => [["role" => "system", "content" => "You are an academic validator. Detect if topics are unoriginal or common knowledge."], ["role" => "user", "content" => "Is the following project topic unique and academically valid for a final year project? Answer in 1 short sentence. Topic: \"$topic\""]], "max_tokens" => 60 ];
+    $ch = curl_init($url); curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_POST => true, CURLOPT_POSTFIELDS => json_encode($data), CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'Authorization: Bearer ' . OPENAI_API_KEY]]);
+    $response = curl_exec($ch); $res = json_decode($response, true); curl_close($ch);
+    return isset($res['choices'][0]['message']['content']) ? "🤖 AI: " . $res['choices'][0]['message']['content'] : "✅ No local matches found (AI Offline).";
+}
+function send_feedback_to_student($topic_id, $decision, $reason = '') {
+    global $conn;
+    $stmt = $conn->prepare("SELECT s.reg_no FROM project_topics pt JOIN students s ON pt.student_id = s.id WHERE pt.id = ?");
+    $stmt->execute([$topic_id]);
+    $reg = $stmt->fetchColumn(); $msg = "Your topic was $decision. " . ($reason ? "Reason: $reason" : "");
+    $conn->prepare("INSERT INTO feedback (student_reg_no, message) VALUES (?, ?)")->execute([$reg, $msg]);
+}
+
+// FETCH DATA - Group by Student
+$countQuery = "SELECT COUNT(DISTINCT s.id) FROM students s JOIN project_topics pt ON s.id = pt.student_id WHERE s.department = :dept";
+if ($search) $countQuery .= " AND (s.name LIKE :search OR s.reg_no LIKE :search OR pt.topic LIKE :search)";
+$countStmt = $conn->prepare($countQuery);
+$countStmt->bindValue(':dept', $dept_id);
+if ($search) $countStmt->bindValue(':search', "%$search%");
+$countStmt->execute();
+$totalRecords = $countStmt->fetchColumn();
+$totalPages = ceil($totalRecords / $limit);
+
+$studentQuery = "SELECT DISTINCT s.id, s.reg_no, s.name as student_name 
+                 FROM students s 
+                 JOIN project_topics pt ON s.id = pt.student_id 
+                 WHERE s.department = :dept";
+if ($search) $studentQuery .= " AND (s.name LIKE :search OR s.reg_no LIKE :search OR pt.topic LIKE :search)";
+$studentQuery .= " ORDER BY s.name ASC LIMIT :limit OFFSET :offset";
+$stmt = $conn->prepare($studentQuery);
+$stmt->bindValue(':dept', $dept_id);
+if ($search) $stmt->bindValue(':search', "%$search%");
+$stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+$stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+$stmt->execute();
+$students = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Map topics to students
+$all_topics = [];
+if (!empty($students)) {
+    $student_ids = array_column($students, 'id');
+    $placeholders = str_repeat('?,', count($student_ids) - 1) . '?';
+    $topicStmt = $conn->prepare("SELECT student_id, id, topic, status, pdf_path FROM project_topics WHERE student_id IN ($placeholders) ORDER BY id ASC");
+    $topicStmt->execute($student_ids);
+    $all_topics = $topicStmt->fetchAll(PDO::FETCH_GROUP|PDO::FETCH_ASSOC);
+}
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Topic Validation Queue - HOD</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { --primary: #667eea; --secondary: #764ba2; --success: #1cc88a; --danger: #e74a3b; --info: #36b9cc; --glass: rgba(255, 255, 255, 0.95); }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding-bottom: 50px; }
+        .page-container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        .header-card { background: var(--glass); padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; }
+        .header-card h1 { color: var(--primary); font-size: 28px; }
+        .main-card { background: var(--glass); padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        .search-container { display: flex; gap: 10px; margin-bottom: 25px; }
+        .search-input { flex: 1; padding: 14px; border: 2px solid #eee; border-radius: 12px; outline: none; transition: 0.3s; }
+        .search-input:focus { border-color: var(--primary); }
+        table { width: 100%; border-collapse: collapse; background: white; border-radius: 15px; overflow: hidden; }
+        th { background: #f8faff; padding: 18px; text-align: left; color: #747d8c; font-size: 13px; text-transform: uppercase; }
+        td { padding: 20px; border-bottom: 1px solid #eee; vertical-align: top; }
+        .student-box { border-bottom: 2px solid #f1f2f6; padding-bottom: 10px; margin-bottom: 10px; }
+        .student-name { font-weight: 700; color: #2d3436; font-size: 16px; display: block; }
+        .student-reg { color: var(--primary); font-size: 12px; font-weight: 600; }
+        .topic-row { display: grid; grid-template-columns: 1fr 140px 180px; gap: 20px; padding: 15px; background: #fbfbfc; border-radius: 12px; margin-top: 10px; border-left: 5px solid #dcdde1; transition: 0.2s; }
+        .topic-row:hover { background: #f1f2f6; }
+        .topic-row.approved { border-left-color: var(--success); background: #f0fff4; }
+        .topic-row.rejected { border-left-color: var(--danger); background: #fff5f5; opacity: 0.8; }
+        .topic-row.pending { border-left-color: var(--info); }
+        .topic-content { display: flex; flex-direction: column; gap: 8px; }
+        .topic-text { font-style: italic; color: #2f3640; line-height: 1.4; }
+        .ai-box { background: #fff3cd; padding: 10px; border-radius: 8px; font-size: 12px; border-left: 3px solid #ffca28; color: #856404; margin-top: 5px; }
+        .btn-sm { padding: 6px 12px; border-radius: 8px; font-size: 12px; cursor: pointer; border: none; transition: 0.2s; color: white; display: inline-flex; align-items: center; gap: 5px; }
+        .btn-check { background: var(--info); }
+        .btn-approve { background: var(--success); }
+        .btn-reject { background: var(--danger); }
+        .status-badge { font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 4px 10px; border-radius: 12px; display: inline-block; }
+        .badge-pending { background: #fff3e0; color: #ef6c00; }
+        .badge-approved { background: #e8f5e9; color: #2e7d32; }
+        .badge-rejected { background: #ffebee; color: #c62828; }
+
+        /* Modal Styles */
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
+        .modal-content { background: white; padding: 30px; border-radius: 15px; width: 100%; max-width: 600px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); border-top: 5px solid var(--danger); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .modal-header h2 { margin: 0; font-size: 20px; color: var(--danger); }
+        .close-modal { font-size: 24px; cursor: pointer; color: #999; }
+        .match-item { background: #fff5f5; border: 1px solid #feb2b2; padding: 10px; border-radius: 8px; margin-top: 10px; text-align: left; }
+        .match-score { color: var(--danger); font-weight: bold; }
+        .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.3s; color: white; }
+        .btn-cancel { background: #6c757d; }
+    </style>
+</head>
+<body>
+    <?php include_once __DIR__ .'/../includes/header.php'; ?>
+    </div> <!-- Close header container -->
+
+    <div class="page-container">
+        <div class="header-card">
+            <div>
+                <h1><i class="fas fa-layer-group"></i> Grouped Topic Validation</h1>
+                <p style="color: #636e72; margin-top: 5px;">Manage all proposals for each student in a single view.</p>
+            </div>
+            <form method="POST">
+                <button type="submit" name="validate_all_pending" class="btn" style="background: var(--primary); color:white; padding: 12px 24px; border-radius: 15px;">
+                    <i class="fas fa-robot"></i> Validate All Department Pending
+                </button>
+            </form>
+        </div>
+
+        <div class="main-card">
+            <form method="GET" class="search-container">
+                <input type="text" name="search" class="search-input" placeholder="Search students or topics..." value="<?= htmlspecialchars($search) ?>">
+                <button type="submit" class="btn" style="background: #2d3436; color:white;"><i class="fas fa-search"></i> Search</button>
+            </form>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 250px;">Student Information</th>
+                        <th>Project Proposals (Up to 3)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (empty($students)): ?>
+                        <tr><td colspan="2" style="text-align:center; padding: 60px; color: #636e72;">No student topics found.</td></tr>
+                    <?php else: ?>
+                        <?php foreach ($students as $s): 
+                            $st_topics = $all_topics[$s['id']] ?? []; 
+                            $hasApproved = false;
+                            foreach($st_topics as $tp) if($tp['status'] === 'approved') $hasApproved = true;
+                        ?>
+                        <tr>
+                            <td>
+                                <div class="student-box">
+                                    <span class="student-name"><?= htmlspecialchars($s['student_name']) ?></span>
+                                    <span class="student-reg"><code><?= htmlspecialchars($s['reg_no']) ?></code></span>
+                                </div>
+                                <div style="font-size: 11px; color:#7f8c8d;">
+                                    Total Topics: <?= count($st_topics) ?>
+                                </div>
+                            </td>
+                            <td>
+                                 <?php 
+                                 $display_topics = $st_topics;
+                                 if ($hasApproved) {
+                                     $display_topics = array_filter($st_topics, function($tp) { return $tp['status'] === 'approved'; });
+                                 }
+                                 foreach ($display_topics as $idx => $t): ?>
+                                    <div class="topic-row <?= $t['status'] ?>">
+                                        <div class="topic-content">
+                                            <span style="font-weight: 700; color: #7f8c8d; font-size: 11px;">PROPOSAL #<?= $idx + 1 ?></span>
+                                            <span class="topic-text">"<?= htmlspecialchars($t['topic']) ?>"</span>
+                                            
+                                            <?php if (isset($_SESSION['validation_result'][$t['id']])): ?>
+                                                <div class="ai-box">
+                                                    <i class="fas fa-brain"></i> <?= htmlspecialchars($_SESSION['validation_result'][$t['id']]) ?>
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
+                                        <div style="text-align: center;">
+                                            <span class="status-badge badge-<?= $t['status'] ?>"><?= $t['status'] ?></span>
+                                        </div>
+                                        <div style="display: flex; gap: 5px; justify-content: flex-end; align-items: start;">
+                                            <?php if ($t['status'] == 'pending'): ?>
+                                                <button type="button" onclick='openEditModal(<?= $t['id'] ?>, <?= htmlspecialchars(json_encode($t['topic']), ENT_QUOTES, 'UTF-8') ?>)' class="btn-sm" style="background: var(--primary);" title="Edit Topic"><i class="fas fa-edit"></i></button>
+                                                <form method="POST" style="display: inline;">
+                                                    <input type="hidden" name="topic_id" value="<?= $t['id'] ?>">
+                                                    <button type="submit" name="validate_topic" class="btn-sm btn-check" title="Check Similarity"><i class="fas fa-shield-alt"></i></button>
+                                                </form>
+                                                <button type="button" onclick='handleApprove(<?= $t['id'] ?>, <?= $s['id'] ?>, <?= htmlspecialchars(json_encode($t['topic']), ENT_QUOTES, 'UTF-8') ?>)' class="btn-sm btn-approve" title="Approve"><i class="fas fa-check"></i></button>
+                                                
+                                                
+                                                <!-- Hidden dynamic approval form -->
+                                                <form id="approve-form-<?= $t['id'] ?>" method="POST" style="display: none;">
+                                                    <input type="hidden" name="topic_id" value="<?= $t['id'] ?>">
+                                                    <input type="hidden" name="student_id" value="<?= $s['id'] ?>">
+                                                    <input type="hidden" name="approve_topic" value="1">
+                                                </form>
+
+                                                <form method="POST" style="display: inline;">
+                                                    <input type="hidden" name="topic_id" value="<?= $t['id'] ?>">
+                                                    <button type="submit" name="reject_topic" class="btn-sm btn-reject" title="Reject"><i class="fas fa-times"></i></button>
+                                                </form>
+                                            <?php elseif($t['status'] == 'approved'): ?>
+                                                <i class="fas fa-check-double" style="color: var(--success); font-size: 20px;" title="Selected Project"></i>
+                                            <?php else: ?>
+                                                <button type="button" onclick='openEditModal(<?= $t['id'] ?>, <?= htmlspecialchars(json_encode($t['topic']), ENT_QUOTES, 'UTF-8') ?>)' class="btn-sm" style="background: var(--primary);" title="Edit Topic"><i class="fas fa-edit"></i></button>
+                                                <small style="color: #bdc3c7; font-weight: 700; margin-left: 5px;">ARCHIVED</small>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+
+            <?php if ($totalPages > 1): ?>
+                <div style="display: flex; justify-content: center; gap: 8px; margin-top: 30px;">
+                    <?php for($i=1; $i<=$totalPages; $i++): ?>
+                        <a href="?page=<?= $i ?><?= $search ? "&search=".urlencode($search) : "" ?>" 
+                           style="padding: 10px 16px; border-radius: 12px; text-decoration: none; font-weight: 600; <?= $i == $page ? 'background: var(--primary); color: white; box-shadow: 0 4px 10px rgba(102,126,234,0.4);' : 'background: white; color: var(--primary); border: 1px solid #eee;' ?>">
+                            <?= $i ?>
+                        </a>
+                    <?php endfor; ?>
+                </div>
+            <?php endif; ?>
+        </div>
+    </div>
+
+    <?php include_once __DIR__ .'/../includes/footer.php'; ?>
+    <!-- Similarity Warning Modal -->
+    <div id="similarityModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-exclamation-triangle"></i> Similarity Warning!</h2>
+                <span class="close-modal" onclick="closeSimilarityModal()">&times;</span>
+            </div>
+            <p style="color: #636e72;">Found similar projects in our repository. Suggest reviewing the topic before approval.</p>
+            <div id="match-results" style="margin: 20px 0;"></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-cancel" onclick="closeSimilarityModal()">Cancel & Review</button>
+                <button type="button" class="btn btn-approve" id="approve-anyway-btn" style="background: var(--danger);">Approve Anyway</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Topic Modal -->
+    <div id="editTopicModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-edit"></i> Edit Topic</h2>
+                <span class="close-modal" onclick="closeEditModal()">&times;</span>
+            </div>
+            <form method="POST">
+                <input type="hidden" name="update_topic" value="1">
+                <input type="hidden" name="topic_id" id="edit_topic_id" value="">
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; color: #2d3436; font-weight: 600;">Topic Text</label>
+                    <textarea name="new_topic" id="edit_topic_text" rows="4" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ccc; font-family: inherit;"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-cancel" onclick="closeEditModal()">Cancel</button>
+                    <button type="submit" class="btn btn-approve" style="background: var(--primary);">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        async function handleApprove(topicId, studentId, topicTitle) {
+            const formData = new FormData();
+            formData.append('action', 'check_similarity_ajax');
+            formData.append('topic_id', topicId);
+
+            try {
+                const response = await fetch(window.location.href, {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+
+                if (result.status === 'match') {
+                    showSimilarityWarning(result.matches, topicId);
+                } else {
+                    if (confirm('Approve this topic? This will reject all other proposals for this student.')) {
+                        document.getElementById('approve-form-' + topicId).submit();
+                    }
+                }
+            } catch (error) {
+                console.error('Error checking similarity:', error);
+                if (confirm('Error during validation. Do you want to proceed with approval?')) {
+                    document.getElementById('approve-form-' + topicId).submit();
+                }
+            }
+        }
+
+        function showSimilarityWarning(matches, topicId) {
+            const container = document.getElementById('match-results');
+            container.innerHTML = '<strong>Found matching topics:</strong>';
+            
+            matches.forEach(m => {
+                container.innerHTML += `
+                    <div class="match-item">
+                        <div class="match-score">${m.score}% Similarity</div>
+                        <div style="font-weight: 600; color: #2d3436;">${m.topic}</div>
+                        <div style="font-size: 11px; color: #64748b; margin-top: 4px;">Source: ${m.source}</div>
+                    </div>
+                `;
+            });
+
+            document.getElementById('similarityModal').style.display = 'flex';
+            document.getElementById('approve-anyway-btn').onclick = function() {
+                document.getElementById('approve-form-' + topicId).submit();
+            };
+        }
+
+        function closeSimilarityModal() {
+            document.getElementById('similarityModal').style.display = 'none';
+        }
+
+        function openEditModal(topicId, currentTopicText) {
+            document.getElementById('edit_topic_id').value = topicId;
+            document.getElementById('edit_topic_text').value = currentTopicText;
+            document.getElementById('editTopicModal').style.display = 'flex';
+        }
+
+        function closeEditModal() {
+            document.getElementById('editTopicModal').style.display = 'none';
+        }
+
+        window.onclick = function(event) {
+            if (event.target == document.getElementById('similarityModal')) closeSimilarityModal();
+            if (event.target == document.getElementById('editTopicModal')) closeEditModal();
+        }
+    </script>
+</body>
+</html>
