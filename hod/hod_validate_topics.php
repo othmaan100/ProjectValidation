@@ -1,5 +1,4 @@
 <?php
-define('OPENAI_API_KEY', $key);
 
 include_once __DIR__ . '/../includes/auth.php';
 include_once __DIR__ . '/../includes/db.php';
