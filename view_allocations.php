@@ -60,7 +60,7 @@ if ($_SESSION['role'] === 'dpc' || $_SESSION['role'] === 'admin') {
             margin: 0;
             padding: 20px;
             background-color: #f5f5f5;
-        }
+        } 
         .container {
             max-width: 1200px;
             margin: 0 auto;
