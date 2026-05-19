@@ -96,6 +96,7 @@ $roles_map = [
     'fpc' => 'Faculty Project Coordinators (FPC)',
     'lib' => 'Library Staff',
     'ext' => 'External Examiners',
+    'hod' => 'Head of Department',
     'admin' => 'Super Admins',
     'unassigned' => 'Unassigned/Empy Role'
 ];
