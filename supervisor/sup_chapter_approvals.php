@@ -18,19 +18,34 @@ $stmt = $conn->prepare("SELECT d.num_chapters FROM supervisors s JOIN department
 $stmt->execute([$sup_id]);
 $num_chapters = (int)($stmt->fetchColumn() ?: 5);
 
-// Handle chapater approval
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['approve_chapter'])) {
+// Handle clearance approval
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['approve_clearance'])) {
     $student_id = intval($_POST['student_id']);
-    $chapter_num = intval($_POST['chapter_num']);
+    $clearance_level = trim($_POST['clearance_level']);
+    
+    // Validate clearance level
+    $valid_clearances = ['proposal', 'internal', 'external'];
+    if (!in_array($clearance_level, $valid_clearances)) {
+        $_SESSION['error'] = "Invalid clearance level.";
+        header("Location: sup_chapter_approvals.php");
+        exit();
+    }
     
     try {
-        $stmt = $conn->prepare("INSERT INTO chapter_approvals (student_id, supervisor_id, chapter_number, status, approval_date, academic_session) 
+        $stmt = $conn->prepare("INSERT INTO chapter_approvals (student_id, supervisor_id, clearance_level, status, approval_date, academic_session) 
                                 VALUES (?, ?, ?, 'approved', NOW(), ?) 
                                 ON DUPLICATE KEY UPDATE status = 'approved', approval_date = NOW()");
-        $stmt->execute([$student_id, $sup_id, $chapter_num, $current_session]);
-        $_SESSION['success'] = "Chapter $chapter_num approved successfully.";
+        $stmt->execute([$student_id, $sup_id, $clearance_level, $current_session]);
+        
+        $clearance_names = [
+            'proposal' => 'Proposal Defense',
+            'internal' => 'Internal Defense',
+            'external' => 'External Defense'
+        ];
+        
+        $_SESSION['success'] = "Clearance for " . $clearance_names[$clearance_level] . " granted successfully.";
     } catch (Exception $e) {
-        $_SESSION['error'] = "Failed to approve chapter: " . $e->getMessage();
+        $_SESSION['error'] = "Failed to grant clearance: " . $e->getMessage();
     }
     header("Location: sup_chapter_approvals.php");
     exit();
@@ -49,10 +64,10 @@ $students = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Fetch existing approvals
 $approvals = [];
-$stmt = $conn->prepare("SELECT student_id, chapter_number, status FROM chapter_approvals WHERE supervisor_id = ?");
+$stmt = $conn->prepare("SELECT student_id, clearance_level, status FROM chapter_approvals WHERE supervisor_id = ?");
 $stmt->execute([$sup_id]);
 while($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-    $approvals[$row['student_id']][$row['chapter_number']] = $row['status'];
+    $approvals[$row['student_id']][$row['clearance_level']] = $row['status'];
 }
 ?>
 <!DOCTYPE html>
@@ -78,13 +93,12 @@ while($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
 </head>
 <body style="background: #f7fafc;">
     <?php include_once __DIR__ . '/../includes/header.php'; ?>
-    </div> <!-- Close header's container -->
-    
+
     <div class="container">
         <div style="margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center;">
             <div>
-                <h1 style="color: #2d3748; font-size: 28px;">Chapter Approvals</h1>
-                <p style="color: #718096;">Manage progress for your allocated students (<?= $current_session ?> Session)</p>
+                <h1 style="color: #2d3748; font-size: 28px;">Defense Clearances</h1>
+                <p style="color: #718096;">Manage defense clearances for your allocated students (<?= $current_session ?> Session)</p>
             </div>
         </div>
 
@@ -114,7 +128,13 @@ while($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
                                 if (isset($approvals[$s['id']])) {
                                     $approved_count = count(array_filter($approvals[$s['id']], function($v) { return $v === 'approved'; }));
                                 }
-                                $percent = round(($approved_count / $num_chapters) * 100);
+                                $percent = round(($approved_count / 3) * 100);
+                                
+                                $clearance_levels = [
+                                    'proposal' => 'Proposal',
+                                    'internal' => 'Internal',
+                                    'external' => 'External'
+                                ];
                             ?>
                             <tr>
                                 <td>
@@ -126,24 +146,24 @@ while($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
                                 </td>
                                 <td>
                                     <div style="display: flex; gap: 8px;">
-                                        <?php for ($i = 1; $i <= $num_chapters; $i++): ?>
-                                            <?php $is_approved = isset($approvals[$s['id']][$i]) && $approvals[$s['id']][$i] === 'approved'; ?>
+                                        <?php foreach ($clearance_levels as $key => $label): ?>
+                                            <?php $is_approved = isset($approvals[$s['id']][$key]) && $approvals[$s['id']][$key] === 'approved'; ?>
                                             <?php if ($is_approved): ?>
-                                                <div class="chapter-box approved" title="Chapter <?= $i ?> Approved">
-                                                    <?= $i ?>
+                                                <div class="chapter-box approved" style="width:auto; padding:0 10px;" title="<?= $label ?> Defense Cleared">
+                                                    <i class="fas fa-check-circle" style="margin-right:5px;"></i><?= $label ?>
                                                 </div>
                                             <?php else: ?>
                                                 <form method="POST" style="display: inline;">
                                                     <input type="hidden" name="student_id" value="<?= $s['id'] ?>">
-                                                    <input type="hidden" name="chapter_num" value="<?= $i ?>">
-                                                    <button type="submit" name="approve_chapter" class="btn-approve" onclick="return confirm('Approve Chapter <?= $i ?> for <?= htmlspecialchars($s['name']) ?>?')">
-                                                        <div class="chapter-box pending" title="Click to Approve Chapter <?= $i ?>">
-                                                            <?= $i ?>
+                                                    <input type="hidden" name="clearance_level" value="<?= $key ?>">
+                                                    <button type="submit" name="approve_clearance" class="btn-approve" onclick="return confirm('Grant <?= $label ?> clearance for <?= htmlspecialchars(addslashes($s['name'])) ?>?')">
+                                                        <div class="chapter-box pending" style="width:auto; padding:0 10px;" title="Click to Grant <?= $label ?> Clearance">
+                                                            <?= $label ?>
                                                         </div>
                                                     </button>
                                                 </form>
                                             <?php endif; ?>
-                                        <?php endfor; ?>
+                                        <?php endforeach; ?>
                                     </div>
                                 </td>
                                 <td>

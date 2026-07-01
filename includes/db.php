@@ -1,7 +1,7 @@
 ﻿<?php
 // Primary MySQL Configuration
 $my_host = 'localhost';
-$my_dbname = 'my_project_topics2';
+$my_dbname = 'my_project_topics';
 $my_username = 'root';
 $my_password = '';
 

@@ -391,5 +391,6 @@ $panels = $panel_stmt->fetchAll(PDO::FETCH_ASSOC);
             }
         }
     </script>
+    <?php include_once __DIR__ . '/../includes/footer.php'; ?>
 </body>
 </html>

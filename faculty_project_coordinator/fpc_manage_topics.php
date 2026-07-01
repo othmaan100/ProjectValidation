@@ -294,7 +294,7 @@ $faculty_departments = $featDeptsStmt->fetchAll(PDO::FETCH_ASSOC);
 </head>
 <body>
     <?php include_once __DIR__ .'/../includes/header.php'; ?>
-    </div> <!-- Close header's container -->
+    
     <div class="container">
         <!-- Header -->
         <div class="header-card">

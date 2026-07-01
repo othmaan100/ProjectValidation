@@ -301,5 +301,6 @@ foreach ($panels as $panel) {
             }
         }
     </script>
+    <?php include_once __DIR__ . '/../includes/footer.php'; ?>
 </body>
 </html>

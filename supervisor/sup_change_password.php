@@ -79,7 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_pw'])) {
 </head>
 <body>
     <?php include_once __DIR__ . '/../includes/header.php'; ?>
-    </div> <!-- Close container from header -->
+    
 
     <div class="page-container">
         <div class="card">

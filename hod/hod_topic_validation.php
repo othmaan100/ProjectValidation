@@ -257,7 +257,7 @@ if (!empty($students)) {
 </head>
 <body>
     <?php include_once __DIR__ .'/../includes/header.php'; ?>
-    </div> <!-- Close header container -->
+    
 
     <div class="page-container">
         <div class="header-card">

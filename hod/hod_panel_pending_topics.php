@@ -148,7 +148,7 @@ if (!empty($studentRows)) {
 </head>
 <body>
     <?php include_once __DIR__ .'/../includes/header.php'; ?>
-    </div>
+    
 
     <div class="page-container">
         <div class="header-card">

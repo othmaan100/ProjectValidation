@@ -335,7 +335,7 @@ $students = $stmt->fetchAll(PDO::FETCH_ASSOC);
 </head>
 <body>
     <?php include_once __DIR__ .'/../includes/header.php'; ?>
-    </div> <!-- Close header's container -->
+    
 
     <div class="page-container">
         <?php echo csrf_field(); ?>

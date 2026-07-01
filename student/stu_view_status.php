@@ -63,7 +63,7 @@ $supervisor = $stmt->fetch();
 </head>
 <body>
     <?php include_once __DIR__ . '/../includes/header.php'; ?>
-    </div>
+    
 
     <div class="page-container">
         <a href="stu_dashboard.php" class="back-btn"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>

@@ -185,7 +185,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['report_file'])) {
 </head>
 <body>
     <?php include_once __DIR__ . '/../includes/header.php'; ?>
-    </div>
+    
 
     <div class="page-container">
         <div class="card">

@@ -103,7 +103,7 @@ $topics = $stmt->fetchAll(PDO::FETCH_ASSOC);
 </head>
 <body>
     <?php include_once __DIR__ .'/../includes/header.php'; ?>
-    </div>
+    
 
     <div class="page-container">
         <div class="header-card">

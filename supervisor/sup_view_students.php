@@ -59,7 +59,7 @@ $students = $stmt->fetchAll(PDO::FETCH_ASSOC);
 </head>
 <body>
     <?php include_once __DIR__ . '/../includes/header.php'; ?>
-    </div> <!-- Close container from header -->
+    
 
     <div class="page-container">
         <div class="header-section">

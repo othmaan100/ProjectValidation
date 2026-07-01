@@ -358,5 +358,6 @@ foreach ($examiners as &$ex) {
             } catch(e) { showT('Error deleting.'); }
         }
     </script>
+    <?php include_once __DIR__ . '/../includes/footer.php'; ?>
 </body>
 </html>

@@ -23,7 +23,9 @@ $num_chapters = (int)($dpc_info['num_chapters'] ?? 5);
 // Fetch all students in the department and their supervisors and chapter progress
 $stmt = $conn->prepare("
     SELECT s.id, s.name, s.reg_no, su.name AS supervisor_name,
-           (SELECT COUNT(*) FROM chapter_approvals WHERE student_id = s.id AND status = 'approved') as approved_chapters
+           (SELECT status FROM chapter_approvals WHERE student_id = s.id AND clearance_level = 'proposal') as proposal_status,
+           (SELECT status FROM chapter_approvals WHERE student_id = s.id AND clearance_level = 'internal') as internal_status,
+           (SELECT status FROM chapter_approvals WHERE student_id = s.id AND clearance_level = 'external') as external_status
     FROM students s
     LEFT JOIN supervision sp ON s.id = sp.student_id AND sp.status = 'active'
     LEFT JOIN supervisors su ON sp.supervisor_id = su.id
@@ -82,7 +84,7 @@ $report_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
         <div class="report-header">
             <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                 <div>
-                    <h1 style="font-size: 24px; color: #1e293b; margin-bottom: 5px;">Project Chapter Progress Report</h1>
+                    <h1 style="font-size: 24px; color: #1e293b; margin-bottom: 5px;">Defense Clearance Report</h1>
                     <p style="color: #64748b;">Department: <?= htmlspecialchars($dept_name) ?> | Session: <?= $current_session ?></p>
                 </div>
                 <button onclick="window.print()" class="print-btn no-print">
@@ -98,14 +100,22 @@ $report_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     <th>Student Name</th>
                     <th>Reg Number</th>
                     <th>Supervisor</th>
-                    <th>Chapters Approved</th>
-                    <th>Completion Status</th>
+                    <th style="text-align: center;">Proposal Defense</th>
+                    <th style="text-align: center;">Internal Defense</th>
+                    <th style="text-align: center;">External Defense</th>
+                    <th style="text-align: center;">Completion</th>
                 </tr>
             </thead>
             <tbody>
                 <?php $sn = 1; foreach ($report_data as $row): ?>
                     <?php 
-                        $percent = $num_chapters > 0 ? round(($row['approved_chapters'] / $num_chapters) * 100) : 0;
+                        $approved_count = 0;
+                        if ($row['proposal_status'] == 'approved') $approved_count++;
+                        if ($row['internal_status'] == 'approved') $approved_count++;
+                        if ($row['external_status'] == 'approved') $approved_count++;
+                        $percent = round(($approved_count / 3) * 100);
+                        
+                        // We use a simple helper function in the loop body or conditionally output it
                     ?>
                     <tr>
                         <td style="text-align: center;"><?= $sn++ ?></td>
@@ -113,7 +123,13 @@ $report_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         <td><code><?= htmlspecialchars($row['reg_no']) ?></code></td>
                         <td><?= htmlspecialchars($row['supervisor_name'] ?: 'N/A') ?></td>
                         <td style="text-align: center;">
-                            <strong><?= $row['approved_chapters'] ?></strong> / <?= $num_chapters ?>
+                            <?= $row['proposal_status'] == 'approved' ? '<span style="color: #10b981; font-size: 18px;"><i class="fas fa-check-circle"></i></span>' : '<span style="color: #cbd5e1; font-size: 18px;"><i class="fas fa-times-circle"></i></span>' ?>
+                        </td>
+                        <td style="text-align: center;">
+                            <?= $row['internal_status'] == 'approved' ? '<span style="color: #10b981; font-size: 18px;"><i class="fas fa-check-circle"></i></span>' : '<span style="color: #cbd5e1; font-size: 18px;"><i class="fas fa-times-circle"></i></span>' ?>
+                        </td>
+                        <td style="text-align: center;">
+                            <?= $row['external_status'] == 'approved' ? '<span style="color: #10b981; font-size: 18px;"><i class="fas fa-check-circle"></i></span>' : '<span style="color: #cbd5e1; font-size: 18px;"><i class="fas fa-times-circle"></i></span>' ?>
                         </td>
                         <td>
                             <div style="margin-bottom: 4px; font-weight: bold; font-size: 12px; color: #10b981;">
