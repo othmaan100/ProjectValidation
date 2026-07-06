@@ -20,7 +20,7 @@ try {
         $fallback_username = 'fuded535_project';
         $fallback_password = 'Project@2026!';
 
-        // Attempt fallback connections
+        // Attempt fallback connection
         $conn = new PDO("mysql:host=$my_host;dbname=$fallback_dbname", $fallback_username, $fallback_password);
         $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         $conn->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
