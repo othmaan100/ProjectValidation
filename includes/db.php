@@ -17,8 +17,8 @@ try {
     try {
         // Fallback MySQL Configuration
         $fallback_dbname = 'fuded535_computing_project_validation';
-        $fallback_username = 'fuded535_othmaan';
-        $fallback_password = 'Othmaan100!!!';
+        $fallback_username = 'fuded535_project';
+        $fallback_password = 'Project@2026!';
 
         // Attempt fallback connection
         $conn = new PDO("mysql:host=$my_host;dbname=$fallback_dbname", $fallback_username, $fallback_password);
