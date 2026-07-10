@@ -42,6 +42,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['assign_students'])) {
                 throw new Exception("Panel capacity exceeded! Max: {$panel_info['max_students']}, Current: {$panel_info['current_count']}. Cannot add " . count($student_ids) . " more.");
             }
             
+            // Verify that all selected students have approved topics
+            $check_stmt = $conn->prepare("
+                SELECT COUNT(*) 
+                FROM students s 
+                JOIN project_topics pt ON s.id = pt.student_id 
+                WHERE s.id = ? AND pt.status = 'approved'
+            ");
+            foreach ($student_ids as $stu_id) {
+                $check_stmt->execute([$stu_id]);
+                if ($check_stmt->fetchColumn() == 0) {
+                    $stu_info_stmt = $conn->prepare("SELECT name, reg_no FROM students WHERE id = ?");
+                    $stu_info_stmt->execute([$stu_id]);
+                    $stu_info = $stu_info_stmt->fetch(PDO::FETCH_ASSOC);
+                    $stu_display = $stu_info ? "{$stu_info['name']} ({$stu_info['reg_no']})" : "ID $stu_id";
+                    throw new Exception("Student $stu_display does not have an approved topic and cannot be assigned to a panel.");
+                }
+            }
+
             $stmt = $conn->prepare("INSERT INTO student_panel_assignments (student_id, panel_id, panel_type, academic_session) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE panel_id = VALUES(panel_id)");
             foreach ($student_ids as $stu_id) {
                 $stmt->execute([$stu_id, $panel_id, $panel_type, $active_session]);
@@ -78,11 +96,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['auto_allocate'])) {
         $stmt->execute([$active_session, $dept_id, $stage]);
         $panels_list = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        // 2. Fetch all unassigned students for THIS stage and randomize their order
+        // 2. Fetch all unassigned students with approved topics for THIS stage and randomize their order
         $stu_stmt = $conn->prepare("
             SELECT s.id 
             FROM students s 
+            JOIN project_topics pt ON s.id = pt.student_id
             WHERE s.department = ? 
+            AND pt.status = 'approved'
             AND s.id NOT IN (SELECT student_id FROM student_panel_assignments WHERE academic_session = ? AND panel_type = ?)
             ORDER BY RAND()
         ");
@@ -144,8 +164,14 @@ $panel_stmt = $conn->prepare("SELECT id, panel_name, panel_type FROM defense_pan
 $panel_stmt->execute([$dept_id]);
 $panels = $panel_stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// For the UI, we'll need unassigned students per type or just all students
-$all_stu_stmt = $conn->prepare("SELECT id, name, reg_no FROM students WHERE department = ? ORDER BY name");
+// For the UI, we'll need unassigned students per type or just all students with approved topics
+$all_stu_stmt = $conn->prepare("
+    SELECT DISTINCT s.id, s.name, s.reg_no 
+    FROM students s 
+    JOIN project_topics pt ON s.id = pt.student_id
+    WHERE s.department = ? AND pt.status = 'approved'
+    ORDER BY s.name
+");
 $all_stu_stmt->execute([$dept_id]);
 $all_students = $all_stu_stmt->fetchAll(PDO::FETCH_ASSOC);
 

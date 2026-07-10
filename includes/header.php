@@ -159,6 +159,9 @@ if (!defined('PROJECT_ROOT')) {
                             <a href="<?= PROJECT_ROOT ?>department_project_coordinator/dpc_panel_approved_topics.php" class="<?= isActive('dpc_panel_approved_topics.php', $current_page) ?>">
                                 <i class="fa-solid fa-circle-check"></i> Approved Topics
                             </a>
+                             <a href="<?= PROJECT_ROOT ?>department_project_coordinator/dpc_view_assessments.php" class="<?= isActive('dpc_view_assessments.php', $current_page) ?>">
+                                <i class="fa-solid fa-square-poll-vertical"></i> Assessments
+                            </a>
                             
                         </div>
                     </div>
@@ -190,9 +193,7 @@ if (!defined('PROJECT_ROOT')) {
                             <a href="<?= PROJECT_ROOT ?>department_project_coordinator/dpc_chapter_reports.php" class="<?= isActive('dpc_chapter_reports.php', $current_page) ?>">
                                 <i class="fa-solid fa-book-open"></i> Clearance Reports
                             </a>
-                            <a href="<?= PROJECT_ROOT ?>department_project_coordinator/dpc_view_assessments.php" class="<?= isActive('dpc_view_assessments.php', $current_page) ?>">
-                                <i class="fa-solid fa-square-poll-vertical"></i> Assessments
-                            </a>
+                           
                         </div>
                     </div>
                     <a href="<?= PROJECT_ROOT ?>app_messages.php" class="<?= isActive('app_messages.php', $current_page) ?>">
@@ -239,6 +240,9 @@ if (!defined('PROJECT_ROOT')) {
                             <a href="<?= PROJECT_ROOT ?>hod/hod_panel_approved_topics.php" class="<?= isActive('hod_panel_approved_topics.php', $current_page) ?>">
                                 <i class="fa-solid fa-circle-check"></i> Approved Topics
                             </a>
+                            <a href="<?= PROJECT_ROOT ?>hod/hod_view_assessments.php" class="<?= isActive('hod_view_assessments.php', $current_page) ?>">
+                                <i class="fa-solid fa-square-poll-vertical"></i> Assessments
+                            </a>
                         </div>
                     </div>
                     <div class="sidebar-dropdown">
@@ -269,9 +273,7 @@ if (!defined('PROJECT_ROOT')) {
                             <a href="<?= PROJECT_ROOT ?>hod/hod_chapter_reports.php" class="<?= isActive('hod_chapter_reports.php', $current_page) ?>">
                                 <i class="fa-solid fa-book-open"></i> Clearance Reports
                             </a>
-                            <a href="<?= PROJECT_ROOT ?>hod/hod_view_assessments.php" class="<?= isActive('hod_view_assessments.php', $current_page) ?>">
-                                <i class="fa-solid fa-square-poll-vertical"></i> Assessments
-                            </a>
+                            
                         </div>
                     </div>
                     <a href="<?= PROJECT_ROOT ?>app_messages.php" class="<?= isActive('app_messages.php', $current_page) ?>">

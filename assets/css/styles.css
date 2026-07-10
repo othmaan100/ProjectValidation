@@ -342,6 +342,10 @@ footer {
     .sidebar {
         transform: translateX(-100%);
     }
+
+    .sidebar.open {
+        transform: translateX(0);
+    }
     
     .sidebar-close {
         display: block;
@@ -363,6 +367,13 @@ footer {
 @media (max-width: 768px) {
     .card {
         flex: 1 1 100%;
+    }
+
+    table {
+        display: block;
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
     }
 }
 
