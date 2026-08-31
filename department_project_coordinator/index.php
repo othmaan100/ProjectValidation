@@ -264,10 +264,10 @@ $approved_topics = $stmt->fetchColumn();
                 <a href="dpc_manage_submissions.php" class="action-btn" style="background: #27ae60;">Review Submissions <i class="fas fa-file-upload"></i></a>
             </div>
             <div class="action-card">
-                <i class="fas fa-file-invoice-dollar"></i>
-                <h2>Final Scores Summary</h2>
-                <p>Access the aggregated scores for all students, including Proposal, Internal, External defenses, and Supervisor assessments. Export to CSV.</p>
-                <a href="dpc_final_scores.php" class="action-btn" style="background: #e67e22;">View Final Scores <i class="fas fa-file-csv"></i></a>
+                <i class="fas fa-file-signature" style="color: #4338ca;"></i>
+                <h2>Final Result Template</h2>
+                <p>View complete student result template with weighted calculations: 30% CA (External Defense) and 70% Exam (Proposal, Internal & Supervisor). Export to CSV and print broadsheets.</p>
+                <a href="dpc_final_result_template.php" class="action-btn" style="background: #4338ca;">Open Result Template <i class="fas fa-arrow-right"></i></a>
             </div>
             <div class="action-card">
                 <i class="fas fa-book-open" style="color: #6c5ce7;"></i>

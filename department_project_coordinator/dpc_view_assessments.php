@@ -153,10 +153,11 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
                 <h1>Project Defense Assessments</h1>
                 <p style="color: var(--text-muted);">Session: <?= $active_session ?> | Dept: <?= htmlspecialchars($dept_name) ?></p>
             </div>
-            <div style="display: flex; gap: 10px;">
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <a href="dpc_final_result_template.php" class="btn btn-primary" style="background: #4338ca;"><i class="fas fa-file-signature"></i> Final Result Template</a>
                 <a href="?export=csv" class="btn btn-outline" style="border-color: var(--success); color: var(--success);"><i class="fas fa-file-csv"></i> Export CSV</a>
                 <a href="dpc_print_assessments.php" target="_blank" class="btn btn-outline"><i class="fas fa-print"></i> Print Scores</a>
-                <a href="index.php" class="btn btn-primary"><i class="fas fa-arrow-left"></i> Dashboard</a>
+                <a href="index.php" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Dashboard</a>
             </div>
         </div>
 

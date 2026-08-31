@@ -162,6 +162,9 @@ if (!defined('PROJECT_ROOT')) {
                              <a href="<?= PROJECT_ROOT ?>department_project_coordinator/dpc_view_assessments.php" class="<?= isActive('dpc_view_assessments.php', $current_page) ?>">
                                 <i class="fa-solid fa-square-poll-vertical"></i> Assessments
                             </a>
+                            <a href="<?= PROJECT_ROOT ?>department_project_coordinator/dpc_final_result_template.php" class="<?= isActive('dpc_final_result_template.php', $current_page) ?>">
+                                <i class="fa-solid fa-file-signature"></i> Final Result Template
+                            </a>
                             
                         </div>
                     </div>

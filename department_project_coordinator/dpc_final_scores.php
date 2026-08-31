@@ -128,9 +128,10 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
                 <h1>Student Final Scores Summary</h1>
                 <p style="color: #64748b;">Academic Session: <?= $active_session ?> | Dept: <?= htmlspecialchars($dept_name) ?></p>
             </div>
-            <div style="display: flex; gap: 10px;">
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <a href="dpc_final_result_template.php" class="btn btn-primary" style="background: #4338ca;"><i class="fas fa-file-signature"></i> Final Result Template (30/70)</a>
                 <a href="?export=csv" class="btn btn-success"><i class="fas fa-file-csv"></i> Export CSV</a>
-                <a href="index.php" class="btn btn-primary"><i class="fas fa-arrow-left"></i> Dashboard</a>
+                <a href="index.php" class="btn btn-outline" style="border: 2px solid #cbd5e1; color: #475569;"><i class="fas fa-arrow-left"></i> Dashboard</a>
             </div>
         </div>
 

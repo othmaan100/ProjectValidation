@@ -54,13 +54,16 @@ $query = "
         pt.pdf_path, 
         pt.report_status, 
         pt.report_feedback,
+        pt.source_code_path,
+        pt.source_code_status,
+        pt.source_code_feedback,
         sup.name as supervisor_name
     FROM students s
     JOIN project_topics pt ON s.id = pt.student_id AND pt.status = 'approved'
     LEFT JOIN supervision sv ON s.id = sv.student_id AND sv.status = 'active'
     LEFT JOIN supervisors sup ON sv.supervisor_id = sup.id
     WHERE s.department = ?
-    ORDER BY FIELD(pt.report_status, 'pending', 'rejected', 'approved'), s.name ASC
+    ORDER BY (pt.report_status = 'pending' OR pt.source_code_status = 'pending') DESC, s.name ASC
 ";
 $stmt = $conn->prepare($query);
 $stmt->execute([$dept_id]);
@@ -173,13 +176,16 @@ $submissions = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         <tr>
                             <th>Student</th>
                             <th>Topic & Supervisor</th>
-                            <th>Submission</th>
-                            <th>Status</th>
+                            <th>Report (PDF)</th>
+                            <th>Source Code (ZIP)</th>
                             <th style="text-align: right;">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <?php foreach ($submissions as $sub): ?>
+                        <?php foreach ($submissions as $sub): 
+                            $rs = !empty($sub['pdf_path']) ? $sub['report_status'] : 'not_submitted';
+                            $cs = !empty($sub['source_code_path']) ? $sub['source_code_status'] : 'not_submitted';
+                        ?>
                             <tr>
                                 <td data-label="Student">
                                     <strong><?= htmlspecialchars($sub['student_name']) ?></strong><br>
@@ -191,24 +197,30 @@ $submissions = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                         <i class="fas fa-user-tie"></i> <?= htmlspecialchars($sub['supervisor_name'] ?: 'No Supervisor Assigned') ?>
                                     </div>
                                 </td>
-                                <td data-label="Submission">
+                                <td data-label="Report (PDF)">
                                     <?php if ($sub['pdf_path']): ?>
-                                        <a href="<?= PROJECT_ROOT . $sub['pdf_path'] ?>" target="_blank" class="file-link">
+                                        <a href="<?= PROJECT_ROOT . $sub['pdf_path'] ?>" target="_blank" class="file-link" style="color: #dc2626; font-weight: 700; text-decoration: none; display: block; margin-bottom: 5px;">
                                             <i class="fas fa-file-pdf"></i> View PDF
                                         </a>
                                     <?php else: ?>
-                                        <span style="color: var(--text-muted); font-style: italic;">Not uploaded</span>
+                                        <span style="color: var(--text-muted); font-style: italic; display: block; margin-bottom: 5px;">Not uploaded</span>
                                     <?php endif; ?>
-                                </td>
-                                <td data-label="Status">
-                                    <?php 
-                                        $rs = $sub['report_status'];
-                                        if (!$sub['pdf_path']) $rs = 'not_submitted';
-                                        $status_text = str_replace('_', ' ', $rs);
-                                    ?>
                                     <span class="status-badge status-<?= $rs ?>">
-                                        <i class="fas fa-<?= $rs === 'approved' ? 'check' : ($rs === 'rejected' ? 'times' : ($rs === 'pending' ? 'clock' : 'minus')) ?>"></i>
-                                        <?= $status_text ?>
+                                        <i class="fas <?= $rs === 'approved' ? 'check' : ($rs === 'rejected' ? 'times' : ($rs === 'pending' ? 'clock' : 'minus')) ?>"></i>
+                                        <?= str_replace('_', ' ', ucfirst($rs)) ?>
+                                    </span>
+                                </td>
+                                <td data-label="Source Code (ZIP)">
+                                    <?php if ($sub['source_code_path']): ?>
+                                        <a href="<?= PROJECT_ROOT . $sub['source_code_path'] ?>" download class="file-link" style="color: #7c3aed; font-weight: 700; text-decoration: none; display: block; margin-bottom: 5px;">
+                                            <i class="fas fa-file-zipper"></i> Download ZIP
+                                        </a>
+                                    <?php else: ?>
+                                        <span style="color: var(--text-muted); font-style: italic; display: block; margin-bottom: 5px;">Not uploaded</span>
+                                    <?php endif; ?>
+                                    <span class="status-badge status-<?= $cs ?>">
+                                        <i class="fas <?= $cs === 'approved' ? 'check' : ($cs === 'rejected' ? 'times' : ($cs === 'pending' ? 'clock' : 'minus')) ?>"></i>
+                                        <?= str_replace('_', ' ', ucfirst($cs)) ?>
                                     </span>
                                 </td>
                                 <td data-label="Actions" style="text-align: right;">

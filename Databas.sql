@@ -15,11 +15,14 @@ INSERT IGNORE INTO `system_settings` (`setting_key`, `setting_value`, `descripti
 ('system_announcement', '', 'Global message displayed on user dashboards'),
 ('similarity_threshold', '30', 'Auto-warning percentage for topic similarity check');
 
--- 2. Update Project Topics Table (for Supervisor Report Approvals)
+-- 2. Update Project Topics Table (for Supervisor Report & Source Code Approvals)
 -- Adding columns if they don't exist
 ALTER TABLE `project_topics` 
 ADD COLUMN IF NOT EXISTS `report_status` enum('pending','approved','rejected','not_submitted') DEFAULT 'not_submitted',
-ADD COLUMN IF NOT EXISTS `report_feedback` text DEFAULT NULL;
+ADD COLUMN IF NOT EXISTS `report_feedback` text DEFAULT NULL,
+ADD COLUMN IF NOT EXISTS `source_code_path` varchar(255) DEFAULT NULL,
+ADD COLUMN IF NOT EXISTS `source_code_status` enum('not_submitted','pending','approved','rejected') DEFAULT 'not_submitted',
+ADD COLUMN IF NOT EXISTS `source_code_feedback` text DEFAULT NULL;
 
 -- 3. Update Departments Table (for Project Guidelines)
 ALTER TABLE `departments`
