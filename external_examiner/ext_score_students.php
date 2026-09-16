@@ -42,8 +42,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_scores'])) {
             if ($val === '') continue; // Skip empty scores
             $comm = $comments[$stu_id] ?? '';
             $stmt->execute([$stu_id, $user_id, $panel_id, $val, $comm]);
+            mark_evaluation_due($conn, $stu_id);
         }
-        
+
         $conn->commit();
         $msg = "Scores saved successfully!";
     } catch (Exception $e) {

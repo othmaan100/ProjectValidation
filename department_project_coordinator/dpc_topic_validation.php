@@ -61,14 +61,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $conn->prepare("INSERT INTO feedback (student_reg_no, message) VALUES (?, ?)")->execute([$reg, $msg]);
 
             $conn->commit();
+            mark_evaluation_due($conn, $student_id);
+            mark_evaluation_due($conn, $_SESSION['user_id']);
         } catch (Exception $e) { $conn->rollBack(); $_SESSION['error'] = "Approval failed: " . $e->getMessage(); }
-    } 
+    }
     elseif (isset($_POST['reject_topic'])) {
         $topic_id = filter_input(INPUT_POST, 'topic_id', FILTER_SANITIZE_NUMBER_INT);
         $reason = isset($_POST['rejection_reason']) ? trim($_POST['rejection_reason']) : 'Similarity found or topic rejected.';
         $stmt = $conn->prepare("UPDATE project_topics SET status = 'rejected' WHERE id = ?");
         $stmt->execute([$topic_id]);
         send_feedback_to_student($topic_id, 'rejected', $reason);
+        $rej_student_id = $conn->prepare("SELECT student_id FROM project_topics WHERE id = ?");
+        $rej_student_id->execute([$topic_id]);
+        mark_evaluation_due($conn, $rej_student_id->fetchColumn());
+        mark_evaluation_due($conn, $_SESSION['user_id']);
     }
     elseif (isset($_POST['update_topic'])) {
         $topic_id = filter_input(INPUT_POST, 'topic_id', FILTER_SANITIZE_NUMBER_INT);

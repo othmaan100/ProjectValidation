@@ -37,6 +37,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
         // Send feedback to the student
         send_feedback_to_student($topic_id, 'approved');
+        $owner_stmt = $conn->prepare("SELECT student_id FROM project_topics WHERE id = ?");
+        $owner_stmt->execute([$topic_id]);
+        mark_evaluation_due($conn, $owner_stmt->fetchColumn());
+        mark_evaluation_due($conn, $_SESSION['user_id']);
         echo "Topic approved!";
     } elseif (isset($_POST['reject_topic'])) {
         // Reject the topic
@@ -46,6 +50,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
         // Send feedback to the student
         send_feedback_to_student($topic_id, 'rejected');
+        $owner_stmt = $conn->prepare("SELECT student_id FROM project_topics WHERE id = ?");
+        $owner_stmt->execute([$topic_id]);
+        mark_evaluation_due($conn, $owner_stmt->fetchColumn());
+        mark_evaluation_due($conn, $_SESSION['user_id']);
         echo "Topic rejected!";
     }
     header("Refresh:2"); // Refresh the page after 2 seconds

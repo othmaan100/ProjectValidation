@@ -54,9 +54,8 @@ uploads/*
 cache/
 tmp/
 
-# Composer (if using)
-vendor/
-composer.lock
+# Composer - vendor/ is committed on purpose: this project deploys via a
+# plain FTP sync with no build step, so PhpSpreadsheet must ship as-is.
 
 # Node modules (if using)
 node_modules/

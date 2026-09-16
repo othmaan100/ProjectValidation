@@ -71,9 +71,59 @@ if (!defined('PROJECT_ROOT')) {
         $stmt->execute([$_SESSION['user_id']]);
         $unread_count = $stmt->fetchColumn();
     }
+
+    // System Evaluation: nav badge + compulsory-completion gate
+    $eval_gate = null;
+    if (isset($_SESSION['user_id'], $_SESSION['role'])) {
+        $eval_gate = evaluation_gate_state($conn, $_SESSION['user_id'], $_SESSION['role']);
+    }
+    $eval_gate_blocking = $eval_gate
+        && $eval_gate['due']
+        && !$eval_gate['submitted']
+        && empty($_SESSION['evaluation_reminded_this_login'])
+        && !evaluation_gate_exempt($current_page);
+    $eval_can_remind = $eval_gate && $eval_gate['remind_count'] < $eval_gate['max_reminders'];
 ?>
 
 <div class="app-layout">
+
+    <?php if ($eval_gate_blocking): ?>
+    <!-- Compulsory System Evaluation Gate -->
+    <div id="evalGateOverlay" style="position: fixed; inset: 0; z-index: 99999; background: rgba(30,32,50,0.85); display: flex; align-items: center; justify-content: center; padding: 20px;">
+        <div style="background: #fff; border-radius: 20px; max-width: 460px; width: 100%; padding: 35px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.3);">
+            <i class="fa-solid fa-clipboard-question" style="font-size: 42px; color: #667eea; margin-bottom: 15px;"></i>
+            <h2 style="margin: 0 0 12px; color: #2d3436; font-size: 20px;">System Evaluation Required</h2>
+            <p style="color: #636e72; font-size: 14px; line-height: 1.6; margin-bottom: 25px;">
+                Please take a few minutes to complete the short System Evaluation Survey. Your feedback helps improve the Project Topics Validation System.
+            </p>
+            <a href="<?= PROJECT_ROOT ?>evaluation/index.php" style="display: block; background: #667eea; color: #fff; text-decoration: none; padding: 14px; border-radius: 12px; font-weight: 700; margin-bottom: 12px;">
+                <i class="fa-solid fa-arrow-right"></i> Complete Evaluation Now
+            </a>
+            <?php if ($eval_can_remind): ?>
+                <button type="button" id="evalRemindBtn" style="background: none; border: none; color: #636e72; font-size: 13px; cursor: pointer; text-decoration: underline;">
+                    Remind me next login
+                </button>
+            <?php else: ?>
+                <p style="color: #b2bec3; font-size: 12px; margin: 0;">You have postponed this evaluation before. It must be completed to continue using the system.</p>
+            <?php endif; ?>
+        </div>
+    </div>
+    <script>
+        (function() {
+            const btn = document.getElementById('evalRemindBtn');
+            if (!btn) return;
+            btn.addEventListener('click', function() {
+                btn.disabled = true;
+                btn.textContent = 'Please wait...';
+                fetch('<?= PROJECT_ROOT ?>evaluation/defer.php', { method: 'POST' })
+                    .then(r => r.json())
+                    .then(() => { document.getElementById('evalGateOverlay').remove(); })
+                    .catch(() => { btn.disabled = false; btn.textContent = 'Remind me next login'; });
+            });
+        })();
+    </script>
+    <?php endif; ?>
+
     <!-- Sidebar Overlay -->
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
@@ -119,6 +169,7 @@ if (!defined('PROJECT_ROOT')) {
                     <a href="<?= PROJECT_ROOT ?>faculty_project_coordinator/fpc_reports.php" class="<?= isActive('fpc_reports.php', $current_page) ?>">
                         <i class="fa-solid fa-chart-line"></i> Analytics
                     </a>
+                    <?= render_evaluation_nav_link($eval_gate) ?>
                     <a href="<?= PROJECT_ROOT ?>faculty_project_coordinator/fpc_profile.php" class="<?= isActive('fpc_profile.php', $current_page) ?>">
                         <i class="fa-solid fa-lock"></i> Security
                     </a>
@@ -203,6 +254,7 @@ if (!defined('PROJECT_ROOT')) {
                         <i class="fa-solid fa-envelope"></i> Messages <?php if($unread_count > 0): ?><span style="background: #e74a3b; color: white; padding: 2px 6px; border-radius: 50%; font-size: 10px;"><?= $unread_count ?></span><?php endif; ?>
                     </a>
 
+                    <?= render_evaluation_nav_link($eval_gate) ?>
                     <a href="<?= PROJECT_ROOT ?>department_project_coordinator/dpc_change_password.php" class="<?= isActive('dpc_change_password.php', $current_page) ?>">
                         <i class="fa-solid fa-lock"></i> Security
                     </a>
@@ -283,6 +335,7 @@ if (!defined('PROJECT_ROOT')) {
                         <i class="fa-solid fa-envelope"></i> Messages <?php if($unread_count > 0): ?><span style="background: #e74a3b; color: white; padding: 2px 6px; border-radius: 50%; font-size: 10px;"><?= $unread_count ?></span><?php endif; ?>
                     </a>
 
+                    <?= render_evaluation_nav_link($eval_gate) ?>
                     <a href="<?= PROJECT_ROOT ?>hod/hod_change_password.php" class="<?= isActive('hod_change_password.php', $current_page) ?>">
                         <i class="fa-solid fa-lock"></i> Security
                     </a>
@@ -305,6 +358,7 @@ if (!defined('PROJECT_ROOT')) {
                     <a href="<?= PROJECT_ROOT ?>supervisor/sup_manage_panels.php" class="<?= isActive('sup_manage_panels.php', $current_page) ?>">
                         <i class="fa-solid fa-users-rectangle"></i> Panels
                     </a>
+                    <?= render_evaluation_nav_link($eval_gate) ?>
                     <a href="<?= PROJECT_ROOT ?>supervisor/sup_change_password.php" class="<?= isActive('sup_change_password.php', $current_page) ?>">
                         <i class="fa-solid fa-lock"></i> Security
                     </a>
@@ -321,6 +375,7 @@ if (!defined('PROJECT_ROOT')) {
                     <a href="<?= PROJECT_ROOT ?>app_messages.php" class="<?= isActive('app_messages.php', $current_page) ?>">
                         <i class="fa-solid fa-envelope"></i> Messages <?php if($unread_count > 0): ?><span style="background: #e74a3b; color: white; padding: 2px 6px; border-radius: 50%; font-size: 10px;"><?= $unread_count ?></span><?php endif; ?>
                     </a>
+                    <?= render_evaluation_nav_link($eval_gate) ?>
                     <a href="<?= PROJECT_ROOT ?>student/stu_change_password.php" class="<?= isActive('stu_change_password.php', $current_page) ?>">
                         <i class="fa-solid fa-lock"></i> Security
                     </a>
@@ -340,6 +395,9 @@ if (!defined('PROJECT_ROOT')) {
                     </a>
                     <a href="<?= PROJECT_ROOT ?>super_admin/sa_reports.php" class="<?= isActive('sa_reports.php', $current_page) ?>">
                         <i class="fa-solid fa-shield-halved"></i> System Audit
+                    </a>
+                    <a href="<?= PROJECT_ROOT ?>super_admin/sa_evaluation_results.php" class="<?= isActive('sa_evaluation_results.php', $current_page) ?>">
+                        <i class="fa-solid fa-clipboard-question"></i> Evaluation Results
                     </a>
                     <a href="<?= PROJECT_ROOT ?>super_admin/sa_settings.php" class="<?= isActive('sa_settings.php', $current_page) ?>">
                         <i class="fa-solid fa-gears"></i> Settings

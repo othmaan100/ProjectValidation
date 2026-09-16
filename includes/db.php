@@ -44,4 +44,6 @@ try {
     // Fallback if table doesn't exist yet
     $current_session = date('Y') . '/' . (date('Y') + 1);
 }
+
+require_once __DIR__ . '/evaluation_functions.php';
 ?>

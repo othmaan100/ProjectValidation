@@ -59,6 +59,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $conn->prepare("INSERT INTO feedback (student_reg_no, message) VALUES (?, ?)")->execute([$reg, $msg2]);
 
             $conn->commit();
+            mark_evaluation_due($conn, $student_id);
+            mark_evaluation_due($conn, $_SESSION['user_id']);
             $_SESSION['success'] = "Topic approved successfully.";
         } catch (Exception $e) {
             $conn->rollBack();

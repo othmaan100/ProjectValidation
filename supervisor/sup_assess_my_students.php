@@ -29,6 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_assessment']))
             ON DUPLICATE KEY UPDATE score = VALUES(score), comments = VALUES(comments)
         ");
         $stmt->execute([$student_id, $supervisor_id, $score, $comments, $active_session]);
+        mark_evaluation_due($conn, $supervisor_id);
         $message = "Supervisor assessment saved successfully!";
         $message_type = "success";
     } catch (Exception $e) {

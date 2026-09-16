@@ -206,6 +206,11 @@ function validateWithChatGPT(string $topic): string {
 function updateTopicStatus(PDO $conn, int $topicId, string $status, ?string $reason = null): void {
     $stmt = $conn->prepare("UPDATE project_topics SET status = ?, updated_at = NOW() WHERE id = ?");
     $stmt->execute([$status, $topicId]);
+
+    $stmt = $conn->prepare("SELECT student_id FROM project_topics WHERE id = ?");
+    $stmt->execute([$topicId]);
+    mark_evaluation_due($conn, $stmt->fetchColumn());
+    if (isset($_SESSION['user_id'])) mark_evaluation_due($conn, $_SESSION['user_id']);
 }
 
 function sendFeedbackToStudent(PDO $conn, int $topicId, string $decision, ?string $reason = null): void {
