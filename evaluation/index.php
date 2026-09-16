@@ -1,5 +1,15 @@
 <?php
 session_start();
+
+if (!defined('PROJECT_ROOT')) {
+    $script_directory = str_replace('\\', '/', dirname(__DIR__));
+    $document_root = str_replace('\\', '/', $_SERVER['DOCUMENT_ROOT']);
+    $base_path = str_replace($document_root, '', $script_directory);
+    $base_path = '/' . ltrim($base_path, '/') . '/';
+    $base_path = str_replace('//', '/', $base_path);
+    define('PROJECT_ROOT', $base_path);
+}
+
 include_once __DIR__ . '/../includes/db.php';
 
 if (!isset($_SESSION['user_id'])) {
