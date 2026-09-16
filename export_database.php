@@ -20,14 +20,14 @@
  * 5. Delete this file from the live server immediately after use.
  */
 
-define('EXPORT_SECRET_KEY', 'NRF2026@#$%^&');
+define('EXPORT_SECRET_KEY', 'NRF2026@');
 
 require_once __DIR__ . '/includes/db.php';
 
 $provided_key = $_GET['key'] ?? $_POST['key'] ?? '';
 
 if (!hash_equals(EXPORT_SECRET_KEY, $provided_key)) {
-    if (EXPORT_SECRET_KEY === 'NRF2026@#$%^&') {
+    if (EXPORT_SECRET_KEY === 'change-me-to-something-random') {
         http_response_code(403);
         echo "<!DOCTYPE html><html><body style='font-family:sans-serif; max-width:600px; margin:60px auto;'>";
         echo "<h2 style='color:#c0392b;'>Set your export key first</h2>";
