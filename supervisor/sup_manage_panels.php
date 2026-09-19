@@ -16,6 +16,13 @@ $active_session = $current_session;
 $message = '';
 $message_type = '';
 
+// Maximum achievable score per panel/defense stage
+$panel_score_max = [
+    'proposal' => 10,
+    'internal' => 20,
+    'external' => 100,
+];
+
 // Handle assessment submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_assessment'])) {
     $student_id = $_POST['student_id'];
@@ -24,6 +31,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_assessment']))
     $comments = trim($_POST['comments']);
 
     try {
+        // Look up the panel's own type server-side - never trust the client for the max
+        $type_stmt = $conn->prepare("SELECT panel_type FROM defense_panels WHERE id = ?");
+        $type_stmt->execute([$panel_id]);
+        $panel_type = $type_stmt->fetchColumn();
+        $max_for_panel = $panel_score_max[$panel_type] ?? 100;
+
+        if (!is_numeric($score) || $score < 0 || $score > $max_for_panel) {
+            throw new Exception("Score must be between 0 and $max_for_panel for a " . ucfirst($panel_type) . " defense.");
+        }
+
         $stmt = $conn->prepare("
             INSERT INTO defense_scores (student_id, supervisor_id, panel_id, score, comments)
             VALUES (?, ?, ?, ?, ?)
@@ -232,15 +249,16 @@ foreach ($panels as $panel) {
                                             <?php endif; ?>
                                         </td>
                                         <td>
-                                            <strong><?= $stu['score'] !== null ? $stu['score'] : '--' ?></strong>
+                                            <strong><?= $stu['score'] !== null ? $stu['score'] . ' / ' . ($panel_score_max[$data['panel_type']] ?? 100) : '--' ?></strong>
                                         </td>
                                         <td style="text-align: right;">
                                             <button class="btn btn-assess" onclick="openAssessmentModal(
-                                                '<?= $stu['student_id'] ?>', 
-                                                '<?= $data['panel_id'] ?>', 
-                                                '<?= htmlspecialchars($stu['student_name']) ?>', 
-                                                '<?= $stu['score'] ?>', 
-                                                '<?= htmlspecialchars($stu['comments'] ?: '') ?>'
+                                                '<?= $stu['student_id'] ?>',
+                                                '<?= $data['panel_id'] ?>',
+                                                '<?= htmlspecialchars($stu['student_name']) ?>',
+                                                '<?= $stu['score'] ?>',
+                                                '<?= htmlspecialchars($stu['comments'] ?: '') ?>',
+                                                '<?= $data['panel_type'] ?>'
                                             )">
                                                 <i class="fas fa-vial"></i> <?= $stu['score'] !== null ? 'Edit Score' : 'Assess' ?>
                                             </button>
@@ -267,7 +285,7 @@ foreach ($panels as $panel) {
                 <input type="hidden" name="panel_id" id="modalPanelId">
                 
                 <div class="form-group">
-                    <label for="score">Score (%)</label>
+                    <label for="score">Score (Max <span id="modalMaxLabel">100</span>)</label>
                     <input type="number" step="0.01" min="0" max="100" name="score" id="modalScore" required placeholder="0.00">
                 </div>
                 
@@ -283,11 +301,15 @@ foreach ($panels as $panel) {
 
     <script>
         const modal = document.getElementById("assessmentModal");
+        const panelScoreMax = { proposal: 10, internal: 20, external: 100 };
 
-        function openAssessmentModal(studentId, panelId, studentName, score, comments) {
+        function openAssessmentModal(studentId, panelId, studentName, score, comments, panelType) {
+            const maxScore = panelScoreMax[panelType] ?? 100;
             document.getElementById("modalStudentId").value = studentId;
             document.getElementById("modalPanelId").value = panelId;
             document.getElementById("modalStudentName").innerText = "Assess: " + studentName;
+            document.getElementById("modalScore").max = maxScore;
+            document.getElementById("modalMaxLabel").innerText = maxScore;
             document.getElementById("modalScore").value = score !== '' ? score : '';
             document.getElementById("modalComments").value = comments;
             modal.style.display = "block";

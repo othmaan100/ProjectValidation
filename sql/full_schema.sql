@@ -25,18 +25,24 @@
 --   8. Databas.sql / update_source_code_schema.php
 --                                      - project_topics.source_code_* columns,
 --                                        system_settings defaults
---   9. install_evaluation_module.php / sql/evaluation_module.sql (this session)
+--   9. install_evaluation_module.php / sql/evaluation_module.sql
 --                                      - users.evaluation_* flags, evaluations,
 --                                        evaluation_responses
+--  10. install_session_scoping.php (this session)
+--                                      - students.session + a per-session unique
+--                                        key on (reg_no, session), so switching
+--                                        the active session actually isolates
+--                                        registrations/topics/allocations instead
+--                                        of showing every session's data mixed
+--                                        together
 --
--- Deliberately EXCLUDED: update_sessions.php. It would add a `session` column to
--- students/supervision/defense_panels/report_schedules/submission_schedules, but
--- no controller in the codebase reads or writes those columns (grep-verified),
--- and its defense_panels statement targets a `defense_date` column that does not
--- exist in the dump - the script appears to have been an abandoned experiment
--- (session-scoping is instead handled via each table's own `academic_session`
--- column and the global system_settings.current_session). Included here only as
--- a commented-out option in case you want it after all - see bottom of file.
+-- Note on update_sessions.php: an old, abandoned one-off script that tried to add
+-- `session` columns to students/supervision/defense_panels/report_schedules/
+-- submission_schedules directly (no controller ever read/wrote them, and its
+-- defense_panels statement targeted a `defense_date` column that never existed).
+-- Superseded by install_session_scoping.php above, which takes a different,
+-- narrower approach: only `students.session` is added, and every other table is
+-- scoped by joining through it rather than duplicating the column everywhere.
 --
 -- Column types/FKs reflect the ACTUAL live schema, including its existing quirks
 -- (e.g. project_topics.student_id and supervisors.department are VARCHAR, not
@@ -113,6 +119,13 @@ CREATE TABLE IF NOT EXISTS `users` (
 
 -- ---------------------------------------------------------------------
 -- students  (id shares the same PK value as the matching `users` row)
+-- `session` is the source of truth for session-scoping: every downstream
+-- table that references student_id (project_topics, supervision,
+-- chapter_approvals, defense_scores, student_panel_assignments,
+-- supervisor_assessments) is scoped for free by joining through this
+-- column, rather than duplicating a session column on each of them. A
+-- repeating student gets a brand new row in the new session - that's why
+-- reg_no is only unique per-session, not globally.
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `students` (
   `id` INT(11) NOT NULL,
@@ -122,9 +135,10 @@ CREATE TABLE IF NOT EXISTS `students` (
   `email` VARCHAR(60) NOT NULL,
   `faculty_id` INT(11) DEFAULT NULL,
   `department` INT(11) NOT NULL,
+  `session` VARCHAR(50) NOT NULL,
   `first_login` TINYINT(1) DEFAULT 1,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `reg_no` (`reg_no`),
+  UNIQUE KEY `reg_no_session` (`reg_no`, `session`),
   CONSTRAINT `fk_students_user` FOREIGN KEY (`id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -464,14 +478,3 @@ CREATE TABLE IF NOT EXISTS `evaluation_responses` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;
-
--- =====================================================================
--- NOT applied above - update_sessions.php, kept here only for reference.
--- Uncomment if you decide you actually want session-scoping on these
--- tables; nothing in the current codebase reads these columns today.
--- =====================================================================
--- ALTER TABLE students ADD COLUMN session VARCHAR(50) DEFAULT '' AFTER department;
--- ALTER TABLE supervision ADD COLUMN session VARCHAR(50) DEFAULT '' AFTER student_id;
--- ALTER TABLE defense_panels ADD COLUMN session VARCHAR(50) DEFAULT '' AFTER panel_time;
--- ALTER TABLE report_schedules ADD COLUMN session VARCHAR(50) DEFAULT '' AFTER department_id;
--- ALTER TABLE submission_schedules ADD COLUMN session VARCHAR(50) DEFAULT '' AFTER department_id;

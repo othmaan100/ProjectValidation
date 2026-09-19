@@ -43,21 +43,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
                 throw new Exception("Registration Number and Name are required.");
             }
 
-            // Check if exists in any department
-            $stmt = $conn->prepare("SELECT id, department FROM students WHERE reg_no = ?");
-            $stmt->execute([$reg_no]);
+            // Check if exists in this session (a reg_no can be re-registered in a new session)
+            $stmt = $conn->prepare("SELECT id, department FROM students WHERE reg_no = ? AND session = ?");
+            $stmt->execute([$reg_no, $current_session]);
             $existing = $stmt->fetch();
             if ($existing) {
                 if ($existing['department'] == $dept_id) {
-                    throw new Exception("Student with registration number '$reg_no' already belongs to your department.");
+                    throw new Exception("Student with registration number '$reg_no' already belongs to your department this session.");
                 } else {
-                    throw new Exception("Student with registration number '$reg_no' is already registered in another department.");
+                    throw new Exception("Student with registration number '$reg_no' is already registered in another department this session.");
                 }
             }
 
             // Insert - Using reg_no as default password (hashed)
             $password = password_hash($reg_no, PASSWORD_DEFAULT);
-            
+
             $conn->beginTransaction();
             try {
                 // Insert into users first to get a safe ID
@@ -66,8 +66,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
                 $user_id = $conn->lastInsertId();
 
                 // Insert into students using the same ID - Removed password column
-                $stmt = $conn->prepare("INSERT INTO students (id, reg_no, name, phone, email, department, first_login) VALUES (?, ?, ?, ?, ?, ?, 1)");
-                $stmt->execute([$user_id, $reg_no, $name, $phone, $email, $dept_id]);
+                $stmt = $conn->prepare("INSERT INTO students (id, reg_no, name, phone, email, department, session, first_login) VALUES (?, ?, ?, ?, ?, ?, ?, 1)");
+                $stmt->execute([$user_id, $reg_no, $name, $phone, $email, $dept_id, $current_session]);
                 
                 $conn->commit();
                 $response['success'] = true;
@@ -90,18 +90,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
                 throw new Exception("Registration Number and Name are required.");
             }
 
-            // Check if reg_no exists for another student
-            $stmt = $conn->prepare("SELECT id FROM students WHERE reg_no = ? AND id != ?");
-            $stmt->execute([$reg_no, $id]);
+            // Check if reg_no exists for another student in the same session
+            $stmt = $conn->prepare("SELECT id FROM students WHERE reg_no = ? AND session = ? AND id != ?");
+            $stmt->execute([$reg_no, $current_session, $id]);
             if ($stmt->fetch()) {
-                throw new Exception("Registration number '$reg_no' is already in use by another student.");
+                throw new Exception("Registration number '$reg_no' is already in use by another student this session.");
             }
 
             $conn->beginTransaction();
             try {
-                // Update students table - ensure we only update within our department
-                $stmt = $conn->prepare("UPDATE students SET reg_no = ?, name = ?, phone = ?, email = ? WHERE id = ? AND department = ?");
-                $stmt->execute([$reg_no, $name, $phone, $email, $id, $dept_id]);
+                // Update students table - ensure we only update within our department and current session
+                $stmt = $conn->prepare("UPDATE students SET reg_no = ?, name = ?, phone = ?, email = ? WHERE id = ? AND department = ? AND session = ?");
+                $stmt->execute([$reg_no, $name, $phone, $email, $id, $dept_id, $current_session]);
                 
                 if ($stmt->rowCount() === 0) {
                     throw new Exception("Student not found or doesn't belong to your department.");
@@ -126,9 +126,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
             
             $conn->beginTransaction();
             try {
-                // Delete from students table - ensure we only delete within our department
-                $stmt = $conn->prepare("DELETE FROM students WHERE id = ? AND department = ?");
-                $stmt->execute([$id, $dept_id]);
+                // Delete from students table - ensure we only delete within our department and current session
+                $stmt = $conn->prepare("DELETE FROM students WHERE id = ? AND department = ? AND session = ?");
+                $stmt->execute([$id, $dept_id, $current_session]);
 
                 if ($stmt->rowCount() > 0) {
                     // Delete from users table
@@ -147,8 +147,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
             $id = intval($_POST['id']);
             
             // Get reg_no
-            $stmt = $conn->prepare("SELECT reg_no FROM students WHERE id = ? AND department = ?");
-            $stmt->execute([$id, $dept_id]);
+            $stmt = $conn->prepare("SELECT reg_no FROM students WHERE id = ? AND department = ? AND session = ?");
+            $stmt->execute([$id, $dept_id, $current_session]);
             $reg_no = $stmt->fetchColumn();
 
             if (!$reg_no) throw new Exception("Student not found.");
@@ -208,24 +208,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
                 $phone = trim($data[2] ?? '');
                 $email = trim($data[3] ?? '');
 
-                // Check if already exists
-                $stmt = $conn->prepare("SELECT id FROM students WHERE reg_no = ?");
-                $stmt->execute([$reg_no]);
+                // Check if already exists this session
+                $stmt = $conn->prepare("SELECT id FROM students WHERE reg_no = ? AND session = ?");
+                $stmt->execute([$reg_no, $current_session]);
                 if ($stmt->fetch()) {
                     $errorCount++;
                     continue;
                 }
 
                 $password = password_hash($reg_no, PASSWORD_DEFAULT);
-                
+
                 try {
                     $stmt = $conn->prepare("INSERT INTO users (username, password, role, name, email, department, is_active) VALUES (?, ?, 'stu', ?, ?, ?, 1)");
                     $stmt->execute([$reg_no, $password, $name, $email, $dept_id]);
                     $user_id = $conn->lastInsertId();
 
                     // Insert into students using the same ID - Removed password column
-                    $stmt = $conn->prepare("INSERT INTO students (id, reg_no, name, phone, email, department, first_login) VALUES (?, ?, ?, ?, ?, ?, 1)");
-                    $stmt->execute([$user_id, $reg_no, $name, $phone, $email, $dept_id]);
+                    $stmt = $conn->prepare("INSERT INTO students (id, reg_no, name, phone, email, department, session, first_login) VALUES (?, ?, ?, ?, ?, ?, ?, 1)");
+                    $stmt->execute([$user_id, $reg_no, $name, $phone, $email, $dept_id, $current_session]);
 
                     $successCount++;
                 } catch (Exception $e) {
@@ -254,8 +254,8 @@ $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
 $perPage = 10;
 $offset = ($page - 1) * $perPage;
 
-$whereClause = "department = :dept";
-$params = [':dept' => $dept_id];
+$whereClause = "department = :dept AND session = :session";
+$params = [':dept' => $dept_id, ':session' => $current_session];
 if (!empty($search)) {
     $whereClause .= " AND (reg_no LIKE :search OR name LIKE :search OR email LIKE :search)";
     $params[':search'] = "%$search%";
@@ -343,7 +343,7 @@ $students = $stmt->fetchAll(PDO::FETCH_ASSOC);
         <div class="header-card">
             <div>
                 <h1><i class="fas fa-user-graduate"></i> Manage Students</h1>
-                <p style="color: #636e72; margin-top: 5px;">Department of <?= htmlspecialchars($dept_name) ?></p>
+                <p style="color: #636e72; margin-top: 5px;">Department of <?= htmlspecialchars($dept_name) ?> &middot; Session: <strong><?= htmlspecialchars($current_session) ?></strong></p>
             </div>
             <div class="header-actions">
                 <button class="btn btn-primary" onclick="openAdd()"><i class="fas fa-user-plus"></i> Add Student</button>

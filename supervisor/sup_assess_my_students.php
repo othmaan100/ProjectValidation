@@ -16,6 +16,9 @@ $active_session = $current_session;
 $message = '';
 $message_type = '';
 
+// Supervisor score contributes a maximum of 40% to the final total
+$supervisor_score_max = 40;
+
 // Handle assessment submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_assessment'])) {
     $student_id = $_POST['student_id'];
@@ -23,6 +26,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_assessment']))
     $comments = trim($_POST['comments']);
 
     try {
+        if (!is_numeric($score) || $score < 0 || $score > $supervisor_score_max) {
+            throw new Exception("Score must be between 0 and $supervisor_score_max.");
+        }
+
         $stmt = $conn->prepare("
             INSERT INTO supervisor_assessments (student_id, supervisor_id, score, comments, academic_session)
             VALUES (?, ?, ?, ?, ?)
@@ -47,11 +54,11 @@ $stmt = $conn->prepare("
     JOIN supervision sp ON s.id = sp.student_id
     LEFT JOIN project_topics pt ON s.id = pt.student_id AND pt.status = 'approved'
     LEFT JOIN supervisor_assessments sa ON s.id = sa.student_id AND sa.supervisor_id = ? AND sa.academic_session = ?
-    WHERE sp.supervisor_id = ? AND sp.status = 'active'
+    WHERE sp.supervisor_id = ? AND sp.status = 'active' AND s.session = ?
     GROUP BY s.id
     ORDER BY s.name ASC
 ");
-$stmt->execute([$supervisor_id, $active_session, $supervisor_id]);
+$stmt->execute([$supervisor_id, $active_session, $supervisor_id, $active_session]);
 $students = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 ?>
@@ -176,7 +183,7 @@ $students = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                     <?php endif; ?>
                                 </td>
                                 <td>
-                                    <strong><?= $stu['score'] !== null ? $stu['score'] . '%' : '--' ?></strong>
+                                    <strong><?= $stu['score'] !== null ? $stu['score'] . ' / ' . $supervisor_score_max : '--' ?></strong>
                                 </td>
                                 <td style="text-align: right;">
                                     <button class="btn btn-assess" onclick="openAssessmentModal(
@@ -207,8 +214,8 @@ $students = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <input type="hidden" name="student_id" id="modalStudentId">
                 
                 <div class="form-group">
-                    <label for="score">Supervisor's Score (%)</label>
-                    <input type="number" step="0.01" min="0" max="100" name="score" id="modalScore" required placeholder="0.00">
+                    <label for="score">Supervisor's Score (Max <?= $supervisor_score_max ?>)</label>
+                    <input type="number" step="0.01" min="0" max="<?= $supervisor_score_max ?>" name="score" id="modalScore" required placeholder="0.00">
                     <small style="color: #7f8c8d;">This score reflects your assessment of the student's overall project effort and performance.</small>
                 </div>
                 

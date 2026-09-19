@@ -16,17 +16,18 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
     $output = fopen('php://output', 'w');
     fputcsv($output, ['S/N', 'Department', 'Total Students', 'Approved Topics', 'Pending Topics', 'Staff Count']);
     
+    $faculty_id = $_SESSION['faculty_id'];
     $stmt = $conn->prepare("
-        SELECT 
+        SELECT
             d.department_name,
-            (SELECT COUNT(*) FROM students s WHERE s.department = d.id AND s.faculty_id = ?) as total_students,
-            (SELECT COUNT(*) FROM project_topics pt JOIN students s2 ON pt.student_id = s2.id WHERE s2.department = d.id AND pt.status = 'approved' AND s2.faculty_id = ?) as approved_topics,
-            (SELECT COUNT(*) FROM project_topics pt JOIN students s2 ON pt.student_id = s2.id WHERE s2.department = d.id AND pt.status = 'pending' AND s2.faculty_id = ?) as pending_topics,
+            (SELECT COUNT(*) FROM students s WHERE s.department = d.id AND s.faculty_id = ? AND s.session = ?) as total_students,
+            (SELECT COUNT(*) FROM project_topics pt JOIN students s2 ON pt.student_id = s2.id WHERE s2.department = d.id AND pt.status = 'approved' AND s2.faculty_id = ? AND s2.session = ?) as approved_topics,
+            (SELECT COUNT(*) FROM project_topics pt JOIN students s2 ON pt.student_id = s2.id WHERE s2.department = d.id AND pt.status = 'pending' AND s2.faculty_id = ? AND s2.session = ?) as pending_topics,
             (SELECT COUNT(*) FROM supervisors sup WHERE sup.department = d.id AND sup.faculty_id = ?) as staff_count
         FROM departments d
         WHERE d.faculty_id = ?
     ");
-    $stmt->execute([$faculty_id, $faculty_id, $faculty_id, $faculty_id, $faculty_id]);
+    $stmt->execute([$faculty_id, $current_session, $faculty_id, $current_session, $faculty_id, $current_session, $faculty_id, $faculty_id]);
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     $i = 1;
@@ -49,21 +50,21 @@ $faculty_id = $_SESSION['faculty_id'];
 $stats = [];
 
 // Total Students in Faculty
-$stmt = $conn->prepare("SELECT COUNT(*) FROM students WHERE faculty_id = ?");
-$stmt->execute([$faculty_id]);
+$stmt = $conn->prepare("SELECT COUNT(*) FROM students WHERE faculty_id = ? AND session = ?");
+$stmt->execute([$faculty_id, $current_session]);
 $stats['total_students'] = $stmt->fetchColumn();
 
 // Topic Status Breakdown in Faculty
-$stmt = $conn->prepare("SELECT COUNT(*) FROM project_topics pt JOIN students s ON pt.student_id = s.id WHERE pt.status = 'approved' AND s.faculty_id = ?");
-$stmt->execute([$faculty_id]);
+$stmt = $conn->prepare("SELECT COUNT(*) FROM project_topics pt JOIN students s ON pt.student_id = s.id WHERE pt.status = 'approved' AND s.faculty_id = ? AND s.session = ?");
+$stmt->execute([$faculty_id, $current_session]);
 $stats['approved_topics'] = $stmt->fetchColumn();
 
-$stmt = $conn->prepare("SELECT COUNT(*) FROM project_topics pt JOIN students s ON pt.student_id = s.id WHERE pt.status = 'pending' AND s.faculty_id = ?");
-$stmt->execute([$faculty_id]);
+$stmt = $conn->prepare("SELECT COUNT(*) FROM project_topics pt JOIN students s ON pt.student_id = s.id WHERE pt.status = 'pending' AND s.faculty_id = ? AND s.session = ?");
+$stmt->execute([$faculty_id, $current_session]);
 $stats['pending_topics'] = $stmt->fetchColumn();
 
-$stmt = $conn->prepare("SELECT COUNT(*) FROM project_topics pt JOIN students s ON pt.student_id = s.id WHERE pt.status = 'rejected' AND s.faculty_id = ?");
-$stmt->execute([$faculty_id]);
+$stmt = $conn->prepare("SELECT COUNT(*) FROM project_topics pt JOIN students s ON pt.student_id = s.id WHERE pt.status = 'rejected' AND s.faculty_id = ? AND s.session = ?");
+$stmt->execute([$faculty_id, $current_session]);
 $stats['rejected_topics'] = $stmt->fetchColumn();
 
 // Supervisors in Faculty
@@ -73,32 +74,32 @@ $stats['total_supervisors'] = $stmt->fetchColumn();
 
 // Department-wise breakdown for table
 $stmt = $conn->prepare("
-    SELECT 
+    SELECT
         d.id,
         d.department_name,
-        (SELECT COUNT(*) FROM students s WHERE s.department = d.id AND s.faculty_id = ?) as total_students,
-        (SELECT COUNT(*) FROM project_topics pt JOIN students s2 ON pt.student_id = s2.id WHERE s2.department = d.id AND pt.status = 'approved' AND s2.faculty_id = ?) as approved_topics,
-        (SELECT COUNT(*) FROM project_topics pt JOIN students s2 ON pt.student_id = s2.id WHERE s2.department = d.id AND pt.status = 'pending' AND s2.faculty_id = ?) as pending_topics,
+        (SELECT COUNT(*) FROM students s WHERE s.department = d.id AND s.faculty_id = ? AND s.session = ?) as total_students,
+        (SELECT COUNT(*) FROM project_topics pt JOIN students s2 ON pt.student_id = s2.id WHERE s2.department = d.id AND pt.status = 'approved' AND s2.faculty_id = ? AND s2.session = ?) as approved_topics,
+        (SELECT COUNT(*) FROM project_topics pt JOIN students s2 ON pt.student_id = s2.id WHERE s2.department = d.id AND pt.status = 'pending' AND s2.faculty_id = ? AND s2.session = ?) as pending_topics,
         (SELECT COUNT(*) FROM supervisors sup WHERE sup.department = d.id AND sup.faculty_id = ?) as staff_count
     FROM departments d
     WHERE d.faculty_id = ?
 ");
-$stmt->execute([$faculty_id, $faculty_id, $faculty_id, $faculty_id, $faculty_id]);
+$stmt->execute([$faculty_id, $current_session, $faculty_id, $current_session, $faculty_id, $current_session, $faculty_id, $faculty_id]);
 $dept_reports = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Supervisor Load Report
 $stmt = $conn->prepare("
-    SELECT 
-        s.name, 
-        d.department_name, 
-        s.max_students, 
-        (SELECT COUNT(*) FROM supervision sv WHERE sv.supervisor_id = s.id AND sv.status = 'active') as assigned_count
+    SELECT
+        s.name,
+        d.department_name,
+        s.max_students,
+        (SELECT COUNT(*) FROM supervision sv JOIN students st ON sv.student_id = st.id WHERE sv.supervisor_id = s.id AND sv.status = 'active' AND st.session = ?) as assigned_count
     FROM supervisors s
     JOIN departments d ON s.department = d.id
     WHERE s.faculty_id = ?
     ORDER BY d.department_name, s.name
 ");
-$stmt->execute([$faculty_id]);
+$stmt->execute([$current_session, $faculty_id]);
 $supervisor_loads = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 ?>
@@ -286,7 +287,7 @@ $supervisor_loads = $stmt->fetchAll(PDO::FETCH_ASSOC);
         <div class="report-header">
             <div>
                 <h1>Faculty Progress Reports</h1>
-                <p>Summary of project validation activities across all departments</p>
+                <p>Summary of project validation activities across all departments &middot; Session: <strong><?= htmlspecialchars($current_session) ?></strong></p>
             </div>
             <div style="display: flex; gap: 10px;">
                 <button onclick="window.print()" class="btn btn-outline">

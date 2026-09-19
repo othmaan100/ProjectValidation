@@ -29,10 +29,10 @@ $stmt = $conn->prepare("
     FROM students s
     LEFT JOIN supervision sp ON s.id = sp.student_id AND sp.status = 'active'
     LEFT JOIN supervisors su ON sp.supervisor_id = su.id
-    WHERE s.department = ?
+    WHERE s.department = ? AND s.session = ?
     ORDER BY s.name ASC
 ");
-$stmt->execute([$dept_id]);
+$stmt->execute([$dept_id, $current_session]);
 $report_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 ?>

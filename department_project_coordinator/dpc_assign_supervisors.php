@@ -18,20 +18,20 @@ $dept_id = $dpc_info['dept_id'];
 $dept_name = $dpc_info['department_name'];
 
 // Function to get distinct unassigned students with all their proposed topics
-function getUnassignedStudents($conn, $dept_id) {
+function getUnassignedStudents($conn, $dept_id, $session) {
     $stmt = $conn->prepare("
-        SELECT s.id, s.reg_no, s.name, s.department, 
-               GROUP_CONCAT(p.topic SEPARATOR '||') AS topics, 
+        SELECT s.id, s.reg_no, s.name, s.department,
+               GROUP_CONCAT(p.topic SEPARATOR '||') AS topics,
                d.department_name
         FROM students s
         JOIN departments d ON d.id = s.department
         LEFT JOIN project_topics p ON p.student_id = s.id
         WHERE s.id NOT IN (SELECT student_id FROM supervision)
-        AND s.department = ?
+        AND s.department = ? AND s.session = ?
         GROUP BY s.id
         ORDER BY s.name
     ");
-    $stmt->execute([$dept_id]);
+    $stmt->execute([$dept_id, $session]);
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
@@ -40,7 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['auto_allocate'])) {
     try {
         $conn->beginTransaction();
         
-        $unassignedStudents = getUnassignedStudents($conn, $dept_id);
+        $unassignedStudents = getUnassignedStudents($conn, $dept_id, $current_session);
         
         $stmt = $conn->prepare("
             SELECT *, (max_students - current_load) AS available_slots
@@ -211,16 +211,16 @@ if (isset($_GET['delete_allocation'])) {
 
 // Get system statistics for department
 $statsStmt = $conn->prepare("
-    SELECT 
-        (SELECT COUNT(DISTINCT s.id) FROM students s 
-         WHERE s.department = :dept AND s.id NOT IN (SELECT student_id FROM supervision)) AS unassigned_count,
-        (SELECT COUNT(*) FROM students WHERE department = :dept) AS total_students,
+    SELECT
+        (SELECT COUNT(DISTINCT s.id) FROM students s
+         WHERE s.department = :dept AND s.session = :session AND s.id NOT IN (SELECT student_id FROM supervision)) AS unassigned_count,
+        (SELECT COUNT(*) FROM students WHERE department = :dept AND session = :session) AS total_students,
         (SELECT COUNT(*) FROM supervisors WHERE department = :dept AND current_load < max_students) AS available_sup,
         (SELECT COUNT(*) FROM supervisors WHERE department = :dept) AS total_sup,
-        (SELECT COUNT(DISTINCT sp.student_id) FROM supervision sp 
-         JOIN students s ON sp.student_id = s.id WHERE s.department = :dept) AS allocated_count
+        (SELECT COUNT(DISTINCT sp.student_id) FROM supervision sp
+         JOIN students s ON sp.student_id = s.id WHERE s.department = :dept AND s.session = :session) AS allocated_count
 ");
-$statsStmt->execute([':dept' => $dept_id]);
+$statsStmt->execute([':dept' => $dept_id, ':session' => $current_session]);
 $stats = $statsStmt->fetch(PDO::FETCH_ASSOC);
 
 // Get data for display
@@ -228,20 +228,20 @@ $allocStmt = $conn->prepare("
     SELECT sp.allocation_id, sp.student_id, sp.supervisor_id,
            s.name AS student_name, s.reg_no, s.department AS student_dept,
            su.name AS supervisor_name, su.department AS supervisor_dept,
-           GROUP_CONCAT(p.topic SEPARATOR '||') AS topics, 
+           GROUP_CONCAT(p.topic SEPARATOR '||') AS topics,
            sp.allocation_date, sp.status AS allocation_status
     FROM supervision sp
     JOIN students s ON sp.student_id = s.id
     JOIN supervisors su ON sp.supervisor_id = su.id
     LEFT JOIN project_topics p ON s.id = p.student_id
-    WHERE s.department = :dept
+    WHERE s.department = :dept AND s.session = :session
     GROUP BY sp.allocation_id
     ORDER BY su.name, s.name
 ");
-$allocStmt->execute([':dept' => $dept_id]);
+$allocStmt->execute([':dept' => $dept_id, ':session' => $current_session]);
 $allocations = $allocStmt->fetchAll(PDO::FETCH_ASSOC);
 
-$unassignedStudents = getUnassignedStudents($conn, $dept_id);
+$unassignedStudents = getUnassignedStudents($conn, $dept_id, $current_session);
 
 $supStmt = $conn->prepare("SELECT * FROM supervisors WHERE department = ? AND current_load < max_students ORDER BY name");
 $supStmt->execute([$dept_id]);

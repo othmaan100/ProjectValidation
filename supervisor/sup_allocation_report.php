@@ -31,10 +31,10 @@ $stmt = $conn->prepare("
     SELECT s.name, s.reg_no
     FROM students s
     JOIN supervision sp ON s.id = sp.student_id
-    WHERE sp.supervisor_id = ? AND sp.status = 'active'
+    WHERE sp.supervisor_id = ? AND sp.status = 'active' AND s.session = ?
     ORDER BY s.name ASC
 ");
-$stmt->execute([$supervisor_id]);
+$stmt->execute([$supervisor_id, $session_val]);
 $students = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Fetch DPC name

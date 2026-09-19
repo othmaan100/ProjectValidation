@@ -175,23 +175,25 @@ function send_feedback_to_student($topic_id, $decision, $reason = '') {
 }
 
 // FETCH DATA - Group by Student
-$countQuery = "SELECT COUNT(DISTINCT s.id) FROM students s JOIN project_topics pt ON s.id = pt.student_id WHERE s.department = :dept";
+$countQuery = "SELECT COUNT(DISTINCT s.id) FROM students s JOIN project_topics pt ON s.id = pt.student_id WHERE s.department = :dept AND s.session = :session";
 if ($search) $countQuery .= " AND (s.name LIKE :search OR s.reg_no LIKE :search OR pt.topic LIKE :search)";
 $countStmt = $conn->prepare($countQuery);
 $countStmt->bindValue(':dept', $dept_id);
+$countStmt->bindValue(':session', $current_session);
 if ($search) $countStmt->bindValue(':search', "%$search%");
 $countStmt->execute();
 $totalRecords = $countStmt->fetchColumn();
 $totalPages = ceil($totalRecords / $limit);
 
-$studentQuery = "SELECT DISTINCT s.id, s.reg_no, s.name as student_name 
-                 FROM students s 
-                 JOIN project_topics pt ON s.id = pt.student_id 
-                 WHERE s.department = :dept";
+$studentQuery = "SELECT DISTINCT s.id, s.reg_no, s.name as student_name
+                 FROM students s
+                 JOIN project_topics pt ON s.id = pt.student_id
+                 WHERE s.department = :dept AND s.session = :session";
 if ($search) $studentQuery .= " AND (s.name LIKE :search OR s.reg_no LIKE :search OR pt.topic LIKE :search)";
 $studentQuery .= " ORDER BY s.name ASC LIMIT :limit OFFSET :offset";
 $stmt = $conn->prepare($studentQuery);
 $stmt->bindValue(':dept', $dept_id);
+$stmt->bindValue(':session', $current_session);
 if ($search) $stmt->bindValue(':search', "%$search%");
 $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
 $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);

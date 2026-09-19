@@ -18,11 +18,29 @@ $stmt = $conn->prepare("SELECT d.num_chapters FROM supervisors s JOIN department
 $stmt->execute([$sup_id]);
 $num_chapters = (int)($stmt->fetchColumn() ?: 5);
 
+$clearance_names = [
+    'proposal' => 'Proposal Defense',
+    'internal' => 'Internal Defense',
+    'external' => 'External Defense'
+];
+
+// Confirms the student is actually assigned to this supervisor before any
+// grant/revoke - a clearance level string alone isn't enough authorization.
+function student_belongs_to_supervisor($conn, $sup_id, $student_id, $current_session) {
+    $stmt = $conn->prepare("
+        SELECT sp.student_id FROM supervision sp
+        JOIN students s ON sp.student_id = s.id
+        WHERE sp.supervisor_id = ? AND sp.student_id = ? AND sp.status = 'active' AND s.session = ?
+    ");
+    $stmt->execute([$sup_id, $student_id, $current_session]);
+    return (bool)$stmt->fetch();
+}
+
 // Handle clearance approval
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['approve_clearance'])) {
     $student_id = intval($_POST['student_id']);
     $clearance_level = trim($_POST['clearance_level']);
-    
+
     // Validate clearance level
     $valid_clearances = ['proposal', 'internal', 'external'];
     if (!in_array($clearance_level, $valid_clearances)) {
@@ -30,22 +48,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['approve_clearance']))
         header("Location: sup_chapter_approvals.php");
         exit();
     }
-    
+
     try {
-        $stmt = $conn->prepare("INSERT INTO chapter_approvals (student_id, supervisor_id, clearance_level, status, approval_date, academic_session) 
-                                VALUES (?, ?, ?, 'approved', NOW(), ?) 
+        if (!student_belongs_to_supervisor($conn, $sup_id, $student_id, $current_session)) {
+            throw new Exception("This student is not currently assigned to you.");
+        }
+
+        $stmt = $conn->prepare("INSERT INTO chapter_approvals (student_id, supervisor_id, clearance_level, status, approval_date, academic_session)
+                                VALUES (?, ?, ?, 'approved', NOW(), ?)
                                 ON DUPLICATE KEY UPDATE status = 'approved', approval_date = NOW()");
         $stmt->execute([$student_id, $sup_id, $clearance_level, $current_session]);
-        
-        $clearance_names = [
-            'proposal' => 'Proposal Defense',
-            'internal' => 'Internal Defense',
-            'external' => 'External Defense'
-        ];
-        
+
         $_SESSION['success'] = "Clearance for " . $clearance_names[$clearance_level] . " granted successfully.";
     } catch (Exception $e) {
         $_SESSION['error'] = "Failed to grant clearance: " . $e->getMessage();
+    }
+    header("Location: sup_chapter_approvals.php");
+    exit();
+}
+
+// Handle clearance revocation (undo a mistaken approval)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['revoke_clearance'])) {
+    $student_id = intval($_POST['student_id']);
+    $clearance_level = trim($_POST['clearance_level']);
+
+    $valid_clearances = ['proposal', 'internal', 'external'];
+    if (!in_array($clearance_level, $valid_clearances)) {
+        $_SESSION['error'] = "Invalid clearance level.";
+        header("Location: sup_chapter_approvals.php");
+        exit();
+    }
+
+    try {
+        if (!student_belongs_to_supervisor($conn, $sup_id, $student_id, $current_session)) {
+            throw new Exception("This student is not currently assigned to you.");
+        }
+
+        $stmt = $conn->prepare("UPDATE chapter_approvals SET status = 'pending', approval_date = NULL
+                                WHERE student_id = ? AND supervisor_id = ? AND clearance_level = ?");
+        $stmt->execute([$student_id, $sup_id, $clearance_level]);
+
+        $_SESSION['success'] = "Clearance for " . $clearance_names[$clearance_level] . " has been undone.";
+    } catch (Exception $e) {
+        $_SESSION['error'] = "Failed to undo clearance: " . $e->getMessage();
     }
     header("Location: sup_chapter_approvals.php");
     exit();
@@ -57,9 +102,9 @@ $stmt = $conn->prepare("
     FROM supervision sp
     JOIN students s ON sp.student_id = s.id
     LEFT JOIN project_topics pt ON s.id = pt.student_id AND pt.status = 'approved'
-    WHERE sp.supervisor_id = ? AND sp.status = 'active'
+    WHERE sp.supervisor_id = ? AND sp.status = 'active' AND s.session = ?
 ");
-$stmt->execute([$sup_id]);
+$stmt->execute([$sup_id, $current_session]);
 $students = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Fetch existing approvals
@@ -86,6 +131,8 @@ while($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         .chapter-box.approved { background: #1cc88a; color: white; border-color: #1cc88a; }
         .chapter-box.pending { background: white; color: #a0aec0; }
         .chapter-box:hover { transform: scale(1.1); }
+        .chapter-box.approved:hover { background: #e74a3b; border-color: #e74a3b; }
+        .chapter-box.approved:hover i::before { content: "\f00d"; }
         .btn-approve { border: none; background: none; padding: 0; }
         .status-pill { padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
         .pill-approved { background: #e8f5e9; color: #2e7d32; }
@@ -108,13 +155,19 @@ while($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
             </div>
         <?php endif; ?>
 
+        <?php if (isset($_SESSION['error'])): ?>
+            <div style="background: #f8d7da; color: #842029; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+                <i class="fas fa-exclamation-circle"></i> <?= htmlspecialchars($_SESSION['error']); unset($_SESSION['error']); ?>
+            </div>
+        <?php endif; ?>
+
         <div class="approval-table-container">
             <table class="approval-table">
                 <thead>
                     <tr>
                         <th>Student Information</th>
                         <th>Project Topic</th>
-                        <th>Progress (Click to Approve)</th>
+                        <th>Progress (Click to Approve, Click Again to Undo)</th>
                         <th>Status</th>
                     </tr>
                 </thead>
@@ -149,9 +202,15 @@ while($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
                                         <?php foreach ($clearance_levels as $key => $label): ?>
                                             <?php $is_approved = isset($approvals[$s['id']][$key]) && $approvals[$s['id']][$key] === 'approved'; ?>
                                             <?php if ($is_approved): ?>
-                                                <div class="chapter-box approved" style="width:auto; padding:0 10px;" title="<?= $label ?> Defense Cleared">
-                                                    <i class="fas fa-check-circle" style="margin-right:5px;"></i><?= $label ?>
-                                                </div>
+                                                <form method="POST" style="display: inline;">
+                                                    <input type="hidden" name="student_id" value="<?= $s['id'] ?>">
+                                                    <input type="hidden" name="clearance_level" value="<?= $key ?>">
+                                                    <button type="submit" name="revoke_clearance" class="btn-approve" onclick="return confirm('Undo <?= $label ?> clearance for <?= htmlspecialchars(addslashes($s['name'])) ?>? This will mark it as not yet cleared.')">
+                                                        <div class="chapter-box approved" style="width:auto; padding:0 10px;" title="Click to undo <?= $label ?> Clearance">
+                                                            <i class="fas fa-check-circle" style="margin-right:5px;"></i><?= $label ?>
+                                                        </div>
+                                                    </button>
+                                                </form>
                                             <?php else: ?>
                                                 <form method="POST" style="display: inline;">
                                                     <input type="hidden" name="student_id" value="<?= $s['id'] ?>">

@@ -20,34 +20,37 @@ $dept_name = $hod_info['department_name'];
 // Use current session from global settings
 $active_session = $current_session;
 
-// Fetch total scores for each student
-// This includes: Proposal Avg, Internal Avg, External Avg, and Supervisor Assessment
+// Fetch total scores for each student.
+// Proposal (max 10), Internal (max 20), and Supervisor (max 40) are each already
+// entered on their own final scale, so they're summed directly - together they
+// cap at 70. External is entered raw out of 100 and is scaled to its 30 share of
+// the grand total: (external / 100) * 30. Grand total caps at 100.
 $query = "
-    SELECT 
-        s.id as student_id, 
-        s.name as student_name, 
+    SELECT
+        s.id as student_id,
+        s.name as student_name,
         s.reg_no,
         AVG(CASE WHEN dp.panel_type = 'proposal' THEN ds.score END) as proposal_avg,
         AVG(CASE WHEN dp.panel_type = 'internal' THEN ds.score END) as internal_avg,
         AVG(CASE WHEN dp.panel_type = 'external' THEN ds.score END) as external_avg,
         sa.score as supervisor_score,
         (
-            COALESCE(AVG(CASE WHEN dp.panel_type = 'proposal' THEN ds.score END), 0) + 
-            COALESCE(AVG(CASE WHEN dp.panel_type = 'internal' THEN ds.score END), 0) + 
-            COALESCE(AVG(CASE WHEN dp.panel_type = 'external' THEN ds.score END), 0) + 
+            COALESCE(AVG(CASE WHEN dp.panel_type = 'proposal' THEN ds.score END), 0) +
+            COALESCE(AVG(CASE WHEN dp.panel_type = 'internal' THEN ds.score END), 0) +
+            (COALESCE(AVG(CASE WHEN dp.panel_type = 'external' THEN ds.score END), 0) / 100 * 30) +
             COALESCE(sa.score, 0)
         ) as total_grand_score
     FROM students s
     LEFT JOIN defense_scores ds ON s.id = ds.student_id
     LEFT JOIN defense_panels dp ON ds.panel_id = dp.id
     LEFT JOIN supervisor_assessments sa ON s.id = sa.student_id AND sa.academic_session = ?
-    WHERE s.department = ?
+    WHERE s.department = ? AND s.session = ?
     GROUP BY s.id
     ORDER BY s.name ASC
 ";
 
 $stmt = $conn->prepare($query);
-$stmt->execute([$active_session, $dept_id]);
+$stmt->execute([$active_session, $dept_id, $active_session]);
 $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Handle CSV Export
@@ -58,7 +61,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
     
     $output = fopen('php://output', 'w');
     // Header row
-    fputcsv($output, ['S/N', 'Reg Number', 'Student Name', 'Proposal Avg', 'Internal Avg', 'External Avg', 'Supervisor Score', 'Grand Total']);
+    fputcsv($output, ['S/N', 'Reg Number', 'Student Name', 'Proposal (/10)', 'Internal (/20)', 'External (/30)', 'Supervisor (/40)', 'Grand Total (/100)']);
     
     $sn = 1;
     foreach ($results as $r) {
@@ -68,7 +71,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
             $r['student_name'],
             $r['proposal_avg'] !== null ? number_format($r['proposal_avg'], 1) : '0',
             $r['internal_avg'] !== null ? number_format($r['internal_avg'], 1) : '0',
-            $r['external_avg'] !== null ? number_format($r['external_avg'], 1) : '0',
+            $r['external_avg'] !== null ? number_format($r['external_avg'] / 100 * 30, 1) : '0',
             $r['supervisor_score'] !== null ? number_format($r['supervisor_score'], 1) : '0',
             number_format($r['total_grand_score'], 1)
         ]);
@@ -140,11 +143,11 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
                     <thead>
                         <tr>
                             <th>Student Information</th>
-                            <th>Proposal Avg</th>
-                            <th>Internal Avg</th>
-                            <th>External Avg</th>
-                            <th>Supervisor</th>
-                            <th style="text-align: center;">Grand Total</th>
+                            <th>Proposal (/10)</th>
+                            <th>Internal (/20)</th>
+                            <th>External (/30)</th>
+                            <th>Supervisor (/40)</th>
+                            <th style="text-align: center;">Grand Total (/100)</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -166,7 +169,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
                                 </td>
                                 <td>
                                     <span class="score-box <?= $r['external_avg'] !== null ? 'bg-ext' : 'bg-none' ?>">
-                                        <?= $r['external_avg'] !== null ? number_format($r['external_avg'], 1) : '--' ?>
+                                        <?= $r['external_avg'] !== null ? number_format($r['external_avg'] / 100 * 30, 1) : '--' ?>
                                     </span>
                                 </td>
                                 <td>

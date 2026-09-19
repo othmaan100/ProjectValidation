@@ -112,19 +112,17 @@ foreach ($raw_students as $row) {
         $stats['incomplete']++;
     }
 
-    // 1. External Defense Score converted to 30% (CA Score)
+    // External Defense Score converted from raw /100 to its 30-point share
     // Formula: (External Score / 100) * 30
-    $ca_score = ($ext !== null) ? (($ext / 100.0) * 30.0) : 0.0;
+    $ext_score = ($ext !== null) ? (($ext / 100.0) * 30.0) : 0.0;
 
-    // 2. Proposal, Internal, and Supervisor Scores combined and scaled to 70% (EXAM Score)
-    // Each is out of 100 (Max 300 total) -> Scaled to 70%
-    // Formula: ((Proposal + Internal + Supervisor) / 300) * 70
-    $exam_raw_sum = ($prop ?? 0.0) + ($int ?? 0.0) + ($sup ?? 0.0);
-    $exam_score = ($exam_raw_sum / 300.0) * 70.0;
+    // Proposal (max 10) + Internal (max 20) + Supervisor (max 40) - each is
+    // already entered on its own final scale, so they're summed directly -
+    // together they cap at 70. No further scaling needed.
+    $exam_score = ($prop ?? 0.0) + ($int ?? 0.0) + ($sup ?? 0.0);
 
-    // 3. Final Total Score (100% Max)
-    // Formula: CA Score (30%) + EXAM Score (70%)
-    $final_total = $ca_score + $exam_score;
+    // Final Total Score (100% Max) = Proposal + Internal + Supervisor + External
+    $final_total = $exam_score + $ext_score;
 
     $grade_info = getGradeDetails($final_total);
 
@@ -149,10 +147,8 @@ foreach ($raw_students as $row) {
         'proposal_raw' => $prop,
         'internal_raw' => $int,
         'external_raw' => $ext,
+        'external_score' => $ext_score,
         'supervisor_raw' => $sup,
-        'ca_score' => $ca_score,
-        'exam_raw_sum' => $exam_raw_sum,
-        'exam_score' => $exam_score,
         'final_total' => $final_total,
         'grade' => $grade_info['grade'],
         'remark' => $grade_info['remark'],
@@ -176,28 +172,26 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
     $output = fopen('php://output', 'w');
     // Title comments
     fputcsv($output, ["FINAL RESULT TEMPLATE - " . strtoupper($dept_name)]);
-    fputcsv($output, ["Academic Session: " . $active_session, "Scoring Formula: CA = External (30%) | EXAM = (Proposal + Internal + Supervisor)/300 * 70% | Total = CA + EXAM (100%)"]);
+    fputcsv($output, ["Academic Session: " . $active_session, "Scoring Formula: Total = Proposal (/10) + Internal (/20) + Supervisor (/40) + External (/30, converted from raw /100)"]);
     fputcsv($output, []); // blank line
 
     // Header row
     fputcsv($output, [
-        'S/N', 
-        'Registration Number', 
-        'Student Full Name', 
+        'S/N',
+        'Registration Number',
+        'Student Full Name',
         'Project Topic',
         'Assigned Supervisor',
-        'Proposal Score (/100)', 
-        'Internal Score (/100)', 
-        'Supervisor Score (/100)', 
-        'External Score (/100)', 
-        'CA Score (30%)', 
-        'EXAM Score (70%)', 
-        'Final Total Score (100%)', 
-        'Letter Grade', 
-        'Remark', 
+        'Proposal Score (/10)',
+        'Internal Score (/20)',
+        'Supervisor Score (/40)',
+        'External Score (/30)',
+        'Final Total Score (100%)',
+        'Letter Grade',
+        'Remark',
         'Grading Status'
     ]);
-    
+
     $sn = 1;
     foreach ($processed_results as $r) {
         fputcsv($output, [
@@ -209,9 +203,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
             $r['proposal_raw'] !== null ? number_format($r['proposal_raw'], 1) : 'N/A',
             $r['internal_raw'] !== null ? number_format($r['internal_raw'], 1) : 'N/A',
             $r['supervisor_raw'] !== null ? number_format($r['supervisor_raw'], 1) : 'N/A',
-            $r['external_raw'] !== null ? number_format($r['external_raw'], 1) : 'N/A',
-            number_format($r['ca_score'], 2),
-            number_format($r['exam_score'], 2),
+            $r['external_raw'] !== null ? number_format($r['external_score'], 1) : 'N/A',
             number_format($r['final_total'], 2),
             $r['grade'],
             $r['remark'],
@@ -228,7 +220,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Final Result Template (30% CA / 70% Exam) - <?= htmlspecialchars($dept_name) ?></title>
+    <title>Final Result Template (External 30% / Exam 70%) - <?= htmlspecialchars($dept_name) ?></title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
@@ -712,7 +704,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
                 <p>
                     <span><i class="fas fa-building-columns"></i> <?= htmlspecialchars($dept_name) ?></span>
                     <span class="header-pill"><i class="fas fa-calendar-alt"></i> Session: <?= $active_session ?></span>
-                    <span class="header-pill"><i class="fas fa-sliders"></i> Weighted Scheme (30% CA / 70% Exam)</span>
+                    <span class="header-pill"><i class="fas fa-sliders"></i> Weighted Scheme (External 30% / Exam 70%)</span>
                 </p>
             </div>
             <div class="header-actions">
@@ -781,13 +773,10 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
             </div>
             <div class="formula-badges">
                 <div class="calc-pill calc-ca">
-                    <i class="fas fa-user-shield"></i> <strong>CA Score (30%)</strong>: External Defense &times; 0.30
-                </div>
-                <div class="calc-pill calc-exam">
-                    <i class="fas fa-scale-balanced"></i> <strong>EXAM Score (70%)</strong>: (Prop + Internal + Sup) / 300 &times; 70%
+                    <i class="fas fa-user-shield"></i> <strong>External (30%)</strong>: Raw Score &divide; 100 &times; 30
                 </div>
                 <div class="calc-pill calc-total">
-                    <i class="fas fa-award"></i> <strong>Final Total</strong>: CA (30%) + EXAM (70%) = 100%
+                    <i class="fas fa-award"></i> <strong>Final Total (100%)</strong>: Proposal + Internal + Supervisor + External
                 </div>
             </div>
         </div>
@@ -824,20 +813,16 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
                             <tr>
                                 <th rowspan="2" style="width: 40px; text-align: center;">S/N</th>
                                 <th rowspan="2">Student Information</th>
-                                <th colspan="4" class="section-hdr" style="background: #f8fafc; color: #334155;">Raw Breakdown Scores (/100)</th>
-                                <th colspan="2" class="section-hdr" style="background: #f1f5f9; color: var(--primary);">Weighted Scores</th>
+                                <th colspan="4" class="section-hdr" style="background: #f8fafc; color: #334155;">Raw Breakdown Scores</th>
                                 <th colspan="3" class="section-hdr" style="background: #eef2ff; color: #312e81;">Final Computed Result</th>
                                 <th rowspan="2" style="text-align: center;">Status</th>
                             </tr>
                             <tr>
                                 <!-- Raw Breakdown Sub-headers -->
-                                <th style="text-align: center;">Proposal</th>
-                                <th style="text-align: center;">Internal</th>
-                                <th style="text-align: center;">Supervisor</th>
-                                <th style="text-align: center;">External</th>
-                                <!-- Weighted Sub-headers -->
-                                <th style="text-align: center; color: #1e40af;">CA (30%)<br><small style="font-size: 10px; font-weight: normal;">Ext &times; 30%</small></th>
-                                <th style="text-align: center; color: #166534;">EXAM (70%)<br><small style="font-size: 10px; font-weight: normal;">(P+I+S)/300&times;70</small></th>
+                                <th style="text-align: center;">Proposal (/10)</th>
+                                <th style="text-align: center;">Internal (/20)</th>
+                                <th style="text-align: center;">Supervisor (/40)</th>
+                                <th style="text-align: center;">External (/30)</th>
                                 <!-- Final Result Sub-headers -->
                                 <th style="text-align: center; font-weight: 800;">Total (100%)</th>
                                 <th style="text-align: center;">Grade</th>
@@ -892,18 +877,10 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
                                     </td>
                                     <td style="text-align: center;">
                                         <?php if ($r['external_raw'] !== null): ?>
-                                            <span class="badge-raw" style="background: #e0f2fe; color: #0369a1;"><?= number_format($r['external_raw'], 1) ?></span>
+                                            <span class="badge-raw" style="background: #e0f2fe; color: #0369a1;"><?= number_format($r['external_score'], 1) ?></span>
                                         <?php else: ?>
                                             <span class="badge-raw badge-raw-none">Pending</span>
                                         <?php endif; ?>
-                                    </td>
-
-                                    <!-- Weighted Scores -->
-                                    <td style="text-align: center;">
-                                        <span class="badge-ca"><?= number_format($r['ca_score'], 1) ?></span>
-                                    </td>
-                                    <td style="text-align: center;">
-                                        <span class="badge-exam"><?= number_format($r['exam_score'], 1) ?></span>
                                     </td>
 
                                     <!-- Final Computed Result -->

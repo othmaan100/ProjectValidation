@@ -16,56 +16,70 @@ $stats = [
 ];
 
 try {
-    $stats['total_students'] = $conn->query("SELECT COUNT(*) FROM students")->fetchColumn();
-    $stats['approved'] = $conn->query("SELECT COUNT(*) FROM project_topics WHERE status = 'approved'")->fetchColumn();
-    $stats['pending'] = $conn->query("SELECT COUNT(*) FROM project_topics WHERE status = 'pending'")->fetchColumn();
+    $stmt = $conn->prepare("SELECT COUNT(*) FROM students WHERE session = ?");
+    $stmt->execute([$current_session]);
+    $stats['total_students'] = $stmt->fetchColumn();
+
+    $stmt = $conn->prepare("SELECT COUNT(*) FROM project_topics pt JOIN students s ON pt.student_id = s.id WHERE pt.status = 'approved' AND s.session = ?");
+    $stmt->execute([$current_session]);
+    $stats['approved'] = $stmt->fetchColumn();
+
+    $stmt = $conn->prepare("SELECT COUNT(*) FROM project_topics pt JOIN students s ON pt.student_id = s.id WHERE pt.status = 'pending' AND s.session = ?");
+    $stmt->execute([$current_session]);
+    $stats['pending'] = $stmt->fetchColumn();
 } catch (Exception $e) {}
 
 // Faculty Breakdown
-$faculty_stats = $conn->query("
-    SELECT 
+$stmt = $conn->prepare("
+    SELECT
         f.id, f.faculty as faculty_name,
-        (SELECT COUNT(*) FROM students s 
-         JOIN departments d ON s.department = d.id 
-         WHERE d.faculty_id = f.id) as students_count,
-        (SELECT COUNT(*) FROM project_topics pt 
-         JOIN students s2 ON pt.student_id = s2.id 
+        (SELECT COUNT(*) FROM students s
+         JOIN departments d ON s.department = d.id
+         WHERE d.faculty_id = f.id AND s.session = :session) as students_count,
+        (SELECT COUNT(*) FROM project_topics pt
+         JOIN students s2 ON pt.student_id = s2.id
          JOIN departments d2 ON s2.department = d2.id
-         WHERE d2.faculty_id = f.id AND pt.status = 'approved') as approved_count,
-        (SELECT COUNT(*) FROM project_topics pt 
-         JOIN students s2 ON pt.student_id = s2.id 
+         WHERE d2.faculty_id = f.id AND pt.status = 'approved' AND s2.session = :session) as approved_count,
+        (SELECT COUNT(*) FROM project_topics pt
+         JOIN students s2 ON pt.student_id = s2.id
          JOIN departments d2 ON s2.department = d2.id
-         WHERE d2.faculty_id = f.id AND pt.status = 'pending') as pending_count
+         WHERE d2.faculty_id = f.id AND pt.status = 'pending' AND s2.session = :session) as pending_count
     FROM faculty f
     ORDER BY f.faculty ASC
-")->fetchAll(PDO::FETCH_ASSOC);
+");
+$stmt->execute([':session' => $current_session]);
+$faculty_stats = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Department Breakdown
-$dept_stats = $conn->query("
-    SELECT 
+$stmt = $conn->prepare("
+    SELECT
         d.id, d.department_name, f.faculty as faculty_name,
-        (SELECT COUNT(*) FROM students s WHERE s.department = d.id) as students_count,
-        (SELECT COUNT(*) FROM project_topics pt 
-         JOIN students s2 ON pt.student_id = s2.id 
-         WHERE s2.department = d.id AND pt.status = 'approved') as approved_count,
-        (SELECT COUNT(*) FROM project_topics pt 
-         JOIN students s2 ON pt.student_id = s2.id 
-         WHERE s2.department = d.id AND pt.status = 'pending') as pending_count
+        (SELECT COUNT(*) FROM students s WHERE s.department = d.id AND s.session = :session) as students_count,
+        (SELECT COUNT(*) FROM project_topics pt
+         JOIN students s2 ON pt.student_id = s2.id
+         WHERE s2.department = d.id AND pt.status = 'approved' AND s2.session = :session) as approved_count,
+        (SELECT COUNT(*) FROM project_topics pt
+         JOIN students s2 ON pt.student_id = s2.id
+         WHERE s2.department = d.id AND pt.status = 'pending' AND s2.session = :session) as pending_count
     FROM departments d
     JOIN faculty f ON d.faculty_id = f.id
     ORDER BY f.faculty ASC, d.department_name ASC
-")->fetchAll(PDO::FETCH_ASSOC);
+");
+$stmt->execute([':session' => $current_session]);
+$dept_stats = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Recent Approved Projects
-$recent_approved = $conn->query("
-    SELECT pt.topic, pt.student_name, pt.session, f.faculty as faculty_name 
-    FROM project_topics pt 
-    JOIN students s ON pt.student_id = s.id 
+$stmt = $conn->prepare("
+    SELECT pt.topic, pt.student_name, pt.session, f.faculty as faculty_name
+    FROM project_topics pt
+    JOIN students s ON pt.student_id = s.id
     JOIN departments d ON s.department = d.id
-    JOIN faculty f ON d.faculty_id = f.id 
-    WHERE pt.status = 'approved' 
+    JOIN faculty f ON d.faculty_id = f.id
+    WHERE pt.status = 'approved' AND s.session = ?
     ORDER BY pt.id DESC LIMIT 10
-")->fetchAll(PDO::FETCH_ASSOC);
+");
+$stmt->execute([$current_session]);
+$recent_approved = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 ?>
 
@@ -117,7 +131,7 @@ $recent_approved = $conn->query("
         <div class="header">
             <div>
                 <h1>University Project Analytics</h1>
-                <p>Consolidated data overview across all faculties</p>
+                <p>Consolidated data overview across all faculties &middot; Session: <strong><?= htmlspecialchars($current_session) ?></strong></p>
             </div>
             <a href="javascript:window.print()" class="btn-print"><i class="fas fa-print"></i> Print Insight</a>
         </div>

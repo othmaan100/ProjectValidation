@@ -213,6 +213,9 @@ if (!defined('PROJECT_ROOT')) {
                              <a href="<?= PROJECT_ROOT ?>department_project_coordinator/dpc_view_assessments.php" class="<?= isActive('dpc_view_assessments.php', $current_page) ?>">
                                 <i class="fa-solid fa-square-poll-vertical"></i> Assessments
                             </a>
+                            <a href="<?= PROJECT_ROOT ?>department_project_coordinator/dpc_correct_scores.php" class="<?= isActive('dpc_correct_scores.php', $current_page) ?>">
+                                <i class="fa-solid fa-pen-to-square"></i> Correct Scores
+                            </a>
                             <a href="<?= PROJECT_ROOT ?>department_project_coordinator/dpc_final_result_template.php" class="<?= isActive('dpc_final_result_template.php', $current_page) ?>">
                                 <i class="fa-solid fa-file-signature"></i> Final Result Template
                             </a>
@@ -297,6 +300,9 @@ if (!defined('PROJECT_ROOT')) {
                             </a>
                             <a href="<?= PROJECT_ROOT ?>hod/hod_view_assessments.php" class="<?= isActive('hod_view_assessments.php', $current_page) ?>">
                                 <i class="fa-solid fa-square-poll-vertical"></i> Assessments
+                            </a>
+                            <a href="<?= PROJECT_ROOT ?>hod/hod_correct_scores.php" class="<?= isActive('hod_correct_scores.php', $current_page) ?>">
+                                <i class="fa-solid fa-pen-to-square"></i> Correct Scores
                             </a>
                         </div>
                     </div>

@@ -17,10 +17,10 @@ $stmt = $conn->prepare("
     JOIN supervision sp ON s.id = sp.student_id
     LEFT JOIN departments d ON s.department = d.id
     LEFT JOIN project_topics pt ON s.id = pt.student_id AND pt.status = 'approved'
-    WHERE sp.supervisor_id = ? AND sp.status = 'active'
+    WHERE sp.supervisor_id = ? AND sp.status = 'active' AND s.session = ?
     ORDER BY s.name ASC
 ");
-$stmt->execute([$supervisor_id]);
+$stmt->execute([$supervisor_id, $current_session]);
 $students = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>

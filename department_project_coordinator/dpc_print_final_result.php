@@ -92,14 +92,15 @@ foreach ($students as $row) {
     $ext = $row['external_avg'] !== null ? floatval($row['external_avg']) : null;
     $sup = $row['supervisor_score'] !== null ? floatval($row['supervisor_score']) : null;
 
-    // CA = External * 0.30
+    // CA = External (out of 100) scaled to its 30-point share
     $ca = ($ext !== null) ? (($ext / 100.0) * 30.0) : 0.0;
-    
-    // Exam = ((Prop + Int + Sup) / 300) * 70
-    $raw_exam_sum = ($prop ?? 0.0) + ($int ?? 0.0) + ($sup ?? 0.0);
-    $exam = ($raw_exam_sum / 300.0) * 70.0;
-    
-    // Total = CA + Exam
+
+    // Exam = Proposal (max 10) + Internal (max 20) + Supervisor (max 40) - each is
+    // already entered on its own final scale, so no further scaling is needed;
+    // together they cap at 70.
+    $exam = ($prop ?? 0.0) + ($int ?? 0.0) + ($sup ?? 0.0);
+
+    // Total = CA + Exam (caps at 100)
     $total = $ca + $exam;
     
     $grade_info = getGradeDetails($total);
@@ -292,8 +293,8 @@ if ($total_count === 0) $lowest = 0;
     </div>
 
     <div class="formula-box">
-        <span><strong>Continuous Assessment (CA - 30%):</strong> External Defense &times; 30%</span>
-        <span><strong>EXAM (70%):</strong> (Proposal + Internal + Supervisor) / 300 &times; 70%</span>
+        <span><strong>Continuous Assessment (CA - 30%):</strong> External Defense &divide; 100 &times; 30</span>
+        <span><strong>EXAM (70%):</strong> Proposal (/10) + Internal (/20) + Supervisor (/40)</span>
         <span><strong>Overall Total (100%):</strong> CA Score + EXAM Score</span>
     </div>
 
@@ -303,15 +304,15 @@ if ($total_count === 0) $lowest = 0;
                 <th rowspan="2" style="width: 25px;">S/N</th>
                 <th rowspan="2" style="width: 95px;">Reg. Number</th>
                 <th rowspan="2" style="text-align: left; width: 170px;">Student Full Name</th>
-                <th colspan="4">Raw Assessment Scores (/100)</th>
+                <th colspan="4">Raw Assessment Scores</th>
                 <th colspan="2">Weighted Components</th>
                 <th colspan="3">Final Result</th>
             </tr>
             <tr>
-                <th style="width: 45px;">Proposal</th>
-                <th style="width: 45px;">Internal</th>
-                <th style="width: 45px;">Supervisor</th>
-                <th style="width: 45px;">External</th>
+                <th style="width: 45px;">Proposal (/10)</th>
+                <th style="width: 45px;">Internal (/20)</th>
+                <th style="width: 45px;">Supervisor (/40)</th>
+                <th style="width: 45px;">External (/100)</th>
                 <th style="width: 55px;">CA (30%)</th>
                 <th style="width: 60px;">EXAM (70%)</th>
                 <th style="width: 65px;">Total (100%)</th>

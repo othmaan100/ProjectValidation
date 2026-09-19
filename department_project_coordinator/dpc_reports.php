@@ -37,10 +37,10 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
         LEFT JOIN project_topics pt ON s.id = pt.student_id AND pt.status = 'approved'
         LEFT JOIN supervision sv ON s.id = sv.student_id AND sv.status = 'active'
         LEFT JOIN supervisors sup ON sv.supervisor_id = sup.id
-        WHERE s.department = ?
+        WHERE s.department = ? AND s.session = ?
         ORDER BY sup.name ASC, s.name ASC
     ");
-    $stmt->execute([$dept_id]);
+    $stmt->execute([$dept_id, $current_session]);
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     $i = 1;
@@ -61,18 +61,18 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
 // Statistics
 $stats = [];
 // Total Students
-$stmt = $conn->prepare("SELECT COUNT(*) FROM students WHERE department = ?");
-$stmt->execute([$dept_id]);
+$stmt = $conn->prepare("SELECT COUNT(*) FROM students WHERE department = ? AND session = ?");
+$stmt->execute([$dept_id, $current_session]);
 $stats['total_students'] = $stmt->fetchColumn();
 
 // Approved Topics
-$stmt = $conn->prepare("SELECT COUNT(*) FROM project_topics pt JOIN students s ON pt.student_id = s.id WHERE s.department = ? AND pt.status = 'approved'");
-$stmt->execute([$dept_id]);
+$stmt = $conn->prepare("SELECT COUNT(*) FROM project_topics pt JOIN students s ON pt.student_id = s.id WHERE s.department = ? AND s.session = ? AND pt.status = 'approved'");
+$stmt->execute([$dept_id, $current_session]);
 $stats['approved_topics'] = $stmt->fetchColumn();
 
 // Pending Topics
-$stmt = $conn->prepare("SELECT COUNT(*) FROM project_topics pt JOIN students s ON pt.student_id = s.id WHERE s.department = ? AND pt.status = 'pending'");
-$stmt->execute([$dept_id]);
+$stmt = $conn->prepare("SELECT COUNT(*) FROM project_topics pt JOIN students s ON pt.student_id = s.id WHERE s.department = ? AND s.session = ? AND pt.status = 'pending'");
+$stmt->execute([$dept_id, $current_session]);
 $stats['pending_topics'] = $stmt->fetchColumn();
 
 // Supervisors Count
@@ -91,10 +91,10 @@ $stmt = $conn->prepare("
     LEFT JOIN project_topics pt ON s.id = pt.student_id AND pt.status = 'approved'
     LEFT JOIN supervision sv ON s.id = sv.student_id AND sv.status = 'active'
     LEFT JOIN supervisors sup ON sv.supervisor_id = sup.id
-    WHERE s.department = ?
+    WHERE s.department = ? AND s.session = ?
     ORDER BY sup.name ASC, s.name ASC
 ");
-$stmt->execute([$dept_id]);
+$stmt->execute([$dept_id, $current_session]);
 $students_report = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $students_approved = [];
@@ -110,15 +110,15 @@ foreach ($students_report as $row) {
 
 // Supervisor Load (Department specific)
 $stmt = $conn->prepare("
-    SELECT 
-        sup.name, 
-        sup.max_students, 
-        (SELECT COUNT(*) FROM supervision sv WHERE sv.supervisor_id = sup.id AND sv.status = 'active') as assigned_count
+    SELECT
+        sup.name,
+        sup.max_students,
+        (SELECT COUNT(*) FROM supervision sv JOIN students s ON sv.student_id = s.id WHERE sv.supervisor_id = sup.id AND sv.status = 'active' AND s.session = ?) as assigned_count
     FROM supervisors sup
     WHERE sup.department = ?
     ORDER BY sup.name ASC
 ");
-$stmt->execute([$dept_id]);
+$stmt->execute([$current_session, $dept_id]);
 $supervisor_loads = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 ?>
@@ -314,7 +314,7 @@ $supervisor_loads = $stmt->fetchAll(PDO::FETCH_ASSOC);
         <div class="header-actions">
             <div>
                 <h1>Departmental Report</h1>
-                <p>Detailed overview of students, topics, and supervisors</p>
+                <p>Detailed overview of students, topics, and supervisors &middot; Session: <strong><?= htmlspecialchars($current_session) ?></strong></p>
             </div>
             <div style="display: flex; gap: 10px;">
                 <button onclick="window.print()" class="btn btn-outline">

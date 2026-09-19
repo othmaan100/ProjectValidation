@@ -72,10 +72,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 }
 
 // Fetch total records for pagination
-$countQuery = "SELECT COUNT(DISTINCT s.id) FROM project_topics pt JOIN students s ON s.id = pt.student_id WHERE s.department = :dept AND pt.status = 'pending'";
+$countQuery = "SELECT COUNT(DISTINCT s.id) FROM project_topics pt JOIN students s ON s.id = pt.student_id WHERE s.department = :dept AND s.session = :session AND pt.status = 'pending'";
 if ($search) $countQuery .= " AND (s.name LIKE :search OR s.reg_no LIKE :search OR pt.topic LIKE :search)";
 $countStmt = $conn->prepare($countQuery);
 $countStmt->bindValue(':dept', $dept_id);
+$countStmt->bindValue(':session', $current_session);
 if ($search) $countStmt->bindValue(':search', "%$search%");
 $countStmt->execute();
 $totalRecords = $countStmt->fetchColumn();
@@ -83,11 +84,12 @@ $totalPages = ceil($totalRecords / $limit);
 
 // Fetch pending topics
 $topics = [];
-$studentQuery = "SELECT DISTINCT s.id, s.name FROM project_topics pt JOIN students s ON s.id = pt.student_id WHERE s.department = :dept AND pt.status = 'pending'";
+$studentQuery = "SELECT DISTINCT s.id, s.name FROM project_topics pt JOIN students s ON s.id = pt.student_id WHERE s.department = :dept AND s.session = :session AND pt.status = 'pending'";
 if ($search) $studentQuery .= " AND (s.name LIKE :search OR s.reg_no LIKE :search OR pt.topic LIKE :search)";
 $studentQuery .= " ORDER BY s.name ASC, s.id ASC LIMIT :limit OFFSET :offset";
 $studentStmt = $conn->prepare($studentQuery);
 $studentStmt->bindValue(':dept', $dept_id);
+$studentStmt->bindValue(':session', $current_session);
 if ($search) $studentStmt->bindValue(':search', "%$search%");
 $studentStmt->bindValue(':limit', $limit, PDO::PARAM_INT);
 $studentStmt->bindValue(':offset', $offset, PDO::PARAM_INT);

@@ -48,6 +48,18 @@ try {
     }
 } catch (Exception $e) {}
 
+$current_session_value = $settings['current_session'] ?? (date('Y') . '/' . (date('Y') + 1));
+
+// Build the session dropdown from every session that's actually been used, plus
+// whatever is currently active (in case it hasn't been used by any student yet).
+$known_sessions = [];
+try {
+    $known_sessions = $conn->query("SELECT DISTINCT session FROM students WHERE session IS NOT NULL AND session != '' ORDER BY session DESC")->fetchAll(PDO::FETCH_COLUMN);
+} catch (Exception $e) {}
+if (!in_array($current_session_value, $known_sessions, true)) {
+    array_unshift($known_sessions, $current_session_value);
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -231,9 +243,16 @@ try {
                     <h2 class="form-section-title"><i class="fas fa-calendar-alt"></i> Academic Session & Submissions</h2>
                     <div class="grid-form">
                         <div class="form-group">
-                            <label for="current_session">Active Academic Session</label>
-                            <input type="text" id="current_session" name="current_session" value="<?= htmlspecialchars($settings['current_session'] ?? '2023/2024') ?>" placeholder="e.g. 2023/2024">
-                            <p class="help-text">This session will be applied to all new project topic submissions.</p>
+                            <label for="current_session_select">Active Academic Session</label>
+                            <select id="current_session_select" onchange="toggleNewSessionInput()">
+                                <?php foreach ($known_sessions as $s): ?>
+                                    <option value="<?= htmlspecialchars($s) ?>" <?= $s === $current_session_value ? 'selected' : '' ?>><?= htmlspecialchars($s) ?></option>
+                                <?php endforeach; ?>
+                                <option value="__new__">+ Add New Session...</option>
+                            </select>
+                            <input type="text" id="current_session_new" placeholder="e.g. 2027/2028" style="display:none; margin-top: 8px;">
+                            <input type="hidden" id="current_session" name="current_session" value="<?= htmlspecialchars($current_session_value) ?>">
+                            <p class="help-text">Switching this isolates student registrations, topics, allocations, and submissions to the selected session.</p>
                         </div>
                         <div class="form-group">
                             <label for="max_proposals_per_student">Max Topics per Student</label>
@@ -284,5 +303,39 @@ try {
     </div>
 
     <?php include_once __DIR__ . '/../includes/footer.php'; ?>
+
+    <script>
+        function toggleNewSessionInput() {
+            const select = document.getElementById('current_session_select');
+            const newInput = document.getElementById('current_session_new');
+            if (select.value === '__new__') {
+                newInput.style.display = 'block';
+                newInput.required = true;
+                newInput.focus();
+            } else {
+                newInput.style.display = 'none';
+                newInput.required = false;
+            }
+        }
+
+        document.querySelector('form').addEventListener('submit', function (e) {
+            const select = document.getElementById('current_session_select');
+            const newInput = document.getElementById('current_session_new');
+            const hidden = document.getElementById('current_session');
+
+            if (select.value === '__new__') {
+                const newVal = newInput.value.trim();
+                if (!newVal) {
+                    e.preventDefault();
+                    alert('Please enter the new academic session.');
+                    newInput.focus();
+                    return;
+                }
+                hidden.value = newVal;
+            } else {
+                hidden.value = select.value;
+            }
+        });
+    </script>
 </body>
 </html>

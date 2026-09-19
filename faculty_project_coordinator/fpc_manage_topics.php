@@ -25,12 +25,12 @@ if (isset($_GET['export'])) {
     fputcsv($output, ['Topic', 'Reg_No', 'Student_Name', 'Session']);
     
     $faculty_id = $_SESSION['faculty_id'];
-    $stmt = $conn->prepare("SELECT pt.topic, s.reg_no, pt.student_name, pt.session 
-                           FROM project_topics pt 
-                           LEFT JOIN students s ON pt.student_id = s.id 
-                           WHERE pt.status = 'approved' AND s.faculty_id = ?
+    $stmt = $conn->prepare("SELECT pt.topic, s.reg_no, pt.student_name, pt.session
+                           FROM project_topics pt
+                           LEFT JOIN students s ON pt.student_id = s.id
+                           WHERE pt.status = 'approved' AND s.faculty_id = ? AND s.session = ?
                            ORDER BY pt.id DESC");
-    $stmt->execute([$faculty_id]);
+    $stmt->execute([$faculty_id, $current_session]);
     
     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         fputcsv($output, [
@@ -65,15 +65,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
                 throw new Exception("Topic, Student Reg No, and Session are required.");
             }
 
-            // Find student ID by Reg No
-            $stmt = $conn->prepare("SELECT id FROM students WHERE reg_no = ?");
-            $stmt->execute([$student_reg_no]);
+            // Find student ID by Reg No, within the current session
+            $stmt = $conn->prepare("SELECT id FROM students WHERE reg_no = ? AND session = ?");
+            $stmt->execute([$student_reg_no, $current_session]);
             $student = $stmt->fetch();
 
             if (!$student) {
-                // If student doesn't exist, create them
+                // If student doesn't exist this session, create them
                 if (!$departmentId) throw new Exception("Department is required for new students.");
-                
+
                 $faculty_id = $_SESSION['faculty_id'];
                 // Create user account first
                 $hashed_pw = password_hash($student_reg_no, PASSWORD_DEFAULT);
@@ -82,8 +82,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
                 $student_id = $conn->lastInsertId();
 
                 // Create student profile profile
-                $stmt = $conn->prepare("INSERT INTO students (id, reg_no, name, department, faculty_id, first_login) VALUES (?, ?, ?, ?, ?, 1)");
-                $stmt->execute([$student_id, $student_reg_no, $student_name, $departmentId, $faculty_id]);
+                $stmt = $conn->prepare("INSERT INTO students (id, reg_no, name, department, faculty_id, session, first_login) VALUES (?, ?, ?, ?, ?, ?, 1)");
+                $stmt->execute([$student_id, $student_reg_no, $student_name, $departmentId, $faculty_id, $current_session]);
             } else {
                 $student_id = $student['id'];
                 if (!empty($student_name)) {
@@ -112,8 +112,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
             }
 
             $faculty_id = $_SESSION['faculty_id'];
-            $stmt = $conn->prepare("UPDATE project_topics pt JOIN students s ON pt.student_id = s.id SET pt.topic = ?, pt.student_name = ?, pt.session = ?, pt.status = ? WHERE pt.id = ? AND s.faculty_id = ?");
-            $stmt->execute([$topic, $student_name, $session, $status, $id, $faculty_id]);
+            $stmt = $conn->prepare("UPDATE project_topics pt JOIN students s ON pt.student_id = s.id SET pt.topic = ?, pt.student_name = ?, pt.session = ?, pt.status = ? WHERE pt.id = ? AND s.faculty_id = ? AND s.session = ?");
+            $stmt->execute([$topic, $student_name, $session, $status, $id, $faculty_id, $current_session]);
 
             $response['success'] = true;
             $response['message'] = "Topic updated successfully!";
@@ -123,8 +123,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
         elseif ($action === 'delete_topic') {
             $id = intval($_POST['id']);
             $faculty_id = $_SESSION['faculty_id'];
-            $stmt = $conn->prepare("DELETE pt FROM project_topics pt JOIN students s ON pt.student_id = s.id WHERE pt.id = ? AND s.faculty_id = ?");
-            $stmt->execute([$id, $faculty_id]);
+            $stmt = $conn->prepare("DELETE pt FROM project_topics pt JOIN students s ON pt.student_id = s.id WHERE pt.id = ? AND s.faculty_id = ? AND s.session = ?");
+            $stmt->execute([$id, $faculty_id, $current_session]);
             $response['success'] = true;
             $response['message'] = "Topic deleted successfully!";
         }
@@ -150,8 +150,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
                 $name = trim($data[2] ?? '');
                 $sessionStr = trim($data[3] ?? $currentSessionYear);
 
-                $stmt = $conn->prepare("SELECT id FROM students WHERE reg_no = ?");
-                $stmt->execute([$regNo]);
+                $stmt = $conn->prepare("SELECT id FROM students WHERE reg_no = ? AND session = ?");
+                $stmt->execute([$regNo, $current_session]);
                 $student = $stmt->fetch();
 
                 if (!$student) {
@@ -163,8 +163,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
                     $student_id = $conn->lastInsertId();
 
                     // Create student profile
-                    $stmt = $conn->prepare("INSERT INTO students (id, reg_no, name, department, faculty_id, first_login) VALUES (?, ?, ?, 1, ?, 1)");
-                    $stmt->execute([$student_id, $regNo, $name, $faculty_id]);
+                    $stmt = $conn->prepare("INSERT INTO students (id, reg_no, name, department, faculty_id, session, first_login) VALUES (?, ?, ?, 1, ?, ?, 1)");
+                    $stmt->execute([$student_id, $regNo, $name, $faculty_id, $current_session]);
                 } else {
                     $student_id = $student['id'];
                 }
@@ -196,8 +196,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
 
             if (move_uploaded_file($_FILES['pdf_file']['tmp_name'], $target_path)) {
                 $faculty_id = $_SESSION['faculty_id'];
-                $stmt = $conn->prepare("UPDATE project_topics pt JOIN students s ON pt.student_id = s.id SET pt.pdf_path = ? WHERE pt.id = ? AND s.faculty_id = ?");
-                $stmt->execute([$db_path, $topic_id, $faculty_id]);
+                $stmt = $conn->prepare("UPDATE project_topics pt JOIN students s ON pt.student_id = s.id SET pt.pdf_path = ? WHERE pt.id = ? AND s.faculty_id = ? AND s.session = ?");
+                $stmt->execute([$db_path, $topic_id, $faculty_id, $current_session]);
                 $response['success'] = true;
                 $response['message'] = "PDF uploaded successfully!";
             } else {
@@ -220,8 +220,8 @@ $perPage = 10;
 $offset = ($page - 1) * $perPage;
 
 $faculty_id = $_SESSION['faculty_id'];
-$whereClause = "s.faculty_id = ?";
-$params = [$faculty_id];
+$whereClause = "s.faculty_id = ? AND s.session = ?";
+$params = [$faculty_id, $current_session];
 if (!empty($search)) {
     $whereClause .= " AND (pt.topic LIKE ? OR pt.student_name LIKE ? OR s.reg_no LIKE ? OR pt.session LIKE ?)";
     $ps = "%$search%";
