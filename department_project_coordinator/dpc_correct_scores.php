@@ -20,11 +20,14 @@ $dept_name = $dpc_info['department_name'];
 
 $active_session = $current_session;
 
-// Maximum achievable score per category - same caps enforced at data entry
+// Maximum achievable score per category, on the same final scale used in the
+// result reports. External is stored raw out of 100 in defense_scores (that's
+// what panels/examiners enter), so it's converted to /30 for display here and
+// converted back to raw before being saved.
 $score_max = [
     'proposal' => 10,
     'internal' => 20,
-    'external' => 100,
+    'external' => 30,
     'supervisor' => 40,
 ];
 
@@ -64,8 +67,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax'])) {
                 throw new Exception("Score must be between 0 and $max for a " . ucfirst($row['panel_type']) . " defense.");
             }
 
+            // External is displayed and corrected on its /30 final scale, but
+            // defense_scores stores the raw /100 value (what examiners actually
+            // enter) - convert back before saving so later reports keep working.
+            $score_to_store = ($row['panel_type'] === 'external') ? ($score / 30 * 100) : $score;
+
             $stmt = $conn->prepare("UPDATE defense_scores SET score = ?, comments = ? WHERE id = ?");
-            $stmt->execute([$score, $comments, $id]);
+            $stmt->execute([$score_to_store, $comments, $id]);
         } elseif ($source === 'supervisor') {
             $stmt = $conn->prepare("
                 SELECT sa.id, s.department, s.session
@@ -222,6 +230,13 @@ $stage_labels = [
                         </thead>
                         <tbody>
                             <?php foreach ($grouped[$type] as $row): ?>
+                                <?php
+                                    // External is stored raw out of 100 but shown/corrected on its /30 final scale
+                                    $display_score = $row['score'];
+                                    if ($type === 'external' && $display_score !== null) {
+                                        $display_score = round($display_score / 100 * 30, 2);
+                                    }
+                                ?>
                                 <tr>
                                     <td>
                                         <strong><?= htmlspecialchars($row['student_name']) ?></strong><br>
@@ -229,14 +244,14 @@ $stage_labels = [
                                     </td>
                                     <td><?= htmlspecialchars($row['panel_name']) ?></td>
                                     <td><?= htmlspecialchars($row['scorer_name'] ?: 'Unknown') ?></td>
-                                    <td style="text-align: center;"><strong><?= $row['score'] !== null ? $row['score'] . ' / ' . $score_max[$type] : '--' ?></strong></td>
+                                    <td style="text-align: center;"><strong><?= $display_score !== null ? $display_score . ' / ' . $score_max[$type] : '--' ?></strong></td>
                                     <td style="text-align: right;">
                                         <button type="button" class="btn btn-outline correct-btn"
                                             data-source="panel"
                                             data-id="<?= $row['id'] ?>"
                                             data-max="<?= $score_max[$type] ?>"
                                             data-title="<?= htmlspecialchars($row['student_name'] . ' - ' . $label, ENT_QUOTES) ?>"
-                                            data-score="<?= htmlspecialchars($row['score'] ?? '', ENT_QUOTES) ?>"
+                                            data-score="<?= htmlspecialchars($display_score ?? '', ENT_QUOTES) ?>"
                                             data-comments="<?= htmlspecialchars($row['comments'] ?: '', ENT_QUOTES) ?>"
                                         ><i class="fas fa-edit"></i> Correct</button>
                                     </td>
