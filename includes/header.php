@@ -304,6 +304,9 @@ if (!defined('PROJECT_ROOT')) {
                             <a href="<?= PROJECT_ROOT ?>hod/hod_correct_scores.php" class="<?= isActive('hod_correct_scores.php', $current_page) ?>">
                                 <i class="fa-solid fa-pen-to-square"></i> Correct Scores
                             </a>
+                            <a href="<?= PROJECT_ROOT ?>hod/hod_final_result_template.php" class="<?= isActive('hod_final_result_template.php', $current_page) ?>">
+                                <i class="fa-solid fa-file-signature"></i> Final Result Template
+                            </a>
                         </div>
                     </div>
                     <div class="sidebar-dropdown">
