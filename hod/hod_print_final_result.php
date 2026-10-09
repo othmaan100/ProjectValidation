@@ -293,7 +293,7 @@ if ($total_count === 0) $lowest = 0;
     </div>
 
     <div class="formula-box">
-        <span><strong>Continuous Assessment (CA - 30%):</strong> External Defense &divide; 100 &times; 30</span>
+        <span><strong>Continuous Assessment (CA - 30%):</strong> External Examiner Score</span>
         <span><strong>EXAM (70%):</strong> Proposal (/10) + Internal (/20) + Supervisor (/40)</span>
         <span><strong>Overall Total (100%):</strong> CA Score + EXAM Score</span>
     </div>
@@ -304,7 +304,7 @@ if ($total_count === 0) $lowest = 0;
                 <th rowspan="2" style="width: 25px;">S/N</th>
                 <th rowspan="2" style="width: 95px;">Reg. Number</th>
                 <th rowspan="2" style="text-align: left; width: 170px;">Student Full Name</th>
-                <th colspan="4">Raw Assessment Scores</th>
+                <th colspan="3">Raw Assessment Scores</th>
                 <th colspan="2">Weighted Components</th>
                 <th colspan="3">Final Result</th>
             </tr>
@@ -312,7 +312,6 @@ if ($total_count === 0) $lowest = 0;
                 <th style="width: 45px;">Proposal (/10)</th>
                 <th style="width: 45px;">Internal (/20)</th>
                 <th style="width: 45px;">Supervisor (/40)</th>
-                <th style="width: 45px;">External (/100)</th>
                 <th style="width: 55px;">CA (30%)</th>
                 <th style="width: 60px;">EXAM (70%)</th>
                 <th style="width: 65px;">Total (100%)</th>
@@ -321,9 +320,9 @@ if ($total_count === 0) $lowest = 0;
             </tr>
         </thead>
         <tbody>
-            <?php 
+            <?php
             $sn = 1;
-            foreach ($processed as $p): 
+            foreach ($processed as $p):
             ?>
                 <tr>
                     <td><?= $sn++ ?></td>
@@ -332,7 +331,6 @@ if ($total_count === 0) $lowest = 0;
                     <td><?= $p['prop'] !== null ? number_format($p['prop'], 1) : '-' ?></td>
                     <td><?= $p['int'] !== null ? number_format($p['int'], 1) : '-' ?></td>
                     <td><?= $p['sup'] !== null ? number_format($p['sup'], 1) : '-' ?></td>
-                    <td><?= $p['ext'] !== null ? number_format($p['ext'], 1) : '-' ?></td>
                     <td><strong><?= number_format($p['ca'], 1) ?></strong></td>
                     <td><strong><?= number_format($p['exam'], 1) ?></strong></td>
                     <td style="font-weight: bold; background-color: #fafafa;"><?= number_format($p['total'], 1) ?></td>

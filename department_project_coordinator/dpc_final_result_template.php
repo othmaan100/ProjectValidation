@@ -214,13 +214,39 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
     fclose($output);
     exit();
 }
+
+// Handle Raw Results CSV Export (CA / Exam only, for upload into other systems)
+if (isset($_GET['export']) && $_GET['export'] === 'raw_csv') {
+    $filename = "Final_Raw_Results_" . str_replace(' ', '_', $dept_name) . "_" . str_replace('/', '-', $active_session) . ".csv";
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="' . $filename . '"');
+
+    $output = fopen('php://output', 'w');
+    fputcsv($output, [
+        'Student Registration Number',
+        'CA Score (External Examiner Score)',
+        'Exam Score (Proposal + Internal + Supervisor)'
+    ]);
+
+    foreach ($processed_results as $r) {
+        $exam_total = ($r['proposal_raw'] ?? 0.0) + ($r['internal_raw'] ?? 0.0) + ($r['supervisor_raw'] ?? 0.0);
+        fputcsv($output, [
+            $r['reg_no'],
+            number_format($r['external_score'], 2),
+            number_format($exam_total, 2)
+        ]);
+    }
+
+    fclose($output);
+    exit();
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Final Result Template (External 30% / Exam 70%) - <?= htmlspecialchars($dept_name) ?></title>
+    <title>Final Result Template (CA 30% / Exam 70%) - <?= htmlspecialchars($dept_name) ?></title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
@@ -704,12 +730,15 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
                 <p>
                     <span><i class="fas fa-building-columns"></i> <?= htmlspecialchars($dept_name) ?></span>
                     <span class="header-pill"><i class="fas fa-calendar-alt"></i> Session: <?= $active_session ?></span>
-                    <span class="header-pill"><i class="fas fa-sliders"></i> Weighted Scheme (External 30% / Exam 70%)</span>
+                    <span class="header-pill"><i class="fas fa-sliders"></i> Weighted Scheme (CA 30% / Exam 70%)</span>
                 </p>
             </div>
             <div class="header-actions">
                 <a href="?export=csv" class="btn btn-white">
                     <i class="fas fa-file-csv" style="color: var(--success);"></i> Export CSV
+                </a>
+                <a href="?export=raw_csv" class="btn btn-white">
+                    <i class="fas fa-download" style="color: var(--primary);"></i> Download Raw Results (CSV)
                 </a>
                 <a href="dpc_print_final_result.php" target="_blank" class="btn btn-outline">
                     <i class="fas fa-print"></i> Print Official Sheet
@@ -773,10 +802,13 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
             </div>
             <div class="formula-badges">
                 <div class="calc-pill calc-ca">
-                    <i class="fas fa-user-shield"></i> <strong>External (30%)</strong>: Raw Score &divide; 100 &times; 30
+                    <i class="fas fa-user-shield"></i> <strong>CA (30%)</strong>: External Examiner Score
+                </div>
+                <div class="calc-pill calc-exam">
+                    <i class="fas fa-scale-balanced"></i> <strong>Exam (70%)</strong>: Proposal + Internal + Supervisor
                 </div>
                 <div class="calc-pill calc-total">
-                    <i class="fas fa-award"></i> <strong>Final Total (100%)</strong>: Proposal + Internal + Supervisor + External
+                    <i class="fas fa-award"></i> <strong>Final Total (100%)</strong>: CA + Exam
                 </div>
             </div>
         </div>
