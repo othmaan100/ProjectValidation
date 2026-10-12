@@ -64,24 +64,12 @@ function validate_topic_with_chatgpt($topic) {
     return "Error: Unable to validate the topic. Please try again.";
 }
 
-function send_feedback_to_student($topic_id, $decision, $reason = '') {
-    global $conn;
-
-    $stmt = $conn->prepare("SELECT student_reg_no FROM project_topics WHERE id = ?");
-    $stmt->execute([$topic_id]);
-    $student_reg_no = $stmt->fetchColumn();
-
-    $feedback_message = "Your project topic has been $decision.";
-    if ($reason) {
-        $feedback_message .= " Reason: $reason";
-    }
-
-    $stmt = $conn->prepare("INSERT INTO feedback (student_reg_no, message) VALUES (?, ?)");
-    $stmt->execute([$student_reg_no, $feedback_message]);
-
-    // Send email notification
-    send_email_notification($student_reg_no, $feedback_message);
-}
+// Note: a send_feedback_to_student() used to live here, but it queried a
+// `student_reg_no` column that doesn't exist on `project_topics` and called
+// an undefined send_email_notification() - it could never have run
+// successfully. The real, working implementation (joins through `students`
+// for reg_no) lives locally in dpc_topic_validation.php and
+// hod_topic_validation.php; define it the same way in any new caller.
 
 function display_error($message) {
     echo "<div class='alert alert-danger'>$message</div>";

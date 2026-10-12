@@ -123,24 +123,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['auto_allocate'])) {
             
             if (empty($to_assign)) break; // No more students to assign
 
-            $insert_stmt = $conn->prepare("INSERT INTO student_panel_assignments (student_id, panel_id, panel_type, academic_session) VALUES (?, ?, ?, ?)");
+            // ON DUPLICATE KEY UPDATE as a no-op makes this safe against a race where the
+            // same student was assigned to this stage by another request (a double-tap on
+            // "Run Auto Allocation", a resubmitted form, or a concurrent manual assignment)
+            // between the "unassigned students" query above and this insert: instead of
+            // throwing a duplicate-key error and rolling back the whole batch, it silently
+            // skips the student who's already assigned. rowCount() is 1 only for a genuine
+            // new insert, so already-assigned students aren't double-counted either.
+            $insert_stmt = $conn->prepare("INSERT INTO student_panel_assignments (student_id, panel_id, panel_type, academic_session) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE panel_id = panel_id");
             foreach ($to_assign as $stu_id) {
                 $insert_stmt->execute([$stu_id, $panel['id'], $panel['panel_type'], $active_session]);
-                $assigned_count++;
+                if ($insert_stmt->rowCount() === 1) {
+                    $assigned_count++;
+                }
             }
 
             $student_idx += count($to_assign);
         }
 
         $conn->commit();
-        
+
         $remaining = $total_unassigned - $assigned_count;
         $message = "Auto-allocation for " . ucfirst($stage) . " complete! Assigned $assigned_count students. Remaining: $remaining.";
         $message_type = $remaining > 0 ? "warning" : "success";
 
     } catch (Exception $e) {
         $conn->rollBack();
-        $message = "Auto-allocation failed: " . $e->getMessage();
+        error_log("Auto-allocation failed (stage=$stage, dept=$dept_id, session=$active_session): " . $e->getMessage());
+        $message = "Auto-allocation failed due to a system error. Please try again, and contact the administrator if it persists.";
         $message_type = "error";
     }
 }
@@ -276,13 +286,14 @@ $assignments = $assign_stmt->fetchAll(PDO::FETCH_ASSOC);
                 <div style="background: #f8fafc; padding: 20px; border-radius: 12px; margin-bottom: 25px; border: 1px dashed #cbd5e1;">
                     <h3 style="margin-top: 0; font-size: 16px; color: var(--text-main);">Auto-Allocation</h3>
                     <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 15px;">Automatically assign students to available panels for a specific stage.</p>
-                    <form method="POST" onsubmit="return confirm('This will automatically assign students to available panels for the selected stage. Continue?');">
+                    <?php $selected_stage = $_POST['stage'] ?? 'proposal'; ?>
+                    <form method="POST" onsubmit="return tvConfirmAutoAllocate(this);">
                         <div class="form-group">
                             <label for="stage">Select Defense Stage</label>
                             <select name="stage" id="stage" class="form-control" style="margin-bottom: 15px;" required>
-                                <option value="proposal">Project Proposal</option>
-                                <option value="internal">Internal Defense</option>
-                                <option value="external">External Defense</option>
+                                <option value="proposal" <?= $selected_stage === 'proposal' ? 'selected' : '' ?>>Project Proposal</option>
+                                <option value="internal" <?= $selected_stage === 'internal' ? 'selected' : '' ?>>Internal Defense</option>
+                                <option value="external" <?= $selected_stage === 'external' ? 'selected' : '' ?>>External Defense</option>
                             </select>
                         </div>
                         <button type="submit" name="auto_allocate" class="btn" style="background: var(--primary-light); color: white;">
@@ -393,6 +404,18 @@ $assignments = $assign_stmt->fetchAll(PDO::FETCH_ASSOC);
                 width: '100%'
             });
         });
+
+        // Disables the submit button right after confirm so a double-tap (common on mobile)
+        // can't fire the auto-allocation request twice and race itself.
+        function tvConfirmAutoAllocate(form) {
+            if (!confirm('This will automatically assign students to available panels for the selected stage. Continue?')) return false;
+            var btn = form.querySelector('button[type="submit"]');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Running...';
+            }
+            return true;
+        }
     </script>
 </body>
 </html>

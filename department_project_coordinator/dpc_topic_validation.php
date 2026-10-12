@@ -2,12 +2,16 @@
 include_once __DIR__ .'/../includes/auth.php';
 include_once __DIR__ .'/../includes/db.php';
 include_once __DIR__ .'/../includes/config.php';
+include_once __DIR__ .'/../includes/functions.php';
+include_once __DIR__ .'/../includes/topic_validation.php';
 
 // Redirect if user is not DPC
 if ($_SESSION['role'] !== 'dpc') {
     header("Location: " . PROJECT_ROOT);
     exit();
 }
+
+const TV_BULK_VALIDATE_CAP = 20;
 
 // Fetch DPC's department info
 $stmt = $conn->prepare("SELECT department, name FROM users WHERE id = ?");
@@ -23,19 +27,42 @@ $search = isset($_GET['search']) ? trim($_GET['search']) : '';
 
 // --- LOGIC HANDLING ---
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    // The AJAX pre-approve check needs its own CSRF response shape (JSON, not a redirect)
+    if (isset($_POST['action']) && $_POST['action'] === 'check_similarity_ajax') {
+        header('Content-Type: application/json');
+        if (!isset($_POST['csrf_token']) || !verify_csrf_token($_POST['csrf_token'])) {
+            echo json_encode(['status' => 'error', 'message' => 'Invalid CSRF token.']);
+            exit();
+        }
+        $topic_id = intval($_POST['topic_id']);
+        echo json_encode(tv_validate_quick($conn, $topic_id));
+        exit();
+    }
+
+    if (!isset($_POST['csrf_token']) || !verify_csrf_token($_POST['csrf_token'])) {
+        $_SESSION['error'] = "Your session expired or the request was invalid. Please try again.";
+        header("Location: " . $_SERVER['PHP_SELF'] . ($search ? "?search=" . urlencode($search) : ""));
+        exit();
+    }
+
     if (isset($_POST['validate_topic'])) {
-        $topic_id = filter_input(INPUT_POST, 'topic_id', FILTER_SANITIZE_NUMBER_INT);
-        $stmt = $conn->prepare("SELECT topic FROM project_topics WHERE id = ?");
-        $stmt->execute([$topic_id]);
-        $topic_text = $stmt->fetchColumn();
-        $_SESSION['validation_result'][$topic_id] = validate_hybrid($conn, $topic_text, $topic_id);
-    } 
+        $topic_id = (int) filter_input(INPUT_POST, 'topic_id', FILTER_SANITIZE_NUMBER_INT);
+        $result = tv_validate_full($conn, $topic_id);
+        $_SESSION['validation_result'][$topic_id] = $result['html'];
+    }
     elseif (isset($_POST['validate_all_pending'])) {
-        $stmt = $conn->prepare("SELECT id, topic FROM project_topics WHERE status = 'pending' AND student_id IN (SELECT id FROM students WHERE department = ?)");
+        $stmt = $conn->prepare("SELECT id FROM project_topics WHERE status = 'pending' AND student_id IN (SELECT id FROM students WHERE department = ?)");
         $stmt->execute([$dept_id]);
         $pending = $stmt->fetchAll();
-        foreach ($pending as $row) {
-            $_SESSION['validation_result'][$row['id']] = validate_hybrid($conn, $row['topic'], $row['id']);
+        $toProcess = array_slice($pending, 0, TV_BULK_VALIDATE_CAP);
+        foreach ($toProcess as $row) {
+            $result = tv_validate_full($conn, (int)$row['id']);
+            $_SESSION['validation_result'][$row['id']] = $result['html'];
+        }
+        if (count($pending) > TV_BULK_VALIDATE_CAP) {
+            $_SESSION['success'] = "Validated " . count($toProcess) . " of " . count($pending) . " pending topics (capped per click to avoid timeouts). Click again to validate the rest, or validate individual topics directly.";
+        } else {
+            $_SESSION['success'] = "Validated " . count($toProcess) . " pending topic(s).";
         }
     }
     elseif (isset($_POST['approve_topic'])) {
@@ -85,87 +112,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $stmt->execute([$new_topic, $topic_id]);
         }
     }
-    elseif (isset($_POST['action']) && $_POST['action'] === 'check_similarity_ajax') {
-        header('Content-Type: application/json');
-        $topic_id = intval($_POST['topic_id']);
-        $stmt = $conn->prepare("SELECT topic FROM project_topics WHERE id = ?");
-        $stmt->execute([$topic_id]);
-        $topic_text = $stmt->fetchColumn();
-        
-        $result = validate_hybrid_detailed($conn, $topic_text, $topic_id);
-        echo json_encode($result);
-        exit();
-    }
     header("Location: " . $_SERVER['PHP_SELF'] . ($search ? "?search=" . urlencode($search) : ""));
     exit();
 }
 
-// Detailed validation for AJAX
-function validate_hybrid_detailed($conn, $topic, $currentId) {
-    if (!$topic) return ['status' => 'error', 'message' => 'No topic text.'];
-    $cleanInput = clean_text_local($topic);
-    $faculty_id = $_SESSION['faculty_id'] ?? 0;
-    $matches = [];
-    
-    // Check Past Projects
-    $stmt = $conn->prepare("SELECT topic, reg_no FROM past_projects WHERE faculty_id = ?");
-    $stmt->execute([$faculty_id]);
-    while ($row = $stmt->fetch()) {
-        similar_text($cleanInput, clean_text_local($row['topic']), $perc);
-        if ($perc > 75) $matches[] = ["topic" => $row['topic'], "source" => "Past Project (Reg No: ".$row['reg_no'].")", "score" => round($perc, 1)];
-    }
-    
-    // Check Other Student Submissions
-    $stmt = $conn->prepare("SELECT pt.topic, s.reg_no FROM project_topics pt JOIN students s ON pt.student_id = s.id WHERE pt.id != ? AND s.faculty_id = ?");
-    $stmt->execute([$currentId, $faculty_id]);
-    while ($row = $stmt->fetch()) {
-        similar_text($cleanInput, clean_text_local($row['topic']), $perc);
-        if ($perc > 75) $matches[] = ["topic" => $row['topic'], "source" => "Other Student (Reg No: ".$row['reg_no'].")", "score" => round($perc, 1)];
-    }
-    
-    if (!empty($matches)) {
-        return ['status' => 'match', 'matches' => $matches];
-    }
-    
-    return ['status' => 'clear'];
-}
-
-// Helper Functions
-function validate_hybrid($conn, $topic, $currentId) {
-    $cleanInput = clean_text_local($topic);
-    $faculty_id = $_SESSION['faculty_id'] ?? 0;
-
-    // Check against past projects in the same faculty
-    $stmt = $conn->prepare("SELECT topic, reg_no FROM past_projects WHERE faculty_id = ?");
-    $stmt->execute([$faculty_id]);
-    while ($row = $stmt->fetch()) {
-        similar_text($cleanInput, clean_text_local($row['topic']), $perc);
-        if ($perc > 75) return "⚠️ Similarity Match ($perc%): " . $row['topic'] . " [Reg No: " . $row['reg_no'] . "] (Past Project)";
-    }
-
-    // Check against other student topics in the same faculty
-    $stmt = $conn->prepare("SELECT pt.topic, s.reg_no FROM project_topics pt JOIN students s ON pt.student_id = s.id WHERE pt.id != ? AND s.faculty_id = ?");
-    $stmt->execute([$currentId, $faculty_id]);
-    while ($row = $stmt->fetch()) {
-        similar_text($cleanInput, clean_text_local($row['topic']), $perc);
-        if ($perc > 75) return "⚠️ Similarity Match ($perc%): " . $row['topic'] . " [Reg No: " . $row['reg_no'] . "] (Other Student)";
-    }
-    return validate_with_ai($topic);
-}
-function clean_text_local($text) {
-    if (!$text) return "";
-    $common = ['the', 'a', 'an', 'of', 'for', 'in', 'on', 'at', 'to', 'using', 'based', 'study'];
-    $text = strtolower(trim($text));
-    return preg_replace('/\b(' . implode('|', $common) . ')\b/i', '', $text);
-}
-function validate_with_ai($topic) {
-    if (!defined('OPENAI_API_KEY')) return "✅ No local matches found.";
-    $url = "https://api.openai.com/v1/chat/completions";
-    $data = [ "model" => "gpt-3.5-turbo", "messages" => [["role" => "system", "content" => "You are an academic validator. Detect if topics are unoriginal or common knowledge."], ["role" => "user", "content" => "Is the following project topic unique and academically valid for a final year project? Answer in 1 short sentence. Topic: \"$topic\""]], "max_tokens" => 60 ];
-    $ch = curl_init($url); curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_POST => true, CURLOPT_POSTFIELDS => json_encode($data), CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'Authorization: Bearer ' . OPENAI_API_KEY]]);
-    $response = curl_exec($ch); $res = json_decode($response, true); curl_close($ch);
-    return isset($res['choices'][0]['message']['content']) ? "🤖 AI: " . $res['choices'][0]['message']['content'] : "✅ No local matches found (AI Offline).";
-}
 function send_feedback_to_student($topic_id, $decision, $reason = '') {
     global $conn;
     $stmt = $conn->prepare("SELECT s.reg_no FROM project_topics pt JOIN students s ON pt.student_id = s.id WHERE pt.id = ?");
@@ -268,12 +218,26 @@ if (!empty($students)) {
     </div> <!-- Close header container -->
 
     <div class="page-container">
+        <?= csrf_field() ?>
+
+        <?php if (isset($_SESSION['success'])): ?>
+            <div style="background: #e8f5e9; color: #2e7d32; padding: 15px; border-radius: 12px; margin-bottom: 20px; border-left: 5px solid #2e7d32;">
+                <i class="fas fa-check-circle"></i> <?= htmlspecialchars($_SESSION['success']); unset($_SESSION['success']); ?>
+            </div>
+        <?php endif; ?>
+        <?php if (isset($_SESSION['error'])): ?>
+            <div style="background: #fff5f5; color: #c62828; padding: 15px; border-radius: 12px; margin-bottom: 20px; border-left: 5px solid #c62828;">
+                <i class="fas fa-times-circle"></i> <?= htmlspecialchars($_SESSION['error']); unset($_SESSION['error']); ?>
+            </div>
+        <?php endif; ?>
+
         <div class="header-card">
             <div>
                 <h1><i class="fas fa-layer-group"></i> Grouped Topic Validation</h1>
                 <p style="color: #636e72; margin-top: 5px;">Manage all proposals for each student in a single view.</p>
             </div>
             <form method="POST">
+                <?= csrf_field() ?>
                 <button type="submit" name="validate_all_pending" class="btn" style="background: var(--primary); color:white; padding: 12px 24px; border-radius: 15px;">
                     <i class="fas fa-robot"></i> Validate All Department Pending
                 </button>
@@ -326,7 +290,7 @@ if (!empty($students)) {
                                             
                                             <?php if (isset($_SESSION['validation_result'][$t['id']])): ?>
                                                 <div class="ai-box">
-                                                    <i class="fas fa-brain"></i> <?= htmlspecialchars($_SESSION['validation_result'][$t['id']]) ?>
+                                                    <i class="fas fa-brain"></i> <?= $_SESSION['validation_result'][$t['id']] ?>
                                                 </div>
                                             <?php endif; ?>
                                         </div>
@@ -337,20 +301,23 @@ if (!empty($students)) {
                                             <?php if ($t['status'] == 'pending'): ?>
                                                 <button type="button" onclick='openEditModal(<?= $t['id'] ?>, <?= htmlspecialchars(json_encode($t['topic']), ENT_QUOTES, 'UTF-8') ?>)' class="btn-sm" style="background: var(--primary);" title="Edit Topic"><i class="fas fa-edit"></i></button>
                                                 <form method="POST" style="display: inline;">
+                                                    <?= csrf_field() ?>
                                                     <input type="hidden" name="topic_id" value="<?= $t['id'] ?>">
                                                     <button type="submit" name="validate_topic" class="btn-sm btn-check" title="Check Similarity"><i class="fas fa-shield-alt"></i></button>
                                                 </form>
                                                 <button type="button" onclick='handleApprove(<?= $t['id'] ?>, <?= $s['id'] ?>, <?= htmlspecialchars(json_encode($t['topic']), ENT_QUOTES, 'UTF-8') ?>)' class="btn-sm btn-approve" title="Approve"><i class="fas fa-check"></i></button>
-                                                
-                                                
+
+
                                                 <!-- Hidden dynamic approval form -->
                                                 <form id="approve-form-<?= $t['id'] ?>" method="POST" style="display: none;">
+                                                    <?= csrf_field() ?>
                                                     <input type="hidden" name="topic_id" value="<?= $t['id'] ?>">
                                                     <input type="hidden" name="student_id" value="<?= $s['id'] ?>">
                                                     <input type="hidden" name="approve_topic" value="1">
                                                 </form>
 
                                                 <form method="POST" style="display: inline;">
+                                                    <?= csrf_field() ?>
                                                     <input type="hidden" name="topic_id" value="<?= $t['id'] ?>">
                                                     <button type="submit" name="reject_topic" class="btn-sm btn-reject" title="Reject"><i class="fas fa-times"></i></button>
                                                 </form>
@@ -408,6 +375,7 @@ if (!empty($students)) {
                 <span class="close-modal" onclick="closeEditModal()">&times;</span>
             </div>
             <form method="POST">
+                <?= csrf_field() ?>
                 <input type="hidden" name="update_topic" value="1">
                 <input type="hidden" name="topic_id" id="edit_topic_id" value="">
                 <div style="margin-bottom: 15px;">
@@ -427,6 +395,7 @@ if (!empty($students)) {
             const formData = new FormData();
             formData.append('action', 'check_similarity_ajax');
             formData.append('topic_id', topicId);
+            formData.append('csrf_token', document.querySelector('input[name="csrf_token"]').value);
 
             try {
                 const response = await fetch(window.location.href, {
