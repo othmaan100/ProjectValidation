@@ -126,6 +126,12 @@ if ($format === 'wide') {
 
 $spreadsheet->setActiveSheetIndex(0);
 
+// An .xlsx file is a ZIP archive and must start with "PK" at byte 0 - any stray output
+// ahead of it (a BOM, whitespace, or a PHP notice from anywhere in the include chain)
+// corrupts the archive and Excel refuses to open it. Discard any buffered output before
+// writing the binary stream, as a safety net beyond keeping the includes themselves clean.
+while (ob_get_level()) { ob_end_clean(); }
+
 $filename = 'evaluation_results_' . $format . '_' . date('Ymd_His') . '.xlsx';
 header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 header('Content-Disposition: attachment; filename="' . $filename . '"');

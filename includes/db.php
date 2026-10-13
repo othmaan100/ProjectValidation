@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 // Primary MySQL Configuration
 $my_host = 'localhost';
 $my_dbname = 'my_project_topics2';

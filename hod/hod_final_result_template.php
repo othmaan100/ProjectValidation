@@ -743,6 +743,9 @@ if (isset($_GET['export']) && $_GET['export'] === 'raw_csv') {
                 <a href="hod_print_final_result.php" target="_blank" class="btn btn-outline">
                     <i class="fas fa-print"></i> Print Official Sheet
                 </a>
+                <a href="hod_print_supervisor_report.php" target="_blank" class="btn btn-outline">
+                    <i class="fas fa-chalkboard-user"></i> Supervisor Score Report
+                </a>
                 <a href="hod_view_assessments.php" class="btn btn-outline">
                     <i class="fas fa-list-check"></i> Defense Scores
                 </a>
