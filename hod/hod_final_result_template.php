@@ -240,6 +240,52 @@ if (isset($_GET['export']) && $_GET['export'] === 'raw_csv') {
     fclose($output);
     exit();
 }
+
+// Handle Grade-Grouped CSV Export (students bucketed under A/B/C/D/E/F headings,
+// with a blank separator row between grade bands - mirrors the department's paper template)
+if (isset($_GET['export']) && $_GET['export'] === 'grade_grouped') {
+    $filename = "Grade_Grouped_Results_" . str_replace(' ', '_', $dept_name) . "_" . str_replace('/', '-', $active_session) . ".csv";
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="' . $filename . '"');
+
+    $output = fopen('php://output', 'w');
+    fputcsv($output, ["PROJECT VALIDATION & ASSESSMENT SYSTEM"]);
+    fputcsv($output, ["DEPARTMENT OF " . strtoupper($dept_name)]);
+    fputcsv($output, ["STUDENTS GROUPED BY GRADE"]);
+    fputcsv($output, [$active_session . " SESSION"]);
+    fputcsv($output, []); // blank line
+
+    $grade_order = ['A', 'B', 'C', 'D', 'E', 'F'];
+    $grouped = array_fill_keys($grade_order, []);
+    foreach ($processed_results as $r) {
+        $grouped[$r['grade']][] = $r;
+    }
+
+    fputcsv($output, ['S/N', 'REG.NO', 'NAME', 'TOPIC', 'SUPERVISOR', 'GRADE']);
+
+    $sn = 1;
+    $first_group = true;
+    foreach ($grade_order as $grade) {
+        if (empty($grouped[$grade])) continue;
+
+        if (!$first_group) fputcsv($output, []); // blank separator row between grade bands
+        $first_group = false;
+
+        foreach ($grouped[$grade] as $r) {
+            fputcsv($output, [
+                $sn++,
+                $r['reg_no'],
+                $r['student_name'],
+                $r['project_title'],
+                $r['supervisor_name'],
+                $r['grade']
+            ]);
+        }
+    }
+
+    fclose($output);
+    exit();
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -739,6 +785,12 @@ if (isset($_GET['export']) && $_GET['export'] === 'raw_csv') {
                 </a>
                 <a href="?export=raw_csv" class="btn btn-white">
                     <i class="fas fa-download" style="color: var(--primary);"></i> Download Raw Results (CSV)
+                </a>
+                <a href="?export=grade_grouped" class="btn btn-white">
+                    <i class="fas fa-layer-group" style="color: var(--purple);"></i> Download Grade-Grouped List (CSV)
+                </a>
+                <a href="hod_print_grade_grouped.php" target="_blank" class="btn btn-outline">
+                    <i class="fas fa-print"></i> Print Grade-Grouped List
                 </a>
                 <a href="hod_print_final_result.php" target="_blank" class="btn btn-outline">
                     <i class="fas fa-print"></i> Print Official Sheet
